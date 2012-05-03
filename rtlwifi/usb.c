@@ -460,7 +460,11 @@ static void _rtl_usb_rx_process_agg(struct ieee80211_hw *hw,
 	};
 
 	skb_pull(skb, RTL_RX_DESC_SIZE);
-	rtlpriv->cfg->ops->query_rx_desc(hw, &stats, &rx_status, rxdesc, skb);
+	if (!rtlpriv->cfg->ops->query_rx_desc(hw, &stats, &rx_status, rxdesc,
+	    skb)) {
+		dev_kfree_skb_any(skb);
+		return;
+	}
 	skb_pull(skb, (stats.rx_drvinfo_size + stats.rx_bufshift));
 	hdr = (struct ieee80211_hdr *)(skb->data);
 	fc = hdr->frame_control;
@@ -502,7 +506,11 @@ static void _rtl_usb_rx_process_noagg(struct ieee80211_hw *hw,
 	};
 
 	skb_pull(skb, RTL_RX_DESC_SIZE);
-	rtlpriv->cfg->ops->query_rx_desc(hw, &stats, &rx_status, rxdesc, skb);
+	if (!rtlpriv->cfg->ops->query_rx_desc(hw, &stats, &rx_status, rxdesc,
+	    skb)) {
+		dev_kfree_skb_any(skb);
+		return;
+	}
 	skb_pull(skb, (stats.rx_drvinfo_size + stats.rx_bufshift));
 	hdr = (struct ieee80211_hdr *)(skb->data);
 	fc = hdr->frame_control;
