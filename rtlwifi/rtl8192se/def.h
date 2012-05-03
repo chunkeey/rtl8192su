@@ -341,7 +341,7 @@
 #define SET_RX_STATUS_DESC_BC(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(__pdesc + 4, 31, 1, __val)
 
-#define GET_RX_STATUS_DEC_MACID(__pdesc)			\
+#define GET_RX_STATUS_DESC_MACID(__pdesc)			\
 	SHIFT_AND_MASK_LE(__pdesc + 4, 0, 5)
 #define GET_RX_STATUS_DESC_TID(__pdesc)				\
 	SHIFT_AND_MASK_LE(__pdesc + 4, 5, 4)
