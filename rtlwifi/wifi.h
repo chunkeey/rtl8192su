@@ -1416,6 +1416,7 @@ struct rtl_tcb_desc {
 };
 
 struct rtl_hal_ops {
+	void (*modify_ieee80211_ops) (struct ieee80211_ops *ops);
 	int (*init_sw_vars) (struct ieee80211_hw *hw);
 	void (*deinit_sw_vars) (struct ieee80211_hw *hw);
 	void (*read_chip_version)(struct ieee80211_hw *hw);

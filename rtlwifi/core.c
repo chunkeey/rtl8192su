@@ -1173,7 +1173,7 @@ static void rtl_op_flush(struct ieee80211_hw *hw, bool drop)
 		rtlpriv->intf_ops->flush(hw, drop);
 }
 
-const struct ieee80211_ops rtl_ops = {
+struct ieee80211_ops rtl_ops = {
 	.start = rtl_op_start,
 	.stop = rtl_op_stop,
 	.tx = rtl_op_tx,
