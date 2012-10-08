@@ -21,3 +21,13 @@ all:
 clean:
 	$(MAKE) -C $(KSRC) M=$(KMOD_SRC) clean $(KMOD_OPTIONS)
 
+load:	all
+	modprobe mac80211
+	insmod $(KMOD_SRC)/rtlwifi.ko
+	insmod $(KMOD_SRC)/rtl8192su/rtl8192su.ko
+
+unload:
+	rmmod $(KMOD_SRC)/rtl8192su/rtl8192su.ko
+	rmmod $(KMOD_SRC)/rtlwifi.ko
+
+reload:	unload load
