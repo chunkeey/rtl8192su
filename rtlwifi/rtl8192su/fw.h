@@ -236,7 +236,7 @@ struct h2c_set_pwrmode_parm {
 	u8 bcn_pass_cnt;
 	/* beacon TO (ms). ¡§=0¡¨ no limit. */
 	u8 bcn_to;
-	u16	bcn_itv;
+	__le16	bcn_itv;
 	/* only for VOIP mode. */
 	u8 app_itv;
 	u8 awake_bcn_itvl;
@@ -249,14 +249,14 @@ struct h2c_joinbss_rpt_parm {
 	u8 opmode;
 	u8 ps_qos_info;
 	u8 bssid[6];
-	u16 bcnitv;
-	u16 aid;
+	__le16 bcnitv;
+	__le16 aid;
 } ;
 
 struct h2c_sitesurvey_parm {
-	u32 active;
-	u32 bsslimit;
-	u32 ssidlen;
+	__le32 active;
+	__le32 bsslimit;
+	__le32 ssidlen;
 	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
 };
 
@@ -265,7 +265,7 @@ struct h2c_disconnect_parm {
 };
 
 struct h2c_setchannel_parm {
-	u32 channel;
+	__le32 channel;
 };
 
 struct h2c_setauth_parm {
@@ -368,44 +368,44 @@ enum fw_h2c_cmd {
 };
 
 struct ndis_802_11_ssid {
-	u32 ssidlen;
+	__le32 ssidlen;
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 };
 
 struct ndis_802_11_configuration_fh {
-	u32 len;
-	u32 hoppattern;
-	u32 hopset;
-	u32 dwelltime;
+	__le32 len;
+	__le32 hoppattern;
+	__le32 hopset;
+	__le32 dwelltime;
 };
 
 struct ndis_802_11_configuration {
-	u32 len;
-	u32 beaconperiod;
-	u32 atimwindow;
-	u32 dsconfig;
+	__le32 len;
+	__le32 beaconperiod;
+	__le32 atimwindow;
+	__le32 dsconfig;
 	struct ndis_802_11_configuration_fh fhconfig;
 };
 
 struct ndis_wlan_bssid_ex {
-	u32 len;
+	__le32 len;
 	u8 macaddr[6];
 	u8 rsvd10[2];
 	struct ndis_802_11_ssid ssid;
-	u32 privacy;
-	s32 rssi;
-	u32 networktype; // enum
+	__le32 privacy;
+	__le32 rssi;
+	__le32 networktype; // enum
 	struct ndis_802_11_configuration config;
-	u32 inframode; // enum
+	__le32 inframode; // enum
 	u8 supportedrates[16]; // type
-	u32 ielen;
+	__le32 ielen;
 	u8 ies[0];
 };
 
 struct ndis_802_11_fixed_ies {
 	u8 timestamp[8];
-	u16 beaconint;
-	u16 caps;
+	__le16 beaconint;
+	__le16 caps;
 };
 
 /* The following macros are used for FW

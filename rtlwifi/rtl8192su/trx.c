@@ -662,11 +662,12 @@ static void _rtl92su_c2h_survey_resp(struct ieee80211_hw *hw, u8 *data)
 	fixed = (struct ndis_802_11_fixed_ies *)survey->ies;
 
 	ie = survey->ies + sizeof(struct ndis_802_11_fixed_ies);
-	ie_len = survey->ielen - sizeof(struct ndis_802_11_fixed_ies);
-	if (sizeof(struct ndis_802_11_fixed_ies) > survey->ielen)
+	ie_len = le32_to_cpu(survey->ielen) -
+		sizeof(struct ndis_802_11_fixed_ies);
+	if (sizeof(struct ndis_802_11_fixed_ies) > le32_to_cpu(survey->ielen))
 		ie_len = 0;
 
-	freq = ieee80211_channel_to_frequency(survey->config.dsconfig,
+	freq = ieee80211_channel_to_frequency(le32_to_cpu(survey->config.dsconfig),
 					      IEEE80211_BAND_2GHZ);
 	chan = ieee80211_get_channel(hw->wiphy, freq);
 
@@ -680,7 +681,7 @@ static void _rtl92su_c2h_survey_resp(struct ieee80211_hw *hw, u8 *data)
 	cfg80211_put_bss(bss);
 }
 
-void rtl92su_c2h_event(struct ieee80211_hw *hw, u8 *pdesc)
+static void rtl92su_c2h_event(struct ieee80211_hw *hw, u8 *pdesc)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u16 len;
