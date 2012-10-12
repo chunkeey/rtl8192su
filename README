@@ -1,0 +1,21 @@
+RTL8192SU mac80211-port driver
+-----------------------
+
+This is "a" driver repository for the WIP rtl8192su for
+any interested developer.
+
+To build the driver you will need to have a compatible
+kernel source (usually present, if you built your own)
+
+just use the Makefile:
+
+make all
+
+and then
+
+make load
+
+to load the module.
+
+Note: This driver might not be compatible with
+other drivers that use the rtlwifi framework.
