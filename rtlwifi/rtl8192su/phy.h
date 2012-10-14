@@ -40,6 +40,25 @@
 
 #define RF90_PATH_MAX			4
 
+
+#define IOCMD_CLASS_BB_RF			0xF0
+#define IOCMD_BB_READ_IDX			0x00
+#define IOCMD_BB_WRITE_IDX			0x01
+#define IOCMD_RF_READ_IDX			0x02
+#define IOCMD_RF_WRITE_IDX			0x03
+
+#define	MASKBYTE0				0xff
+#define	MASKBYTE1				0xff00
+#define	MASKBYTE2				0xff0000
+#define	MASKBYTE3				0xff000000
+#define	MASKHWORD				0xffff0000
+#define	MASKLWORD				0x0000ffff
+#define	MASKDWORD				0xffffffff
+
+#define	MAKS12BITS				0xfffff
+#define	MASK20BITS				0xfffff
+#define RFREG_OFFSET_MASK			0xfffff
+
 enum version_8192s {
 	VERSION_8192S_ACUT,
 	VERSION_8192S_BCUT,
