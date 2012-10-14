@@ -171,7 +171,7 @@ struct fw_priv {
 	u8 rsvd051;
 	u8 rsvd052;
 	u8 rsvd053;
-};
+} __packed;
 
 /* 8-byte alinment required */
 struct fw_hdr {
@@ -202,7 +202,7 @@ struct fw_hdr {
 
 	struct fw_priv fwpriv;
 
-} ;
+} __packed __aligned(8);
 
 enum fw_status {
 	FW_STATUS_INIT = 0,
@@ -312,72 +312,97 @@ enum h2c_cmd {
 };
 
 enum fw_h2c_cmd {
-	H2C_READ_MACREG_CMD,				/*0*/
+	H2C_READ_MACREG_CMD,				/* 0 */
 	H2C_WRITE_MACREG_CMD,
 	H2C_READBB_CMD,
 	H2C_WRITEBB_CMD,
 	H2C_READRF_CMD,
-	H2C_WRITERF_CMD,				/*5*/
+	H2C_WRITERF_CMD,				/* 5 */
 	H2C_READ_EEPROM_CMD,
 	H2C_WRITE_EEPROM_CMD,
 	H2C_READ_EFUSE_CMD,
 	H2C_WRITE_EFUSE_CMD,
-	H2C_READ_CAM_CMD,				/*10*/
+	H2C_READ_CAM_CMD,				/* 10 */
 	H2C_WRITE_CAM_CMD,
 	H2C_SETBCNITV_CMD,
 	H2C_SETMBIDCFG_CMD,
 	H2C_JOINBSS_CMD,
-	H2C_DISCONNECT_CMD,				/*15*/
+	H2C_DISCONNECT_CMD,				/* 15 */
 	H2C_CREATEBSS_CMD,
 	H2C_SETOPMode_CMD,
 	H2C_SITESURVEY_CMD,
 	H2C_SETAUTH_CMD,
-	H2C_SETKEY_CMD,					/*20*/
+	H2C_SETKEY_CMD,					/* 20 */
 	H2C_SETSTAKEY_CMD,
 	H2C_SETASSOCSTA_CMD,
 	H2C_DELASSOCSTA_CMD,
 	H2C_SETSTAPWRSTATE_CMD,
-	H2C_SETBASICRATE_CMD,				/*25*/
+	H2C_SETBASICRATE_CMD,				/* 25 */
 	H2C_GETBASICRATE_CMD,
 	H2C_SETDATARATE_CMD,
 	H2C_GETDATARATE_CMD,
 	H2C_SETPHYINFO_CMD,
-	H2C_GETPHYINFO_CMD,				/*30*/
+	H2C_GETPHYINFO_CMD,				/* 30 */
 	H2C_SETPHY_CMD,
 	H2C_GETPHY_CMD,
 	H2C_READRSSI_CMD,
 	H2C_READGAIN_CMD,
-	H2C_SETATIM_CMD,				/*35*/
+	H2C_SETATIM_CMD,				/* 35 */
 	H2C_SETPWRMODE_CMD,
 	H2C_JOINBSSRPT_CMD,
 	H2C_SETRATABLE_CMD,
 	H2C_GETRATABLE_CMD,
-	H2C_GETCCXREPORT_CMD,				/*40*/
+	H2C_GETCCXREPORT_CMD,				/* 40 */
 	H2C_GETDTMREPORT_CMD,
 	H2C_GETTXRATESTATICS_CMD,
 	H2C_SETUSBSUSPEND_CMD,
 	H2C_SETH2CLBK_CMD,
-	H2C_TMP1,					/*45*/
+	H2C_ADDBA_REQ_CMD,				/* 45 */
 	H2C_SETCHANNEL_CMD,
-	H2C_WOWLAN_FW_OFFLOAD,
-	H2C_TMP2,
-	H2C_TMP3,
-	H2C_WOWLAN_UPDATE_IV_CMD,			/*50*/
-	H2C_TMP4,
-	MAX_H2CCMD					/*52*/
+	H2C_SET_TXPOWER_CMD,
+	H2C_SWITCH_ANTENNA_CMD,
+	H2C_SET_XTAL_CAP_CMD,
+	H2C_SET_SINGLE_CARRIER_TX_CMD,			/* 50 */
+	H2C_SET_SINGLE_TONE_CMD,
+	H2C_SET_CARRIER_SUPPRESION_TX_CMD,
+	H2C_SET_CONTINOUS_TX_CMD,
+	H2C_SWITCH_BW_CMD,
+	H2C_TX_BEACON_CMD,				/* 55 */
+	H2C_SET_POWER_TRACKING_CMD,
+	H2C_AMSDU_TO_AMPDU_CMD,
+	H2C_SET_MAC_ADDRESS_CMD,
+	H2C_DISCONNECT_CTRL_CMD,
+	H2C_SET_CHANNELPLAN_CMD,			/* 60 */
+	H2C_DISCONNECT_CTRL_EX_CMD,
+	H2C_GET_H2C_LBK_CMD,
+	H2C_SET_PROBE_REQ_EXTRA_IE_CMD,
+	H2C_SET_ASSOC_REQ_EXTRA_IE_CMD,
+	H2C_SET_PROBE_RSP_EXTRA_IE_CMD,			/* 65 */
+	H2C_SET_ASSOC_RSP_EXTRA_IE_CMD,
+	H2C_GET_CURRENT_DATA_RATE_CMD,
+	H2C_GET_TX_RETRY_CNT_CMD,
+	H2C_GET_RX_RETRY_CNT_CMD,
+	H2C_GET_BCN_OK_CNT_CMD,				/* 70 */
+	H2C_GET_BCN_ERR_CNT_CMD,
+	H2C_GET_CURRENT_TXPOWER_CMD,
+	H2C_SET_DIG_CMD,
+	H2C_SET_RA_CMD,
+	H2C_SET_PT_CMD,					/* 75 */
+	H2C_READ_RSSI_CMD,
+	MAX_H2CCMD,					/* 77 */
 };
 
 struct ndis_802_11_ssid {
 	__le32 ssidlen;
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
-};
+} __packed;
 
 struct ndis_802_11_configuration_fh {
 	__le32 len;
 	__le32 hoppattern;
 	__le32 hopset;
 	__le32 dwelltime;
-};
+} __packed;
 
 struct ndis_802_11_configuration {
 	__le32 len;
@@ -385,7 +410,7 @@ struct ndis_802_11_configuration {
 	__le32 atimwindow;
 	__le32 dsconfig;
 	struct ndis_802_11_configuration_fh fhconfig;
-};
+} __packed;
 
 struct ndis_wlan_bssid_ex {
 	__le32 len;
@@ -400,13 +425,13 @@ struct ndis_wlan_bssid_ex {
 	u8 supportedrates[16]; // type
 	__le32 ielen;
 	u8 ies[0];
-};
+} __packed;
 
 struct ndis_802_11_fixed_ies {
 	u8 timestamp[8];
 	__le16 beaconint;
 	__le16 caps;
-};
+} __packed;
 
 /* The following macros are used for FW
  * CMD map and parameter updated. */
