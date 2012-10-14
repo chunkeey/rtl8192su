@@ -661,7 +661,6 @@ static int _rtl_usb_receive(struct ieee80211_hw *hw)
 	return 0;
 
 err_out:
-	usb_kill_anchored_urbs(&rtlusb->rx_submitted);
 	return err;
 }
 
@@ -703,7 +702,7 @@ static void rtl_usb_cleanup(struct ieee80211_hw *hw)
 	SET_USB_STOP(rtlusb);
 
 	/* clean up rx stuff. */
-	usb_kill_anchored_urbs(&rtlusb->rx_submitted);
+	usb_unlink_anchored_urbs(&rtlusb->rx_submitted);
 
 	/* clean up tx stuff */
 	for (i = 0; i < RTL_USB_MAX_EP_NUM; i++) {
@@ -714,9 +713,9 @@ static void rtl_usb_cleanup(struct ieee80211_hw *hw)
 			txinfo->flags |= IEEE80211_TX_STAT_ACK;
 			ieee80211_tx_status_irqsafe(hw, _skb);
 		}
-		usb_kill_anchored_urbs(&rtlusb->tx_pending[i]);
+		usb_unlink_anchored_urbs(&rtlusb->tx_pending[i]);
 	}
-	usb_kill_anchored_urbs(&rtlusb->tx_submitted);
+	usb_unlink_anchored_urbs(&rtlusb->tx_submitted);
 }
 
 /**
