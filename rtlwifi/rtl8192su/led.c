@@ -57,18 +57,18 @@ void rtl92su_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	RT_TRACE(rtlpriv, COMP_LED, DBG_LOUD, "LedAddr:%X ledpin=%d\n",
-		 LEDCFG, pled->ledpin);
+		 REG_LEDCFG, pled->ledpin);
 
-	ledcfg = rtl_read_byte(rtlpriv, LEDCFG);
+	ledcfg = rtl_read_byte(rtlpriv, REG_LEDCFG);
 
 	switch (pled->ledpin) {
 	case LED_PIN_GPIO0:
 		break;
 	case LED_PIN_LED0:
-		rtl_write_byte(rtlpriv, LEDCFG, ledcfg & 0xf0);
+		rtl_write_byte(rtlpriv, REG_LEDCFG, ledcfg & 0xf0);
 		break;
 	case LED_PIN_LED1:
-		rtl_write_byte(rtlpriv, LEDCFG, ledcfg & 0x0f);
+		rtl_write_byte(rtlpriv, REG_LEDCFG, ledcfg & 0x0f);
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
@@ -88,9 +88,9 @@ void rtl92su_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 	if (!rtlpriv || rtlpriv->max_fw_size)
 		return;
 	RT_TRACE(rtlpriv, COMP_LED, DBG_LOUD, "LedAddr:%X ledpin=%d\n",
-		 LEDCFG, pled->ledpin);
+		 REG_LEDCFG, pled->ledpin);
 
-	ledcfg = rtl_read_byte(rtlpriv, LEDCFG);
+	ledcfg = rtl_read_byte(rtlpriv, REG_LEDCFG);
 
 	switch (pled->ledpin) {
 	case LED_PIN_GPIO0:
@@ -98,13 +98,13 @@ void rtl92su_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 	case LED_PIN_LED0:
 		ledcfg &= 0xf0;
 		if (usbpriv->ledctl.led_opendrain)
-			rtl_write_byte(rtlpriv, LEDCFG, (ledcfg | BIT(1)));
+			rtl_write_byte(rtlpriv, REG_LEDCFG, (ledcfg | BIT(1)));
 		else
-			rtl_write_byte(rtlpriv, LEDCFG, (ledcfg | BIT(3)));
+			rtl_write_byte(rtlpriv, REG_LEDCFG, (ledcfg | BIT(3)));
 		break;
 	case LED_PIN_LED1:
 		ledcfg &= 0x0f;
-		rtl_write_byte(rtlpriv, LEDCFG, (ledcfg | BIT(3)));
+		rtl_write_byte(rtlpriv, REG_LEDCFG, (ledcfg | BIT(3)));
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,

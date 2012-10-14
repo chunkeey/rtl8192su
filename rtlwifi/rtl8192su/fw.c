@@ -57,16 +57,16 @@ static bool _rtl92s_firmware_enable_cpu(struct ieee80211_hw *hw)
 	//_rtl92s_fw_set_rqpn(hw);
 
 	/* Enable CPU. */
-	tmpu1b = rtl_read_byte(rtlpriv, SYS_CLKR);
+	tmpu1b = rtl_read_byte(rtlpriv, REG_SYS_CLKR);
 	/* AFE source */
-	rtl_write_byte(rtlpriv, SYS_CLKR, (tmpu1b | SYS_CPU_CLKSEL));
+	rtl_write_byte(rtlpriv, REG_SYS_CLKR, (tmpu1b | SYS_CPU_CLKSEL));
 
 	tmpu2b = rtl_read_word(rtlpriv, REG_SYS_FUNC_EN);
 	rtl_write_word(rtlpriv, REG_SYS_FUNC_EN, (tmpu2b | FEN_CPUEN));
 
 	/* Polling IMEM Ready after CPU has refilled. */
 	do {
-		cpustatus = rtl_read_byte(rtlpriv, TCR);
+		cpustatus = rtl_read_byte(rtlpriv, REG_TCR);
 		if (cpustatus & IMEM_RDY) {
 			RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 				 "IMEM Ready after CPU has refilled\n");
@@ -261,7 +261,7 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 	case FW_STATUS_LOAD_IMEM:
 		/* Polling IMEM code done. */
 		do {
-			cpustatus = rtl_read_byte(rtlpriv, TCR);
+			cpustatus = rtl_read_byte(rtlpriv, REG_TCR);
 			if (cpustatus & IMEM_CODE_DONE)
 				break;
 			udelay(5);
@@ -279,7 +279,7 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 		/* Check Put Code OK and Turn On CPU */
 		/* Polling EMEM code done. */
 		do {
-			cpustatus = rtl_read_byte(rtlpriv, TCR);
+			cpustatus = rtl_read_byte(rtlpriv, REG_TCR);
 			if (cpustatus & EMEM_CODE_DONE)
 				break;
 			udelay(5);
@@ -304,7 +304,7 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 	case FW_STATUS_LOAD_DMEM:
 		/* Polling DMEM code done */
 		do {
-			cpustatus = rtl_read_byte(rtlpriv, TCR);
+			cpustatus = rtl_read_byte(rtlpriv, REG_TCR);
 			if (cpustatus & DMEM_CODE_DONE)
 				break;
 			udelay(5);
@@ -325,7 +325,7 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 		/* Polling Load Firmware ready */
 		pollingcnt = 30;
 		do {
-			cpustatus = rtl_read_byte(rtlpriv, TCR);
+			cpustatus = rtl_read_byte(rtlpriv, REG_TCR);
 			if (cpustatus & FWRDY)
 				break;
 			msleep(100);
@@ -345,18 +345,18 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 
 		/* If right here, we can set TCR/RCR to desired value  */
 		/* and config MAC lookback mode to normal mode */
-		tmpu4b = rtl_read_dword(rtlpriv, TCR);
-		rtl_write_dword(rtlpriv, TCR, (tmpu4b & (~TCR_ICV)));
+		tmpu4b = rtl_read_dword(rtlpriv, REG_TCR);
+		rtl_write_dword(rtlpriv, REG_TCR, (tmpu4b & (~TCR_ICV)));
 
-		tmpu4b = rtl_read_dword(rtlpriv, RCR);
-		rtl_write_dword(rtlpriv, RCR, (tmpu4b | RCR_RX_TCPOFDL_EN |
+		tmpu4b = rtl_read_dword(rtlpriv, REG_RCR);
+		rtl_write_dword(rtlpriv, REG_RCR, (tmpu4b | RCR_RX_TCPOFDL_EN |
 				RCR_APP_PHYST_RXFF | RCR_APP_ICV | RCR_APP_MIC));
 
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 			 "Current RCR settings(%#x)\n", tmpu4b);
 
 		/* Set to normal mode. */
-		rtl_write_byte(rtlpriv, LBKMD_SEL, LBK_NORMAL);
+		rtl_write_byte(rtlpriv, REG_LBKMD_SEL, LBK_NORMAL);
 		break;
 
 	default:
@@ -392,7 +392,6 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 
 	firmware = (struct rt_firmware *)rtlhal->pfirmware;
 	firmware->fwstatus = FW_STATUS_INIT;
-
 	puc_mappedfile = firmware->sz_fw_tmpbuffer;
 
 	/* 1. Retrieve FW header. */
@@ -585,20 +584,6 @@ static bool _rtl92s_firmware_set_h2c_cmd(struct ieee80211_hw *hw, u8 h2c_cmd,
 		element_id = H2C_JOINBSSRPT_CMD;
 		cmd_len = sizeof(struct h2c_joinbss_rpt_parm);
 		break;
-/*
-	case FW_H2C_WOWLAN_UPDATE_GTK:
-		element_id = H2C_WOWLAN_UPDATE_GTK_CMD;
-		cmd_len = sizeof(struct h2c_wpa_two_way_parm);
-		break;
-*/
-	case FW_H2C_WOWLAN_UPDATE_IV:
-		element_id = H2C_WOWLAN_UPDATE_IV_CMD;
-		cmd_len = sizeof(unsigned long long);
-		break;
-	case FW_H2C_WOWLAN_OFFLOAD:
-		element_id = H2C_WOWLAN_FW_OFFLOAD;
-		cmd_len = sizeof(u8);
-		break;
 	case FW_H2C_SITESURVEY:
 		element_id = H2C_SITESURVEY_CMD;
 		cmd_len = sizeof(struct h2c_sitesurvey_parm);
@@ -754,9 +739,9 @@ u8 rtl92s_fw_iocmd(struct ieee80211_hw *hw, u32 cmd)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	int pollcount = 50;
 
-	rtl_write_dword(rtlpriv, IOCMD_CTRL, cmd);
+	rtl_write_dword(rtlpriv, REG_IOCMD_CTRL, cmd);
 	msleep(100);
-	while (rtl_read_dword(rtlpriv, IOCMD_CTRL) && pollcount > 0) {
+	while (rtl_read_dword(rtlpriv, REG_IOCMD_CTRL) && pollcount > 0) {
 		pollcount--;
 		msleep(20);
 	}
@@ -769,10 +754,10 @@ void rtl92s_fw_iocmd_data(struct ieee80211_hw *hw, u32 *val, u8 flag)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	if (flag == 0) { /* set */
-		rtl_write_dword(rtlpriv, IOCMD_DATA, *val);
+		rtl_write_dword(rtlpriv, REG_IOCMD_DATA, *val);
 	}
 	else { /* query */
-		*val = rtl_read_dword(rtlpriv, IOCMD_DATA);
+		*val = rtl_read_dword(rtlpriv, REG_IOCMD_DATA);
 	}
 }
 

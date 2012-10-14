@@ -80,7 +80,6 @@ int rtl8192su_endpoint_mapping(struct ieee80211_hw *hw)
 	struct rtl_usb *rtlusb = rtl_usbdev(usb_priv);
 	struct rtl_ep_map *ep_map = &(rtlusb->ep_map);
 
-	rtlusb->in_ep = 0x03;
 	switch (rtlusb->out_ep_nums) {
 	case 3:
 		_ThreeOutEpMapping(ep_map);
