@@ -1784,6 +1784,7 @@ struct rtl_mod_params {
 
 struct rtl_hal_usbint_cfg {
 	/* data - rx */
+	u32 in_ep;
 	u32 in_ep_num;
 	u32 rx_urb_num;
 	u32 rx_max_size;
