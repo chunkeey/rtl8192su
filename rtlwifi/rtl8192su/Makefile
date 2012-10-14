@@ -6,7 +6,6 @@ rtl8192su-objs :=		\
 		phy.o		\
 		rf.o		\
 		sw.o		\
-		table.o		\
 		trx.o
 
 obj-$(CONFIG_RTL8192SU) += rtl8192su.o
