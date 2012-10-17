@@ -56,7 +56,7 @@ MODULE_FIRMWARE("rtlwifi/rtl8712u.bin");
 
 static void rtl92su_modify_ieee80211_ops(struct ieee80211_ops *ops)
 {
-	ops->hw_scan = rtl92s_set_fw_sitesurvey_cmd;
+//	ops->hw_scan = rtl92s_set_fw_sitesurvey_cmd;
 }
 
 static void rtl92su_fw_cb(const struct firmware *firmware, void *context)
@@ -127,6 +127,7 @@ static int rtl92su_init_sw_vars(struct ieee80211_hw *hw)
 			RCR_APPFCS |
 			RCR_APWRMGT |
 			/*RCR_ADD3 |*/
+			RCR_ACF	|
 			RCR_AMF	|
 			RCR_ADF |
 			RCR_APP_MIC |
@@ -210,8 +211,6 @@ static struct rtl_hal_ops rtl8192su_hal_ops = {
 	.interrupt_recognized = rtl92su_interrupt_recognized,
 	.hw_init = rtl92su_hw_init,
 	.hw_disable = rtl92su_card_disable,
-	//.hw_suspend = rtl92su_suspend,
-	//.hw_resume = rtl92su_resume,
 	.enable_interrupt = rtl92su_enable_interrupt,
 	.disable_interrupt = rtl92su_disable_interrupt,
 	.set_network_type = rtl92su_set_network_type,
@@ -229,15 +228,12 @@ static struct rtl_hal_ops rtl8192su_hal_ops = {
 	.set_channel_access = rtl92su_update_channel_access_setting,
 	.radio_onoff_checking = rtl92su_gpio_radio_on_off_checking,
 	.set_bw_mode = rtl92s_phy_set_bw_mode,
-	//.switch_channel = rtl92s_phy_sw_chnl,
+	.switch_channel = rtl92s_phy_sw_chnl,
 	.switch_channel = rtl92s_set_fw_setchannel_cmd,
 	.dm_watchdog = rtl92s_dm_watchdog,
 	.scan_operation_backup = rtl92s_phy_scan_operation_backup,
 	.set_rf_power_state = rtl92s_phy_set_rf_power_state,
 	.led_control = rtl92su_led_control,
-	//.set_desc = rtl92su_set_desc,
-	//.get_desc = rtl92su_get_desc,
-	//.tx_polling = rtl92su_tx_polling,
 	.enable_hw_sec = rtl92su_enable_hw_security_config,
 	.set_key = rtl92su_set_key,
 	.init_sw_leds = rtl92su_init_sw_leds,
@@ -249,10 +245,10 @@ static struct rtl_hal_ops rtl8192su_hal_ops = {
 };
 
 static struct rtl_mod_params rtl92su_mod_params = {
-	.sw_crypto = false,
+	.sw_crypto = true,
 	.inactiveps = false,
 	.swctrl_lps = false,
-	.fwctrl_lps = false,
+	.fwctrl_lps = true,
 	.debug = DBG_TRACE,
 };
 

@@ -225,6 +225,26 @@ struct rt_firmware {
 	u16 cmdpacket_fragthresold;
 };
 
+struct h2c_rates {
+	u8 rates[8];
+} __packed;
+
+struct h2c_ext_rates {
+	u8 rates[16];
+} __packed;
+
+struct h2c_iocmd {
+	union {
+		struct {
+			u8 cmdclass;
+			u16 value;
+			u8 index;
+		} __packed;
+
+		__le32 cmd;
+	} __packed;
+} __packed;
+
 struct h2c_set_pwrmode_parm {
 	u8 mode;
 	u8 flag_low_traffic_en;
@@ -243,7 +263,57 @@ struct h2c_set_pwrmode_parm {
 	u8 smart_ps;
 	/* unit: 100 ms */
 	u8 bcn_pass_period;
+} __packed;
+
+struct h2c_sta_psm {
+	u8 aid;
+	u8 status;
+	u8 addr[ETH_ALEN];
+} __packed;
+
+struct h2c_basic_rates {
+	struct h2c_rates basic_rates;
+} __packed;
+
+enum h2c_channel_plan_types {
+	CHANNEL_PLAN_FCC = 0,
+	CHANNEL_PLAN_IC = 1,
+	CHANNEL_PLAN_ETSI = 2,
+	CHANNEL_PLAN_SPAIN = 3,
+	CHANNEL_PLAN_FRANCE = 4,
+	CHANNEL_PLAN_MKK = 5,
+	CHANNEL_PLAN_MKK1 = 6,
+	CHANNEL_PLAN_ISRAEL = 7,
+	CHANNEL_PLAN_TELEC = 8,
+
+	/* Deprecated */
+	CHANNEL_PLAN_MIC = 9,
+	CHANNEL_PLAN_GLOBAL_DOMAIN = 10,
+	CHANNEL_PLAN_WORLD_WIDE_13 = 11,
+	CHANNEL_PLAN_TELEC_NETGEAR = 12,
+
+	CHANNEL_PLAN_NCC = 13,
+	CHANNEL_PLAN_5G = 14,
+	CHANNEL_PLAN_5G_40M = 15,
+
+	/* keep it last */
+	__MAX_CHANNEL_PLAN
 };
+
+struct h2c_channel_plan {
+	__le32 channel_plan;	/* see h2c_channel_plan_types */
+} __packed;
+
+struct h2c_antenna {
+	u8 tx_antenna_set;
+	u8 rx_antenna_set;
+	u8 tx_antenna;
+	u8 rx_antenna;
+} __packed;
+
+struct h2c_set_mac {
+	u8 mac[ETH_ALEN];
+} __packed;
 
 struct h2c_joinbss_rpt_parm {
 	u8 opmode;
@@ -251,28 +321,28 @@ struct h2c_joinbss_rpt_parm {
 	u8 bssid[6];
 	__le16 bcnitv;
 	__le16 aid;
-} ;
+} __packed;
 
 struct h2c_sitesurvey_parm {
 	__le32 active;
 	__le32 bsslimit;
 	__le32 ssidlen;
 	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
-};
+} __packed;
 
 struct h2c_disconnect_parm {
-	u32 rsvd0;
-};
+	__le32 rsvd0;
+} __packed;
 
 struct h2c_setchannel_parm {
 	__le32 channel;
-};
+} __packed;
 
 struct h2c_setauth_parm {
 	u8 mode;
-	u8 _1x;
+	u8 _1x;		/* 0 = PSK, 1 = EAP */
 	u8 rsvd2[2];
-};
+} __packed;
 
 struct h2c_wpa_ptk {
 	/* EAPOL-Key Key Confirmation Key (KCK) */
@@ -291,25 +361,100 @@ struct h2c_wpa_ptk {
 	} u;
 };
 
+struct h2c_11fh_network_configuration {	/* ndis_802_11_configuration_fh */
+	__le32 length;
+	__le32 hop_pattern;		/* as defined by 802.11, MSB set */
+	__le32 hop_set;			/* = 1, if non-802.11 */
+	__le32 dwell_time;		/* units are in Kibi usec */
+} __packed;
+
+struct h2c_network_configuration {	/* ndis_802_11_configuration */
+	__le32 length;
+	__le32 beacon_period;		/* units are in Kibi usec */
+	__le32 atim_window;		/* units are in Kibi usec */
+	__le32 frequency;		/* units are kHz - needed but not used?! */
+	struct h2c_11fh_network_configuration fh_config;
+} __packed;
+
+enum h2c_network_infrastruct_mode {
+	MODE_IBSS,
+	MODE_BSS,
+	MODE_AUTO,
+	MODE_INFRA_MAX,		/*
+				 * Apparently that's not a real value,
+				 * just the upper bound
+				 */
+	MODE_AP,		/* maybe this should be = INFRA_MAX? */
+
+	/* keep this last */
+	__MAX_NETWORK_MODE
+};
+
+enum h2c_op_modes {
+	OP_AUTO = 0,		/* Let the driver decides which AP to join */
+	OP_ADHOC,		/* Single cell network (Ad-Hoc Clients) */
+	OP_INFRA,		/* Multi cell network, roaming, ... */
+	OP_MASTER,		/* Synchronisation master or AP - useless */
+	OP_REPEAT,		/* Wireless Repeater (forwarder) - useless */
+	OP_SECOND,		/* Secondary master/repeater (backup) - useless */
+	OP_MONITOR,		/* Passive monitor (listen only) - useless */
+
+	/* keep this last */
+	__MAC_OP_MODES
+};
+
+enum h2c_network_type {
+	TYPE_11FH = 0,
+	TYPE_11DS,
+	TYPE_11OFDM5GHZ,
+	TYPE_11OFDM2GHZ,
+
+	/* keep this last */
+	__MAX_NETWORK_TYPE
+};
+
+struct h2c_opmode {
+	u8 mode;		/* see h2c_op_modes */
+	u8 padding[3];
+} __packed;
+
+struct h2c_ssid {		/* ndis_802_11_ssid */
+	u8 length;
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+} __packed;
+
+struct h2c_fixed_ies {
+	__le32 timestamp;
+	__le16 beaconint;
+	__le16 caps;
+	u8 ie[0];		/*
+				 * (fixed?) and variable IE content -
+				 * can be up to 768 bytes
+				 */
+} __packed;
+
+struct h2c_bss {		/* ndis_wlan_bssid_ex */
+	__le32 length;		/* length of the full struct */
+	u8 bssid[6];
+	u8 padding[2];
+	struct h2c_ssid	ssid;
+	__le32 privacy;
+	__le32 rssi;		/* ??? - maybe for request/survey */
+
+	__le32 type;		/* see h2c_network_type */
+	struct h2c_network_configuration config;
+	__le32 mode;		/* see h2c_network_infrastruct_mode */
+	struct h2c_ext_rates rates;
+	__le32 ie_length;	/* not sure if this include fixed too */
+	struct h2c_fixed_ies ies;
+} __packed;
+
 struct h2c_wpa_two_way_parm {
 	/* algorithm TKIP or AES */
 	u8 pairwise_en_alg;
 	u8 group_en_alg;
 	struct h2c_wpa_ptk wpa_ptk_value;
-} ;
-
-enum h2c_cmd {
-	FW_H2C_SETPWRMODE = 0,
-	FW_H2C_JOINBSSRPT = 1,
-	FW_H2C_WOWLAN_UPDATE_GTK = 2,
-	FW_H2C_WOWLAN_UPDATE_IV = 3,
-	FW_H2C_WOWLAN_OFFLOAD = 4,
-	FW_H2C_SITESURVEY = 5,
-	FW_H2C_DISCONNECT = 6,
-	FW_H2C_SETCHANNEL = 7,
-	FW_H2C_SETOPMODE = 8,
-	FW_H2C_SETAUTH = 8,
-};
+} __packed;
 
 enum fw_h2c_cmd {
 	H2C_READ_MACREG_CMD,				/* 0 */
@@ -329,7 +474,7 @@ enum fw_h2c_cmd {
 	H2C_JOINBSS_CMD,
 	H2C_DISCONNECT_CMD,				/* 15 */
 	H2C_CREATEBSS_CMD,
-	H2C_SETOPMode_CMD,
+	H2C_SETOPMODE_CMD,
 	H2C_SITESURVEY_CMD,
 	H2C_SETAUTH_CMD,
 	H2C_SETKEY_CMD,					/* 20 */
@@ -392,47 +537,6 @@ enum fw_h2c_cmd {
 	MAX_H2CCMD,					/* 77 */
 };
 
-struct ndis_802_11_ssid {
-	__le32 ssidlen;
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
-} __packed;
-
-struct ndis_802_11_configuration_fh {
-	__le32 len;
-	__le32 hoppattern;
-	__le32 hopset;
-	__le32 dwelltime;
-} __packed;
-
-struct ndis_802_11_configuration {
-	__le32 len;
-	__le32 beaconperiod;
-	__le32 atimwindow;
-	__le32 dsconfig;
-	struct ndis_802_11_configuration_fh fhconfig;
-} __packed;
-
-struct ndis_wlan_bssid_ex {
-	__le32 len;
-	u8 macaddr[6];
-	u8 rsvd10[2];
-	struct ndis_802_11_ssid ssid;
-	__le32 privacy;
-	__le32 rssi;
-	__le32 networktype; // enum
-	struct ndis_802_11_configuration config;
-	__le32 inframode; // enum
-	u8 supportedrates[16]; // type
-	__le32 ielen;
-	u8 ies[0];
-} __packed;
-
-struct ndis_802_11_fixed_ies {
-	u8 timestamp[8];
-	__le16 beaconint;
-	__le16 caps;
-} __packed;
-
 /* The following macros are used for FW
  * CMD map and parameter updated. */
 #define FW_CMD_IO_CLR(rtlpriv, _Bit)				\
@@ -468,14 +572,17 @@ void rtl92s_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw,
 int rtl92s_set_fw_sitesurvey_cmd(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
 				  struct cfg80211_scan_request *req);
-void rtl92s_set_fw_disconnect_cmd(struct ieee80211_hw *hw);
+int rtl92s_set_fw_disconnect_cmd(struct ieee80211_hw *hw);
 u8 rtl92s_set_fw_setchannel_cmd(struct ieee80211_hw *hw);
-void rtl92s_set_fw_setauth_cmd(struct ieee80211_hw *hw);
+int rtl92s_set_fw_setauth_cmd(struct ieee80211_hw *hw);
+int rtl92s_set_fw_opmode_cmd(struct ieee80211_hw *hw, enum h2c_op_modes mode);
 
-u8 rtl92s_fw_iocmd(struct ieee80211_hw *hw, u32 cmd);
-void rtl92s_fw_iocmd_data(struct ieee80211_hw *hw, u32 *val, u8 flag);
+u8 rtl92s_fw_iocmd(struct ieee80211_hw *hw, const u32 cmd);
+void rtl92s_fw_iocmd_data(struct ieee80211_hw *hw, u32 *cmd, const u8 flag);
 
 u32 rtl92s_fw_iocmd_read(struct ieee80211_hw *hw, u8 ioclass, u16 iovalue, u8 ioindex);
 u8 rtl92s_fw_iocmd_write(struct ieee80211_hw *hw, u8 ioclass, u16 iovalue, u8 ioindex, u32 val);
+
+void rtl92su_set_mac_addr(struct ieee80211_hw *hw, const u8 * addr);
 
 #endif

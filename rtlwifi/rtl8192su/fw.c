@@ -35,32 +35,18 @@
 #include "def.h"
 #include "fw.h"
 
-/*
-static void _rtl92s_fw_set_rqpn(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	rtl_write_dword(rtlpriv, RQPN, 0xffffffff);
-	rtl_write_dword(rtlpriv, RQPN + 4, 0xffffffff);
-	rtl_write_byte(rtlpriv, RQPN + 8, 0xff);
-	rtl_write_byte(rtlpriv, RQPN + 0xB, 0x80);
-}
-*/
-
-static bool _rtl92s_firmware_enable_cpu(struct ieee80211_hw *hw)
+static int _rtl92s_firmware_enable_cpu(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u32 ichecktime = 200;
 	u16 tmpu2b;
 	u8 tmpu1b, cpustatus = 0;
 
-	//_rtl92s_fw_set_rqpn(hw);
-
-	/* Enable CPU. */
+	/* select clock */
 	tmpu1b = rtl_read_byte(rtlpriv, REG_SYS_CLKR);
-	/* AFE source */
 	rtl_write_byte(rtlpriv, REG_SYS_CLKR, (tmpu1b | SYS_CPU_CLKSEL));
 
+	/* Enable CPU. */
 	tmpu2b = rtl_read_word(rtlpriv, REG_SYS_FUNC_EN);
 	rtl_write_word(rtlpriv, REG_SYS_FUNC_EN, (tmpu2b | FEN_CPUEN));
 
@@ -76,10 +62,7 @@ static bool _rtl92s_firmware_enable_cpu(struct ieee80211_hw *hw)
 		udelay(100);
 	} while (ichecktime--);
 
-	if (!(cpustatus & IMEM_RDY))
-		return false;
-
-	return true;
+	return !!(cpustatus & IMEM_RDY) ? 0 : -ETIMEDOUT;
 }
 
 static enum fw_status _rtl92s_firmware_get_nextstatus(
@@ -137,9 +120,11 @@ static void _rtl92s_firmwareheader_priveupdate(struct ieee80211_hw *hw,
 
 static void _rtl92s_cmd_complete(struct urb *urb)
 {
+	struct sk_buff *skb = urb->context;
+	dev_kfree_skb_irq(skb);
 }
 
-static bool _rtl92s_cmd_send_packet(struct ieee80211_hw *hw,
+static int _rtl92s_cmd_send_packet(struct ieee80211_hw *hw,
 		struct sk_buff *skb, u8 last)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -148,6 +133,7 @@ static bool _rtl92s_cmd_send_packet(struct ieee80211_hw *hw,
 	struct urb *urb;
 	u8 *pdesc;
 	u32 ep_num;
+	int err;
 
 	pdesc = (u8 *)skb_push(skb, RTL_TX_HEADER_SIZE);
 	rtlpriv->cfg->ops->fill_tx_cmddesc(hw, pdesc, 1, 1, skb);
@@ -160,8 +146,8 @@ static bool _rtl92s_cmd_send_packet(struct ieee80211_hw *hw,
 	if (!urb) {
 		RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
 			 "Can't allocate URB for bulk out!\n");
-		kfree_skb(skb);
-		return false;
+		dev_kfree_skb_any(skb);
+		return -ENOMEM;
 	}
 	_rtl_install_trx_info(rtlusb, skb, ep_num);
 	usb_fill_bulk_urb(urb, rtlusb->udev, usb_sndbulkpipe(rtlusb->udev,
@@ -171,38 +157,34 @@ static bool _rtl92s_cmd_send_packet(struct ieee80211_hw *hw,
 
 	/* _rtl_submit_tx_urb */
 	usb_anchor_urb(urb, &rtlusb->tx_submitted);
-	if (usb_submit_urb(urb, GFP_ATOMIC) < 0) {
+	err = usb_submit_urb(urb, GFP_ATOMIC);
+	if (err < 0) {
 		RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
 			 "Failed to submit urb\n");
 		usb_unanchor_urb(urb);
-		kfree_skb(skb);
-		return false;
+		dev_kfree_skb_any(skb);
+		return err;
 	}
 	usb_free_urb(urb);
-
-	return true;
+	return 0;
 }
 
-static bool _rtl92s_firmware_downloadcode(struct ieee80211_hw *hw,
+static int _rtl92s_firmware_downloadcode(struct ieee80211_hw *hw,
 		u8 *code_virtual_address, u32 buffer_len)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct sk_buff *skb;
 	struct rtl_tcb_desc *tcb_desc;
 	unsigned char *seg_ptr;
-	//u16 frag_threshold = MAX_FIRMWARE_CODE_SIZE;
 	u16 frag_threshold = 0xC000;
 	u16 frag_length, frag_offset = 0;
 	u16 extra_descoffset = 0;
 	u8 last_inipkt = 0;
 
-	//_rtl92s_fw_set_rqpn(hw);
-
 	if (buffer_len >= MAX_FIRMWARE_CODE_SIZE) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "Size over FIRMWARE_CODE_SIZE!\n");
-
-		return false;
+		return -EINVAL;
 	}
 
 	extra_descoffset = 0;
@@ -220,7 +202,7 @@ static bool _rtl92s_firmware_downloadcode(struct ieee80211_hw *hw,
 		/* info and tx descriptor info. */
 		skb = dev_alloc_skb(frag_length);
 		if (!skb)
-			return false;
+			return -ENOMEM;
 		skb_reserve(skb, extra_descoffset);
 		seg_ptr = (u8 *)skb_put(skb, (u32)(frag_length -
 					extra_descoffset));
@@ -238,10 +220,10 @@ static bool _rtl92s_firmware_downloadcode(struct ieee80211_hw *hw,
 
 	} while (frag_offset < buffer_len);
 
-	return true ;
+	return 0;
 }
 
-static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
+static int _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 		u8 loadfw_status)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -249,8 +231,8 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 	struct rt_firmware *firmware = (struct rt_firmware *)rtlhal->pfirmware;
 	u32 tmpu4b;
 	u8 cpustatus = 0;
-	short pollingcnt = 1000;
-	bool rtstatus = true;
+	int err = 0;
+	int pollingcnt = 1000;
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "LoadStaus(%d)\n", loadfw_status);
@@ -271,6 +253,7 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 				 "FW_STATUS_LOAD_IMEM FAIL CPU, Status=%x\n",
 				 cpustatus);
+			err = -EAGAIN;
 			goto status_check_fail;
 		}
 		break;
@@ -289,14 +272,16 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 				 "FW_STATUS_LOAD_EMEM FAIL CPU, Status=%x\n",
 				 cpustatus);
+			err = -EAGAIN;
 			goto status_check_fail;
 		}
 
 		/* Turn On CPU */
-		rtstatus = _rtl92s_firmware_enable_cpu(hw);
-		if (!rtstatus) {
+		err = _rtl92s_firmware_enable_cpu(hw);
+		if (err) {
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 				 "Enable CPU fail!\n");
+			err = -EAGAIN;
 			goto status_check_fail;
 		}
 		break;
@@ -314,6 +299,7 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 				 "Polling DMEM code done fail ! cpustatus(%#x)\n",
 				 cpustatus);
+			err = -EAGAIN;
 			goto status_check_fail;
 		}
 
@@ -340,6 +326,7 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 				 "Polling Load Firmware ready fail ! cpustatus(%x)\n",
 				 cpustatus);
+			err = -EAGAIN;
 			goto status_check_fail;
 		}
 
@@ -349,8 +336,8 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 		rtl_write_dword(rtlpriv, REG_TCR, (tmpu4b & (~TCR_ICV)));
 
 		tmpu4b = rtl_read_dword(rtlpriv, REG_RCR);
-		rtl_write_dword(rtlpriv, REG_RCR, (tmpu4b | RCR_RX_TCPOFDL_EN |
-				RCR_APP_PHYST_RXFF | RCR_APP_ICV | RCR_APP_MIC));
+		rtl_write_dword(rtlpriv, REG_RCR, (tmpu4b |
+			RCR_APP_PHYST_RXFF | RCR_APP_ICV | RCR_APP_MIC));
 
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 			 "Current RCR settings(%#x)\n", tmpu4b);
@@ -362,15 +349,18 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 	default:
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_EMERG,
 			 "Unknown status check!\n");
-		rtstatus = false;
+		err = -EINVAL;
 		break;
 	}
 
 status_check_fail:
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "loadfw_status(%d), rtstatus(%x)\n",
-		 loadfw_status, rtstatus);
-	return rtstatus;
+	if (err) {
+		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
+		 "loadfw_status(%d), err(%d)\n",
+			 loadfw_status, err);
+	}
+
+	return err;
 }
 
 int rtl92s_download_fw(struct ieee80211_hw *hw)
@@ -385,10 +375,10 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 	u32 ul_filelength = 0;
 	u8 fwhdr_size = RT_8192S_FIRMWARE_HDR_SIZE;
 	u8 fwstatus = FW_STATUS_INIT;
-	bool rtstatus = true;
+	int err = 0;
 
 	if (rtlpriv->max_fw_size == 0 || !rtlhal->pfirmware)
-		return 1;
+		return -EINVAL;
 
 	firmware = (struct rt_firmware *)rtlhal->pfirmware;
 	firmware->fwstatus = FW_STATUS_INIT;
@@ -397,14 +387,15 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 	/* 1. Retrieve FW header. */
 	firmware->pfwheader = (struct fw_hdr *) puc_mappedfile;
 	pfwheader = firmware->pfwheader;
-	memset(&pfwheader->fwpriv, 0, sizeof(struct fw_priv));
 	firmware->firmwareversion =  byte(pfwheader->version, 0);
-	firmware->pfwheader->fwpriv.hci_sel = 0x12; /* RTL8712_HCI_TYPE_72USB */
-	firmware->pfwheader->fwpriv.usb_ep_num = rtlusb->in_ep_nums +
+	pfwheader->fwpriv.usb_ep_num = rtlusb->in_ep_nums +
 			rtlusb->out_ep_nums;
-	firmware->pfwheader->fwpriv.vcs_type = 2;
-	firmware->pfwheader->fwpriv.vcs_mode = 1;
-	firmware->pfwheader->fwpriv.turbo_mode = 1;
+
+	pfwheader->fwpriv.mp_mode = 1;
+	pfwheader->fwpriv.turbo_mode = 0;
+	pfwheader->fwpriv.beacon_offload = 0;
+	pfwheader->fwpriv.mlme_offload = 0;
+	pfwheader->fwpriv.hwpc_offload = 0;
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "signature:%x, version:%x, size:%x, imemsize:%x, sram size:%x\n",
@@ -417,6 +408,7 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 	    sizeof(firmware->fw_imem))) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "memory for data image is less than IMEM required\n");
+		err = -EINVAL;
 		goto fail;
 	} else {
 		puc_mappedfile += fwhdr_size;
@@ -426,10 +418,11 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 		firmware->fw_imem_len = pfwheader->img_imem_size;
 	}
 
-	/* 3. Retriecve EMEM image. */
+	/* 3. Retrieve EMEM image. */
 	if (pfwheader->img_sram_size > sizeof(firmware->fw_emem)) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "memory for data image is less than EMEM required\n");
+		err = -EINVAL;
 		goto fail;
 	} else {
 		puc_mappedfile += firmware->fw_imem_len;
@@ -463,6 +456,7 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 					RT_8192S_FIRMWARE_HDR_EXCLUDE_PRI_SIZE;
 			break;
 		default:
+			err = -EINVAL;
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 				 "Unexpected Download step!!\n");
 			goto fail;
@@ -470,32 +464,83 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 		}
 
 		/* <2> Download image file */
-		rtstatus = _rtl92s_firmware_downloadcode(hw, puc_mappedfile,
+		err = _rtl92s_firmware_downloadcode(hw, puc_mappedfile,
 				ul_filelength);
 
-		if (!rtstatus) {
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "fail!\n");
+		if (err) {
+			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
+				"fw download failed (%d)!\n", err);
 			goto fail;
 		}
 
 		/* <3> Check whether load FW process is ready */
-		rtstatus = _rtl92s_firmware_checkready(hw, fwstatus);
-		if (!rtstatus) {
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "fail!\n");
+		err = _rtl92s_firmware_checkready(hw, fwstatus);
+		if (err) {
+			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
+				 "fw not ready (%d)!\n", err);
 			goto fail;
 		}
 
 		fwstatus = _rtl92s_firmware_get_nextstatus(firmware->fwstatus);
 	}
 
-	return rtstatus;
-fail:
 	return 0;
+fail:
+	return err;
 }
 
 static u32 _rtl92s_fill_h2c_cmd(struct sk_buff *skb, u32 h2cbufferlen,
 				u32 cmd_num, u32 *pelement_id, u32 *pcmd_len,
 				u8 **pcmb_buffer, u8 *cmd_start_seq)
+{
+	u32 totallen = 0, len = 0;
+	u8 *ph2c_buffer, *prev = NULL;
+	u8 i = 0;
+
+	do {
+		/* 8 - Byte aligment */
+		len = H2C_TX_CMD_HDR_LEN + N_BYTE_ALIGMENT(pcmd_len[i], 8);
+
+		/* Buffer length is not enough  */
+		if (h2cbufferlen < totallen + len)
+			break;
+
+		/* Clear content */
+		ph2c_buffer = (u8 *)skb_put(skb, (u32)len);
+		memset(ph2c_buffer, 0, len);
+
+		/* CMD len */
+		SET_BITS_TO_LE_4BYTE(ph2c_buffer, 0, 16,
+				     N_BYTE_ALIGMENT(pcmd_len[i], 8));
+
+		/* CMD ID */
+		SET_BITS_TO_LE_4BYTE(ph2c_buffer, 16, 8, pelement_id[i]);
+
+		/* CMD Sequence */
+		*cmd_start_seq = *cmd_start_seq % 0x80;
+		SET_BITS_TO_LE_4BYTE(ph2c_buffer, 24, 7, *cmd_start_seq);
+		++*cmd_start_seq;
+
+		/* Copy memory */
+		memcpy((ph2c_buffer + H2C_TX_CMD_HDR_LEN),
+		       pcmb_buffer[i], pcmd_len[i]);
+
+		/* CMD continue */
+		/* set the continue in prevoius cmd. */
+		if (prev)
+			SET_BITS_TO_LE_4BYTE(prev, 31, 1, 1);
+
+		prev = ph2c_buffer;
+
+		totallen += len;
+	} while (++i < cmd_num);
+	return totallen;
+}
+
+#if 0
+static u32 _rtl92s_fill_h2c_cmd(struct sk_buff *skb, u32 h2cbufferlen,
+				u32 cmd_num, u32 *pelement_id, u32 *pcmd_len,
+				u8 *pcmb_buffer, u8 *cmd_start_seq)
 {
 	u32 totallen = 0, len = 0, tx_desclen = 0;
 	u32 pre_continueoffset = 0;
@@ -506,7 +551,7 @@ static u32 _rtl92s_fill_h2c_cmd(struct sk_buff *skb, u32 h2cbufferlen,
 		/* 8 - Byte aligment */
 		len = H2C_TX_CMD_HDR_LEN + N_BYTE_ALIGMENT(pcmd_len[i], 8);
 
-		/* Buffer length is not enough */
+		/* Buffer length is not enough  */
 		if (h2cbufferlen < totallen + len + tx_desclen)
 			break;
 
@@ -530,7 +575,7 @@ static u32 _rtl92s_fill_h2c_cmd(struct sk_buff *skb, u32 h2cbufferlen,
 
 		/* Copy memory */
 		memcpy((ph2c_buffer + totallen + tx_desclen +
-			H2C_TX_CMD_HDR_LEN), pcmb_buffer[i], pcmd_len[i]);
+			H2C_TX_CMD_HDR_LEN), &pcmb_buffer[i], pcmd_len[i]);
 
 		/* CMD continue */
 		/* set the continue in prevoius cmd. */
@@ -542,9 +587,9 @@ static u32 _rtl92s_fill_h2c_cmd(struct sk_buff *skb, u32 h2cbufferlen,
 
 		totallen += len;
 	} while (++i < cmd_num);
-
 	return totallen;
 }
+#endif
 
 static u32 _rtl92s_get_h2c_cmdlen(u32 h2cbufferlen, u32 cmd_num, u32 *pcmd_len)
 {
@@ -565,59 +610,27 @@ static u32 _rtl92s_get_h2c_cmdlen(u32 h2cbufferlen, u32 cmd_num, u32 *pcmd_len)
 	return totallen + tx_desclen;
 }
 
-static bool _rtl92s_firmware_set_h2c_cmd(struct ieee80211_hw *hw, u8 h2c_cmd,
-					 u8 *pcmd_buffer)
+static int _rtl92s_firmware_set_h2c_cmd(struct ieee80211_hw *hw, u32 h2c_cmd,
+					 u32 cmd_len, u8 *pcmd_buffer)
 {
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_tcb_desc *cb_desc;
 	struct sk_buff *skb;
-	u32	element_id = 0;
-	u32	cmd_len = 0;
-	u32	len;
-
-	switch (h2c_cmd) {
-	case FW_H2C_SETPWRMODE:
-		element_id = H2C_SETPWRMODE_CMD ;
-		cmd_len = sizeof(struct h2c_set_pwrmode_parm);
-		break;
-	case FW_H2C_JOINBSSRPT:
-		element_id = H2C_JOINBSSRPT_CMD;
-		cmd_len = sizeof(struct h2c_joinbss_rpt_parm);
-		break;
-	case FW_H2C_SITESURVEY:
-		element_id = H2C_SITESURVEY_CMD;
-		cmd_len = sizeof(struct h2c_sitesurvey_parm);
-		break;
-	case FW_H2C_DISCONNECT:
-		element_id = H2C_DISCONNECT_CMD;
-		cmd_len = sizeof(struct h2c_disconnect_parm);
-		break;
-	case FW_H2C_SETCHANNEL:
-		element_id = H2C_SETCHANNEL_CMD;
-		cmd_len = sizeof(struct h2c_setchannel_parm);
-		break;
-	case FW_H2C_SETAUTH:
-		element_id = H2C_SETAUTH_CMD;
-		cmd_len = sizeof(struct h2c_setauth_parm);
-		break;
-	default:
-		break;
-	}
+	u32 len;
 
 	len = _rtl92s_get_h2c_cmdlen(MAX_TRANSMIT_BUFFER_SIZE, 1, &cmd_len);
 	skb = dev_alloc_skb(len);
 	if (!skb)
-		return false;
+		return -ENOMEM;
+
 	cb_desc = (struct rtl_tcb_desc *)(skb->cb);
 	cb_desc->queue_index = TXCMD_QUEUE;
 	cb_desc->cmd_or_init = DESC_PACKET_TYPE_NORMAL;
 	cb_desc->last_inipkt = false;
 
-	_rtl92s_fill_h2c_cmd(skb, MAX_TRANSMIT_BUFFER_SIZE, 1, &element_id,
+	_rtl92s_fill_h2c_cmd(skb, MAX_TRANSMIT_BUFFER_SIZE, 1, &h2c_cmd,
 			&cmd_len, &pcmd_buffer,	&rtlhal->h2c_txcmd_seq);
-	_rtl92s_cmd_send_packet(hw, skb, false);
-
-	return true;
+	return _rtl92s_cmd_send_packet(hw, skb, false);
 }
 
 void rtl92s_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 Mode)
@@ -659,8 +672,8 @@ void rtl92s_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 Mode)
 	else
 		pwrmode.bcn_pass_cnt = 1;
 
-	_rtl92s_firmware_set_h2c_cmd(hw, FW_H2C_SETPWRMODE, (u8 *)&pwrmode);
-
+	_rtl92s_firmware_set_h2c_cmd(hw, H2C_SETPWRMODE_CMD,
+		 sizeof(pwrmode), (u8 *)&pwrmode);
 }
 
 void rtl92s_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw,
@@ -671,17 +684,13 @@ void rtl92s_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw,
 
 	joinbss_rpt.opmode = mstatus;
 	joinbss_rpt.ps_qos_info = ps_qosinfo;
-	joinbss_rpt.bssid[0] = mac->bssid[0];
-	joinbss_rpt.bssid[1] = mac->bssid[1];
-	joinbss_rpt.bssid[2] = mac->bssid[2];
-	joinbss_rpt.bssid[3] = mac->bssid[3];
-	joinbss_rpt.bssid[4] = mac->bssid[4];
-	joinbss_rpt.bssid[5] = mac->bssid[5];
+	memcpy(joinbss_rpt.bssid, mac->bssid, ETH_ALEN);
 	SET_BITS_TO_LE_2BYTE((u8 *)(&joinbss_rpt) + 8, 0, 16,
 			mac->vif->bss_conf.beacon_int);
 	SET_BITS_TO_LE_2BYTE((u8 *)(&joinbss_rpt) + 10, 0, 16, mac->assoc_id);
 
-	_rtl92s_firmware_set_h2c_cmd(hw, FW_H2C_JOINBSSRPT, (u8 *)&joinbss_rpt);
+	_rtl92s_firmware_set_h2c_cmd(hw, H2C_JOINBSSRPT_CMD, sizeof(joinbss_rpt),
+		(u8 *)&joinbss_rpt);
 }
 
 int rtl92s_set_fw_sitesurvey_cmd(struct ieee80211_hw *hw,
@@ -698,16 +707,15 @@ int rtl92s_set_fw_sitesurvey_cmd(struct ieee80211_hw *hw,
 		memcpy(survey_args.ssid, req->ssids[0].ssid, req->ssids[0].ssid_len);
 	}
 
-	return (int)!_rtl92s_firmware_set_h2c_cmd(hw, FW_H2C_SITESURVEY, (u8 *)&survey_args);
+	return (int)!_rtl92s_firmware_set_h2c_cmd(hw, H2C_SITESURVEY_CMD,
+		sizeof(survey_args), (u8 *)&survey_args);
 }
 
-void rtl92s_set_fw_disconnect_cmd(struct ieee80211_hw *hw)
+int rtl92s_set_fw_disconnect_cmd(struct ieee80211_hw *hw)
 {
-	struct h2c_disconnect_parm disconnect_args;
-
-	memset(&disconnect_args, 0, sizeof(struct h2c_disconnect_parm));
-
-	_rtl92s_firmware_set_h2c_cmd(hw, FW_H2C_DISCONNECT, (u8 *)&disconnect_args);
+	struct h2c_disconnect_parm disconnect_args = { };
+	return _rtl92s_firmware_set_h2c_cmd(hw, H2C_DISCONNECT_CMD,
+		sizeof(disconnect_args), (u8 *)&disconnect_args);
 }
 
 u8 rtl92s_set_fw_setchannel_cmd(struct ieee80211_hw *hw)
@@ -721,20 +729,44 @@ u8 rtl92s_set_fw_setchannel_cmd(struct ieee80211_hw *hw)
 
 	chan_args.channel = cpu_to_le32(rtlphy->current_channel);
 
-	return (u8)_rtl92s_firmware_set_h2c_cmd(hw, FW_H2C_SETCHANNEL, (u8 *)&chan_args);
+	return (u8)_rtl92s_firmware_set_h2c_cmd(hw, H2C_SETCHANNEL_CMD,
+		sizeof(chan_args), (u8 *)&chan_args);
 }
 
-void rtl92s_set_fw_setauth_cmd(struct ieee80211_hw *hw)
+int rtl92s_set_fw_setauth_cmd(struct ieee80211_hw *hw)
 {
-	struct h2c_setauth_parm auth_args;
+	struct h2c_setauth_parm auth_args = { };
 
-	memset(&auth_args, 0, sizeof(struct h2c_setauth_parm));
 	//auth_args.mode = cpu_to_le32(0);
-
-	_rtl92s_firmware_set_h2c_cmd(hw, FW_H2C_SETAUTH, (u8 *)&auth_args);
+	return _rtl92s_firmware_set_h2c_cmd(hw, H2C_SETAUTH_CMD, sizeof(auth_args),
+		(u8 *)&auth_args);
 }
 
-u8 rtl92s_fw_iocmd(struct ieee80211_hw *hw, u32 cmd)
+int rtl92s_set_fw_opmode_cmd(struct ieee80211_hw *hw, enum h2c_op_modes mode)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct h2c_opmode mode_args = { };
+
+	mode_args.mode = mode;
+
+	RT_TRACE(rtlpriv, COMP_CMD, DBG_TRACE, "SetOpMode: %i\n",
+			 mode_args.mode);
+
+	return _rtl92s_firmware_set_h2c_cmd(hw, H2C_SETOPMODE_CMD, sizeof(mode_args),
+		(u8 *)&mode_args);
+}
+
+void rtl92su_set_mac_addr(struct ieee80211_hw *hw, const u8 *addr)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct h2c_set_mac mac_args = { };
+
+	memcpy(&mac_args.mac, addr, ETH_ALEN);
+	_rtl92s_firmware_set_h2c_cmd(hw, H2C_SET_MAC_ADDRESS_CMD,
+		 sizeof(mac_args), (u8 *)&mac_args);
+}
+
+u8 rtl92s_fw_iocmd(struct ieee80211_hw *hw, const u32 cmd)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	int pollcount = 50;
@@ -749,24 +781,30 @@ u8 rtl92s_fw_iocmd(struct ieee80211_hw *hw, u32 cmd)
 	return !!pollcount;
 }
 
-void rtl92s_fw_iocmd_data(struct ieee80211_hw *hw, u32 *val, u8 flag)
+void rtl92s_fw_iocmd_data(struct ieee80211_hw *hw, u32* cmd, u8 flag)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
-	if (flag == 0) { /* set */
-		rtl_write_dword(rtlpriv, REG_IOCMD_DATA, *val);
-	}
-	else { /* query */
-		*val = rtl_read_dword(rtlpriv, REG_IOCMD_DATA);
+	if (flag == 0) {
+		/* set */
+		rtl_write_dword(rtlpriv, REG_IOCMD_DATA, *cmd);
+	} else {
+		/* query */
+		*cmd = rtl_read_dword(rtlpriv, REG_IOCMD_DATA);
 	}
 }
 
 u32 rtl92s_fw_iocmd_read(struct ieee80211_hw *hw, u8 ioclass, u16 iovalue, u8 ioindex)
 {
-	u32 tmpcmd, retval;
+	struct h2c_iocmd cmd = {
+		.cmdclass = ioclass,
+		.value = iovalue,
+		.index = ioindex,
+	};
 
-	tmpcmd = (ioclass << 24) | (iovalue << 8) | ioindex;
-	if (rtl92s_fw_iocmd(hw, tmpcmd))
+	u32 retval;
+
+	if (rtl92s_fw_iocmd(hw, cmd.cmd))
 		rtl92s_fw_iocmd_data(hw, &retval, 1);
 	else
 		retval = 0;
@@ -776,10 +814,13 @@ u32 rtl92s_fw_iocmd_read(struct ieee80211_hw *hw, u8 ioclass, u16 iovalue, u8 io
 
 u8 rtl92s_fw_iocmd_write(struct ieee80211_hw *hw, u8 ioclass, u16 iovalue, u8 ioindex, u32 val)
 {
-	u32 tmpcmd;
+	struct h2c_iocmd cmd = {
+		.cmdclass = ioclass,
+		.value = iovalue,
+		.index = ioindex,
+	};
 
 	rtl92s_fw_iocmd_data(hw, &val, 0);
 	msleep(100);
-	tmpcmd = (ioclass << 24) | (iovalue << 8) | ioindex;
-	return rtl92s_fw_iocmd(hw, tmpcmd);
+	return rtl92s_fw_iocmd(hw, cmd.cmd);
 }

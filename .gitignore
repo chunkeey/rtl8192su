@@ -23,6 +23,7 @@
 *.symtypes
 *.order
 modules.builtin
+*.save
 *.elf
 *.bin
 *.gz

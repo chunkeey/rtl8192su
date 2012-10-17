@@ -155,6 +155,35 @@ u32 rtl92s_phy_query_rf_reg(struct ieee80211_hw *hw, enum radio_path rfpath,
 void rtl92s_phy_set_rf_reg(struct ieee80211_hw *hw, enum radio_path rfpath,
 			   u32 regaddr, u32 bitmask, u32 data)
 {
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_phy *rtlphy = &(rtlpriv->phy);
+	u32 original_value, bitshift;
+
+	if (!((rtlphy->rf_pathmap >> rfpath) & 0x1))
+		return;
+
+	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE,
+		 "regaddr(%#x), bitmask(%#x), data(%#x), rfpath(%#x)\n",
+		 regaddr, bitmask, data, rfpath);
+
+	spin_lock(&rtlpriv->locks.rf_lock);
+
+	if (bitmask != RFREG_OFFSET_MASK) {
+		original_value = rtl92s_fw_iocmd_read(hw, IOCMD_CLASS_BB_RF,
+			(rfpath << 8) | (regaddr & 0xff), IOCMD_RF_READ_IDX);
+		bitshift = _rtl92s_phy_calculate_bit_shift(bitmask);
+		data = ((original_value & (~bitmask)) | (data << bitshift));
+	}
+
+	rtl92s_fw_iocmd_write(hw, IOCMD_CLASS_BB_RF,
+		(rfpath << 8) | (regaddr & 0xff),
+		IOCMD_RF_WRITE_IDX, data);
+
+	spin_unlock(&rtlpriv->locks.rf_lock);
+
+	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE,
+		 "regaddr(%#x), bitmask(%#x), data(%#x), rfpath(%#x)\n",
+		 regaddr, bitmask, data, rfpath);
 }
 
 void rtl92s_phy_scan_operation_backup(struct ieee80211_hw *hw,
@@ -184,24 +213,24 @@ bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
 	return true;
 }
 
-u8 rtl92s_phy_config_rf(struct ieee80211_hw *hw, enum radio_path rfpath)
+int rtl92s_phy_config_rf(struct ieee80211_hw *hw, enum radio_path rfpath)
 {
-	return true;
+	return 0;
 }
 
 
-bool rtl92s_phy_mac_config(struct ieee80211_hw *hw)
+int rtl92s_phy_mac_config(struct ieee80211_hw *hw)
 {
-	return true;
+	return 0;
 }
 
 
-bool rtl92s_phy_bb_config(struct ieee80211_hw *hw)
+int rtl92s_phy_bb_config(struct ieee80211_hw *hw)
 {
-	return true;
+	return 0;
 }
 
-bool rtl92s_phy_rf_config(struct ieee80211_hw *hw)
+int rtl92s_phy_rf_config(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
@@ -246,19 +275,14 @@ void rtl92s_phy_get_hw_reg_originalvalue(struct ieee80211_hw *hw)
 		 REG_ROFDM0_RXDETECTOR3, rtlphy->framesync);
 }
 
-void rtl92s_phy_set_txpower(struct ieee80211_hw *hw, u8	channel)
+int rtl92s_phy_set_txpower(struct ieee80211_hw *hw, u8 channel)
 {
-	return;
+	return 0;
 }
 
 void rtl92s_phy_chk_fwcmd_iodone(struct ieee80211_hw *hw)
 {
 	return;
-}
-
-bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
-{
-	return true;
 }
 
 void rtl92s_phy_switch_ephy_parameter(struct ieee80211_hw *hw)

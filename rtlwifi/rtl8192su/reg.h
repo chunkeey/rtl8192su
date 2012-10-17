@@ -229,6 +229,14 @@
 #define		RCR_APPFCS			BIT(31)
 
 #define REG_MSR				(RTL8712_CMDCTRL_ + 0x000C)
+#define		MSR_LINK_MASK			(MSR_LINK_NONE | MSR_LINK_MANAGED |	\
+						 MSR_LINK_ADHOC | MSR_LINK_MASTER)
+#define		MSR_LINK_NONE			0
+#define		MSR_LINK_SHIFT			0
+#define		MSR_LINK_ADHOC			BIT(0)
+#define		MSR_LINK_MANAGED		BIT(1)
+#define		MSR_LINK_MASTER			BIT(2)
+
 #define REG_SYSF_CFG			(RTL8712_CMDCTRL_ + 0x000D)
 #define REG_MBIDCTRL			(RTL8712_CMDCTRL_ + 0x000E)
 
@@ -271,6 +279,7 @@
 #define REG_RXRPT_BNDY			(RTL8712_FIFOCTRL_ + 0x10)
 #define REG_TXPKTBUF_PGBNDY		(RTL8712_FIFOCTRL_ + 0x14)
 #define REG_PBP				(RTL8712_FIFOCTRL_ + 0x15)
+#define		PBP_PAGE_128B			BIT(0)
 #define REG_RX_DRVINFO_SZ		(RTL8712_FIFOCTRL_ + 0x16)
 #define REG_TXFF_STATUS			(RTL8712_FIFOCTRL_ + 0x17)
 #define REG_RXFF_STATUS			(RTL8712_FIFOCTRL_ + 0x18)
@@ -764,6 +773,9 @@
 /* 0x1025FE00 ~ 0x1025FEFF USB Configuration */
 /* ----------------------------------------------------- */
 #define REG_USB_INFO			(RTL8712_USB_ + 0x17)
+#define REG_USB_MAGIC			(RTL8712_USB_ + 0x1C)
+#define		USB_MAGIC_BIT7			BIT(7)
+
 #define REG_USB_SPECIAL_OPTION		(RTL8712_USB_ + 0x55)
 #define REG_USB_HCPWM			(RTL8712_USB_ + 0x57)
 #define REG_USB_HRPWM			(RTL8712_USB_ + 0x58)

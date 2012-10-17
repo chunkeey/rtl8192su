@@ -43,9 +43,9 @@ void rtl92s_phy_rf6052_set_ccktxpower(struct ieee80211_hw *hw, u8 pwrlevel)
 {
 }
 
-bool rtl92s_phy_rf6052_config(struct ieee80211_hw *hw)
+int rtl92s_phy_rf6052_config(struct ieee80211_hw *hw)
 {
-	return true;
+	return 0;
 }
 
 void rtl92s_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw, u8 bandwidth)
