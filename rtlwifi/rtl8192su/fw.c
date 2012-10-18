@@ -128,45 +128,15 @@ static int _rtl92s_cmd_send_packet(struct ieee80211_hw *hw,
 		struct sk_buff *skb, u8 last)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 	struct rtl_tcb_desc *tcb_desc;
-	struct urb *urb;
 	u8 *pdesc;
-	u32 ep_num;
-	int err;
 
 	pdesc = (u8 *)skb_push(skb, RTL_TX_HEADER_SIZE);
 	rtlpriv->cfg->ops->fill_tx_cmddesc(hw, pdesc, 1, 1, skb);
 
 	tcb_desc = (struct rtl_tcb_desc *)(skb->cb);
-	/* _rtl_usb_transmit */
-	ep_num = rtlusb->ep_map.ep_mapping[tcb_desc->queue_index];
-	/* _rtl_usb_tx_urb_setup */
-	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb) {
-		RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-			 "Can't allocate URB for bulk out!\n");
-		dev_kfree_skb_any(skb);
-		return -ENOMEM;
-	}
-	_rtl_install_trx_info(rtlusb, skb, ep_num);
-	usb_fill_bulk_urb(urb, rtlusb->udev, usb_sndbulkpipe(rtlusb->udev,
-			  ep_num), skb->data, skb->len, _rtl92s_cmd_complete,
-			  skb);
-	urb->transfer_flags |= URB_ZERO_PACKET;
-
-	/* _rtl_submit_tx_urb */
-	usb_anchor_urb(urb, &rtlusb->tx_submitted);
-	err = usb_submit_urb(urb, GFP_ATOMIC);
-	if (err < 0) {
-		RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-			 "Failed to submit urb\n");
-		usb_unanchor_urb(urb);
-		dev_kfree_skb_any(skb);
-		return err;
-	}
-	usb_free_urb(urb);
-	return 0;
+	return rtl_usb_transmit(hw, skb, tcb_desc->queue_index,
+				_rtl92s_cmd_complete);
 }
 
 static int _rtl92s_firmware_downloadcode(struct ieee80211_hw *hw,
@@ -758,7 +728,6 @@ int rtl92s_set_fw_opmode_cmd(struct ieee80211_hw *hw, enum h2c_op_modes mode)
 
 void rtl92su_set_mac_addr(struct ieee80211_hw *hw, const u8 *addr)
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct h2c_set_mac mac_args = { };
 
 	memcpy(&mac_args.mac, addr, ETH_ALEN);
