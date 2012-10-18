@@ -735,6 +735,36 @@ void rtl92su_set_mac_addr(struct ieee80211_hw *hw, const u8 *addr)
 		 sizeof(mac_args), (u8 *)&mac_args);
 }
 
+void rtl92su_set_basic_rate(struct ieee80211_hw *hw)
+{
+	struct h2c_basic_rates rates_args = { };
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_mac *mac = rtl_mac(rtlpriv);
+	struct ieee80211_channel *chan = hw->conf.channel;
+	int i, j = 0;
+
+	if (!chan)
+		return;
+
+	for (i = 0; i < mac->bands[chan->band].n_bitrates; i++) {
+		if (!!(mac->basic_rates & (1 << i))) {
+			/*
+			 * Mac80211 supported_bands provides bitrates
+			 * in 100 kbit units, however for the firmware
+			 * we need to convert them into 500 kbit units.
+			 */
+			rates_args.basic_rates.rates[j++] =
+				mac->bands[chan->band].bitrates[i].bitrate / 5;
+
+			if (j >= ARRAY_SIZE(rates_args.basic_rates.rates))
+				break;
+		}
+	}
+
+	_rtl92s_firmware_set_h2c_cmd(hw, H2C_SETBASICRATE_CMD,
+		sizeof(rates_args), (u8 *)&rates_args);
+}
+
 u8 rtl92s_fw_iocmd(struct ieee80211_hw *hw, const u32 cmd)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
