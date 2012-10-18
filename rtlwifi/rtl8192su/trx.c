@@ -723,8 +723,8 @@ bool rtl92su_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 
 	hdr = (struct ieee80211_hdr *)(skb->data + stats->rx_drvinfo_size
 	      + stats->rx_bufshift);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE, "DATA fc[%02x] a1[%pM] a2[%pM] a3[%pM] %d\n",
-		 hdr->frame_control, hdr->addr1, hdr->addr2, hdr->addr3, stats->decrypted);
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE, "DATA fc[%02x] a1[%pM] a2[%pM] a3[%pM]\n",
+		 hdr->frame_control, hdr->addr1, hdr->addr2, hdr->addr3);
 
 	if (stats->crc)
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
@@ -948,19 +948,18 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 
 	/* Set Packet ID */
 	SET_TX_DESC_PACKET_ID(pdesc, 0);
-		/* Alwasy enable all rate fallback range */
+	/* Alwasy enable all rate fallback range */
 	SET_TX_DESC_DATA_RATE_FB_LIMIT(pdesc, 0x1F);
-		/* Fix: I don't kown why hw use 6.5M to tx when set it */
+	/* Fix: I don't kown why hw use 6.5M to tx when set it */
 	SET_TX_DESC_USER_RATE(pdesc,
 			      ptcb_desc->use_driver_rate ? 1 : 0);
+
 	/* Set NON_QOS bit. */
 	if (!ieee80211_is_data_qos(fc))
 		SET_TX_DESC_NON_QOS(pdesc, 1);
 
-	if (is_multicast_ether_addr(ieee80211_get_DA(hdr))) {
+	if (is_multicast_ether_addr(ieee80211_get_DA(hdr)))
 		SET_TX_DESC_BMC(pdesc, 1);
-		SET_TX_DESC_NON_QOS(pdesc, 1);
-	}
 
 	_rtl_fill_usb_tx_desc(pdesc);
 }
