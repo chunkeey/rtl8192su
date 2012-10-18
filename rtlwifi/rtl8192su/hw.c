@@ -93,52 +93,61 @@ void rtl92su_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 
-	printk(KERN_ERR "UPDATE %d\n", variable);
-
 	switch (variable) {
 	case HW_VAR_ETHER_ADDR:
 		rtl92su_set_mac_addr(hw, val);
 		break;
+
 	case HW_VAR_BASIC_RATE: {
-			// use H2C_SETBASICRATE_CMD
-			break;
-		}
+		// use H2C_SETBASICRATE_CMD
+		break;
+	}
+
 	case HW_VAR_BSSID: {
-			// use H2C_CREATEBSS_CMD or H2C_JOINBSS_CMD
-			break;
-		}
+		// use H2C_CREATEBSS_CMD or H2C_JOINBSS_CMD
+		break;
+	}
+
 	case HW_VAR_SIFS: {
-			// Not supported
-			break;
-		}
+		/* Not supported */
+		break;
+	}
+
 	case HW_VAR_SLOT_TIME: {
-			// Not supported
-			break;
-		}
+		/* Not supported */
+		break;
+	}
+
 	case HW_VAR_ACK_PREAMBLE: {
-			// Not supported
-			break;
-		}
+		/* Not supported */
+		break;
+	}
+
 	case HW_VAR_AMPDU_MIN_SPACE: {
-			// Not supported
-			break;
-		}
+		/* Not supported */
+		break;
+	}
+
 	case HW_VAR_SHORTGI_DENSITY: {
-			// Not supported
-			break;
-		}
+		/* Not supported */
+		break;
+	}
+
 	case HW_VAR_AMPDU_FACTOR: {
-			// Not supported
-			break;
-		}
+		/* Not supported */
+		break;
+	}
+
 	case HW_VAR_AC_PARAM: {
-			// Not supported
-			break;
-		}
+		/* Not supported */
+		break;
+	}
+
 	case HW_VAR_ACM_CTRL: {
-			// Not supported
-			break;
-		}
+		/* Not supported */
+		break;
+	}
+
 	case HW_VAR_RCR:
 		/* Note: The FW might have a word in the filtering as well */
 		rtl_write_dword(rtlpriv, REG_RCR, ((u32 *) (val))[0]);
@@ -146,13 +155,15 @@ void rtl92su_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 
 	case HW_VAR_RETRY_LIMIT: {
-			// Not supported
-			break;
-		}
+		/* Not supported */
+		break;
+	}
+
 	case HW_VAR_DUAL_TSF_RST: {
-			// Not supported
-			break;
-		}
+		/* Not supported */
+		break;
+	}
+
 	case HW_VAR_EFUSE_BYTES:
 		rtlefuse->efuse_usedbytes = *((u16 *) val);
 		break;
@@ -162,28 +173,36 @@ void rtl92su_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 
 	case HW_VAR_IO_CMD: {
-			break;
-		}
+		break;
+	}
+
 	case HW_VAR_WPA_CONFIG: {
-			break;
-		}
+		break;
+	}
+
 	case HW_VAR_SET_RPWM:
 		rtl_write_byte(rtlpriv, REG_USB_HRPWM, *((u8 *) val));
 		break;
+
 	case HW_VAR_H2C_FW_PWRMODE:
 		break;
+
 	case HW_VAR_FW_PSMODE_STATUS:
 		ppsc->fw_current_inpsmode = *((bool *) val);
 		break;
+
 	case HW_VAR_H2C_FW_JOINBSSRPT:
 		rtl92s_set_fw_joinbss_report_cmd(hw, *((u8 *) val), 0);
 		break;
+
 	case HW_VAR_AID:{
-			break;
-		}
+		break;
+	}
+
 	case HW_VAR_CORRECT_TSF:{
 		break;
-		}
+	}
+
 	case HW_VAR_MRC: {
 		bool bmrc_toset = *((bool *)val);
 
@@ -195,6 +214,7 @@ void rtl92su_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		}
 		break;
 	}
+
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "switch case not processed\n");
@@ -735,10 +755,6 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 }
 
 void rtl92su_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
-{
-}
-
-static void _rtl92s_cmd_complete(struct urb *urb)
 {
 }
 
