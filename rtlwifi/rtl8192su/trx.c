@@ -680,7 +680,7 @@ bool rtl92su_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 
 	hdr = (struct ieee80211_hdr *)(skb->data + stats->rx_drvinfo_size
 	      + stats->rx_bufshift);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE, "DATA fc[%02x] a1[%pM] a2[%pM] a3[%pM]\n",
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE, "RX DATA fc[%02x] a1[%pM] a2[%pM] a3[%pM]\n",
 		 hdr->frame_control, hdr->addr1, hdr->addr2, hdr->addr3);
 
 	if (stats->crc)
@@ -789,6 +789,9 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 	u8 fw_qsel = _rtl92se_map_hwqueue_to_fwqueue(skb, hw_queue);
 	u8 bw_40 = 0;
 
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE, "TX DATA fc[%02x] a1[%pM] a2[%pM] a3[%pM]\n",
+		 hdr->frame_control, hdr->addr1, hdr->addr2, hdr->addr3);
+
 	if (mac->opmode == NL80211_IFTYPE_STATION) {
 		bw_40 = mac->bw_40;
 	} else if (mac->opmode == NL80211_IFTYPE_AP ||
@@ -802,7 +805,7 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 	/*DWORD 0*/
 	SET_TX_DESC_LINIP(pdesc, 0);
 	SET_TX_DESC_OFFSET(pdesc, 32);
-	//SET_TX_DESC_QUEUE_SEL(pdesc, fw_qsel);
+	SET_TX_DESC_QUEUE_SEL(pdesc, fw_qsel);
 
 	/* fill in packet size before adding pdesc header */
 	SET_TX_DESC_PKT_SIZE(pdesc, (u16) skb->len - RTL_TX_HEADER_SIZE);
@@ -915,8 +918,19 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 	if (!ieee80211_is_data_qos(fc))
 		SET_TX_DESC_NON_QOS(pdesc, 1);
 
-	if (is_multicast_ether_addr(ieee80211_get_DA(hdr)))
+	if (is_multicast_ether_addr(ieee80211_get_DA(hdr))) {
 		SET_TX_DESC_BMC(pdesc, 1);
+
+		/*
+		 * Note: In station mode, the station sends a
+		 * copy of a broadcast data frame to the AP
+		 * (of course, with a broadcast DA!)... This
+		 * copy is sometimes a QoS-data frame and this
+		 * seems to confuse the FW which seem so expect
+		 * all broadcast data to be non-qos?!
+		 */
+		SET_TX_DESC_NON_QOS(pdesc, 1);
+	}
 
 	_rtl_fill_usb_tx_desc(pdesc);
 }
@@ -924,7 +938,6 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 void rtl92su_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 	bool firstseg, bool lastseg, struct sk_buff *skb)
 {
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_tcb_desc *tcb_desc = (struct rtl_tcb_desc *)(skb->cb);
 
 	memset((void *)pdesc, 0, RTL_TX_HEADER_SIZE);
@@ -937,9 +950,8 @@ void rtl92su_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 		/* 92SE need not to set TX packet size when firmware download */
 		SET_TX_DESC_PKT_SIZE(pdesc, (u16)(skb->len) -
 				     RTL_TX_HEADER_SIZE);
-
-		//SET_TX_DESC_OWN(pdesc, 1);
-	} else { /* H2C Command Desc format (Host TXCMD) */
+	} else {
+		/* H2C Command Desc format (Host TXCMD) */
 		SET_TX_DESC_FIRST_SEG(pdesc, 1);
 		SET_TX_DESC_LAST_SEG(pdesc, 1);
 		SET_TX_DESC_OWN(pdesc, 1);
@@ -949,6 +961,7 @@ void rtl92su_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 		/* Buffer size + command header */
 		SET_TX_DESC_PKT_SIZE(pdesc, (u16)(skb->len) -
 				     RTL_TX_HEADER_SIZE);
+
 		/* Fixed queue of H2C command */
 		SET_TX_DESC_QUEUE_SEL(pdesc, 0x13);
 	}
