@@ -723,8 +723,6 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_BSSID) {
-		u32 basic_rates;
-
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_BSSID,
 					      (u8 *) bss_conf->bssid);
 
@@ -776,20 +774,13 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			 * }
 			 * */
 		}
-
-		if (changed & BSS_CHANGED_BASIC_RATES) {
-			/* for 5G must << RATE_6M_INDEX=4,
-			 * because 5G have no cck rate*/
-			if (rtlhal->current_bandtype == BAND_ON_5G)
-				basic_rates = sta->supp_rates[1] << 4;
-			else
-				basic_rates = sta->supp_rates[0];
-
-			mac->basic_rates = basic_rates;
-			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_BASIC_RATE,
-					(u8 *) (&basic_rates));
-		}
 		rcu_read_unlock();
+	}
+
+	if (changed & BSS_CHANGED_BASIC_RATES) {
+		mac->basic_rates = bss_conf->basic_rates;
+		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_BASIC_RATE,
+				(u8 *) (&mac->basic_rates));
 	}
 
 	/*
