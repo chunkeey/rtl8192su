@@ -958,11 +958,6 @@ int __devinit rtl_usb_probe(struct usb_interface *intf,
 	struct rtl_priv *rtlpriv = NULL;
 	struct usb_device	*udev;
 	struct rtl_usb_priv *usb_priv;
-	struct rtl_hal_cfg *hal_cfg;
-
-	hal_cfg = (struct rtl_hal_cfg *)(id->driver_info);
-	if (hal_cfg->ops->modify_ieee80211_ops)
-		hal_cfg->ops->modify_ieee80211_ops(&rtl_ops);
 
 	hw = ieee80211_alloc_hw(sizeof(struct rtl_priv) +
 				sizeof(struct rtl_usb_priv), &rtl_ops);
@@ -991,7 +986,7 @@ int __devinit rtl_usb_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, hw);
 	/* init cfg & intf_ops */
 	rtlpriv->rtlhal.interface = INTF_USB;
-	rtlpriv->cfg = hal_cfg;
+	rtlpriv->cfg = (struct rtl_hal_cfg *)(id->driver_info);
 	rtlpriv->intf_ops = &rtl_usb_ops;
 	rtl_dbgp_flag_init(hw);
 	/* Init IO handler */

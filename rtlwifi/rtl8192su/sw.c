@@ -54,11 +54,6 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek 8192S/8191S 802.11n USB wireless");
 MODULE_FIRMWARE("rtlwifi/rtl8712u.bin");
 
-static void rtl92su_modify_ieee80211_ops(struct ieee80211_ops *ops)
-{
-//	ops->hw_scan = rtl92s_set_fw_sitesurvey_cmd;
-}
-
 static void rtl92su_fw_cb(const struct firmware *firmware, void *context)
 {
 	struct ieee80211_hw *hw = context;
@@ -203,7 +198,6 @@ static void rtl92su_deinit_sw_vars(struct ieee80211_hw *hw)
 }
 
 static struct rtl_hal_ops rtl8192su_hal_ops = {
-	.modify_ieee80211_ops = rtl92su_modify_ieee80211_ops,
 	.init_sw_vars = rtl92su_init_sw_vars,
 	.deinit_sw_vars = rtl92su_deinit_sw_vars,
 	.read_chip_version = rtl92su_read_chip_version,
