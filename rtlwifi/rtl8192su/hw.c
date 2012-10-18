@@ -98,55 +98,47 @@ void rtl92su_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		rtl92su_set_mac_addr(hw, val);
 		break;
 
-	case HW_VAR_BASIC_RATE: {
-		// use H2C_SETBASICRATE_CMD
+	case HW_VAR_BASIC_RATE:
+		rtl92su_set_basic_rate(hw);
 		break;
-	}
 
-	case HW_VAR_BSSID: {
-		// use H2C_CREATEBSS_CMD or H2C_JOINBSS_CMD
+	case HW_VAR_BSSID:
+		/*
+		 * handled by HW_VAR_H2C_FW_JOINBSSRPT
+		 */
 		break;
-	}
 
-	case HW_VAR_SIFS: {
+	case HW_VAR_SIFS:
 		/* Not supported */
 		break;
-	}
 
-	case HW_VAR_SLOT_TIME: {
+	case HW_VAR_SLOT_TIME:
 		/* Not supported */
 		break;
-	}
 
-	case HW_VAR_ACK_PREAMBLE: {
+	case HW_VAR_ACK_PREAMBLE:
 		/* Not supported */
 		break;
-	}
 
-	case HW_VAR_AMPDU_MIN_SPACE: {
+	case HW_VAR_AMPDU_MIN_SPACE:
 		/* Not supported */
 		break;
-	}
 
-	case HW_VAR_SHORTGI_DENSITY: {
+	case HW_VAR_SHORTGI_DENSITY:
 		/* Not supported */
 		break;
-	}
 
-	case HW_VAR_AMPDU_FACTOR: {
+	case HW_VAR_AMPDU_FACTOR:
 		/* Not supported */
 		break;
-	}
 
-	case HW_VAR_AC_PARAM: {
+	case HW_VAR_AC_PARAM:
 		/* Not supported */
 		break;
-	}
 
-	case HW_VAR_ACM_CTRL: {
+	case HW_VAR_ACM_CTRL:
 		/* Not supported */
 		break;
-	}
 
 	case HW_VAR_RCR:
 		/* Note: The FW might have a word in the filtering as well */
@@ -154,15 +146,13 @@ void rtl92su_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		mac->rx_conf = ((u32 *) (val))[0];
 		break;
 
-	case HW_VAR_RETRY_LIMIT: {
+	case HW_VAR_RETRY_LIMIT:
 		/* Not supported */
 		break;
-	}
 
-	case HW_VAR_DUAL_TSF_RST: {
+	case HW_VAR_DUAL_TSF_RST:
 		/* Not supported */
 		break;
-	}
 
 	case HW_VAR_EFUSE_BYTES:
 		rtlefuse->efuse_usedbytes = *((u16 *) val);
@@ -172,13 +162,11 @@ void rtl92su_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		rtlefuse->efuse_usedpercentage = *((u8 *) val);
 		break;
 
-	case HW_VAR_IO_CMD: {
+	case HW_VAR_IO_CMD:
 		break;
-	}
 
-	case HW_VAR_WPA_CONFIG: {
+	case HW_VAR_WPA_CONFIG:
 		break;
-	}
 
 	case HW_VAR_SET_RPWM:
 		rtl_write_byte(rtlpriv, REG_USB_HRPWM, *((u8 *) val));
@@ -195,25 +183,15 @@ void rtl92su_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		rtl92s_set_fw_joinbss_report_cmd(hw, *((u8 *) val), 0);
 		break;
 
-	case HW_VAR_AID:{
+	case HW_VAR_AID:
 		break;
-	}
 
-	case HW_VAR_CORRECT_TSF:{
+	case HW_VAR_CORRECT_TSF:
+		/* Not supported */
 		break;
-	}
 
-	case HW_VAR_MRC: {
-		bool bmrc_toset = *((bool *)val);
-
-		if (bmrc_toset) {
-			/* Update current settings. */
-			rtlpriv->dm.current_mrc_switch = bmrc_toset;
-		} else {
-			rtlpriv->dm.current_mrc_switch = bmrc_toset;
-		}
+	case HW_VAR_MRC:
 		break;
-	}
 
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
@@ -655,11 +633,7 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 	if (err)
 		return err;
 
-	/*Retrieve default FW Cmd IO map. */
-	//rtlhal->fwcmd_iomap =	rtl_read_word(rtlpriv, LBUS_MON_ADDR);
-	//rtlhal->fwcmd_ioparam = rtl_read_dword(rtlpriv, LBUS_ADDR_MASK);
-
-	/* 3. Initialize MAC/PHY Config by MACPHY_reg.txt */
+	/* 3. Initialize MAC/PHY Config */
 	err = rtl92s_phy_mac_config(hw);
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
@@ -680,36 +654,7 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 
 	/* 5. Initiailze RF RAIO_A.txt RF RAIO_B.txt */
 	/* Before initalizing RF. We can not use FW to do RF-R/W. */
-
 	rtlphy->rf_mode = RF_OP_BY_SW_3WIRE;
-
-	/* RF Power Save */
-#if 0
-	/* H/W or S/W RF OFF before sleep. */
-	if (rtlpriv->psc.rfoff_reason > RF_CHANGE_BY_PS) {
-		u32 rfoffreason = rtlpriv->psc.rfoff_reason;
-
-		rtlpriv->psc.rfoff_reason = RF_CHANGE_BY_INIT;
-		rtlpriv->psc.rfpwr_state = ERFON;
-		/* FIXME: check spinlocks if this block is uncommented */
-		rtl_ps_set_rf_state(hw, ERFOFF, rfoffreason);
-	} else {
-		/* gpio radio on/off is out of adapter start */
-		if (rtlpriv->psc.hwradiooff == false) {
-			rtlpriv->psc.rfpwr_state = ERFON;
-			rtlpriv->psc.rfoff_reason = 0;
-		}
-	}
-#endif
-
-	/* Before RF-R/W we must execute the IO from Scott's suggestion. */
-/*
-	rtl_write_byte(rtlpriv, AFE_XTAL_CTRL + 1, 0xDB);
-	if (rtlhal->version == VERSION_8192S_ACUT)
-		rtl_write_byte(rtlpriv, SPS1_CTRL + 3, 0x07);
-	else
-		rtl_write_byte(rtlpriv, RF_CTRL, 0x07);
-*/
 
 	err = rtl92s_phy_rf_config(hw);
 	if (err) {
@@ -717,24 +662,6 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 			 "RF Config failed (%d)\n", err);
 		return err;
 	}
-
-	/* After read predefined TXT, we must set BB/MAC/RF
-	 * register as our requirement */
-
-/*
-	rtlphy->rfreg_chnlval[0] = rtl92s_phy_query_rf_reg(hw,
-							   (enum radio_path)0,
-							   RF_CHNLBW,
-							   RFREG_OFFSET_MASK);
-	rtlphy->rfreg_chnlval[1] = rtl92s_phy_query_rf_reg(hw,
-							   (enum radio_path)1,
-							   RF_CHNLBW,
-							   RFREG_OFFSET_MASK);
-*/
-
-	/*---- Set CCK and OFDM Block "ON"----*/
-	//rtl_set_bbreg(hw, RFPGA0_RFMOD, BCCKEN, 0x1);
-	//rtl_set_bbreg(hw, RFPGA0_RFMOD, BOFDMEN, 0x1);
 
 	/*3 Set Hardware(Do nothing now) */
 	err = _rtl92su_hw_configure(hw);
@@ -747,7 +674,6 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 	err = rtl92s_phy_set_txpower(hw, rtlphy->current_channel);
 
 	rtlpriv->cfg->ops->led_control(hw, LED_CTL_POWER_ON);
-
 	/* give fw time to boot */
 	msleep(500);
 
