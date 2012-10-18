@@ -128,7 +128,9 @@ static int _rtl92s_cmd_send_packet(struct ieee80211_hw *hw,
 		struct sk_buff *skb, u8 last)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 	struct rtl_tcb_desc *tcb_desc;
+	struct urb *urb;
 	u8 *pdesc;
 	int err;
 
@@ -729,6 +731,7 @@ int rtl92s_set_fw_datarate_cmd(struct ieee80211_hw *hw, u8 mac_id, mac_rates_t r
 
 void rtl92su_set_mac_addr(struct ieee80211_hw *hw, const u8 *addr)
 {
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct h2c_set_mac mac_args = { };
 
 	memcpy(&mac_args.mac, addr, ETH_ALEN);

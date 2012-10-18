@@ -165,5 +165,6 @@ int rtl_usb_probe(struct usb_interface *intf,
 void rtl_usb_disconnect(struct usb_interface *intf);
 int rtl_usb_suspend(struct usb_interface *pusb_intf, pm_message_t message);
 int rtl_usb_resume(struct usb_interface *pusb_intf);
-
+int rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
+                     enum rtl_txq qnum, usb_complete_t callback);
 #endif
