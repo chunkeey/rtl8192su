@@ -177,28 +177,29 @@ struct fw_priv {
 struct fw_hdr {
 
 	/* --- LONG WORD 0 ---- */
-	u16 signature;
+	__le16 signature;
 	/* 0x8000 ~ 0x8FFF for FPGA version,
 	 * 0x0000 ~ 0x7FFF for ASIC version, */
-	u16 version;
+	__le16 version;
 	/* define the size of boot loader */
-	u32 dmem_size;
+	__le32 dmem_size;
 
 
 	/* --- LONG WORD 1 ---- */
 	/* define the size of FW in IMEM */
-	u32 img_imem_size;
+	__le32 img_imem_size;
 	/* define the size of FW in SRAM */
-	u32 img_sram_size;
+	__le32 img_sram_size;
 
 	/* --- LONG WORD 2 ---- */
 	/* define the size of DMEM variable */
-	u32 fw_priv_size;
-	u32 rsvd0;
+	__le32 fw_priv_size;
+	__le16 efuse_addr;
+        __le16 h2ccnd_resp_addr;
 
 	/* --- LONG WORD 3 ---- */
-	u32 rsvd1;
-	u32 rsvd2;
+	__le32 svn_evision;
+	__le32 release_time;
 
 	struct fw_priv fwpriv;
 
@@ -220,6 +221,7 @@ struct rt_firmware {
 	u8 fw_emem[RTL8192_MAX_FIRMWARE_CODE_SIZE];
 	u32 fw_imem_len;
 	u32 fw_emem_len;
+	u32 fw_dmem_len;
 	u8 sz_fw_tmpbuffer[RTL8192_MAX_RAW_FIRMWARE_CODE_SIZE];
 	u32 sz_fw_tmpbufferlen;
 	u16 cmdpacket_fragthresold;

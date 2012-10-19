@@ -367,15 +367,13 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 	pfwheader->fwpriv.mlme_offload = 0;
 	pfwheader->fwpriv.hwpc_offload = 0;
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "signature:%x, version:%x, size:%x, imemsize:%x, sram size:%x\n",
-		 pfwheader->signature,
-		 pfwheader->version, pfwheader->dmem_size,
-		 pfwheader->img_imem_size, pfwheader->img_sram_size);
+	firmware->fw_imem_len = le32_to_cpu(pfwheader->img_imem_size);
+	firmware->fw_emem_len = le32_to_cpu(pfwheader->img_sram_size);
+	firmware->fw_dmem_len = le32_to_cpu(pfwheader->dmem_size);
 
 	/* 2. Retrieve IMEM image. */
-	if ((pfwheader->img_imem_size == 0) || (pfwheader->img_imem_size >
-	    sizeof(firmware->fw_imem))) {
+	if ((firmware->fw_imem_len == 0) ||
+	    (firmware->fw_imem_len > sizeof(firmware->fw_imem))) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "memory for data image is less than IMEM required\n");
 		err = -EINVAL;
@@ -384,8 +382,7 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 		puc_mappedfile += fwhdr_size;
 
 		memcpy(firmware->fw_imem, puc_mappedfile,
-		       pfwheader->img_imem_size);
-		firmware->fw_imem_len = pfwheader->img_imem_size;
+		       firmware->fw_imem_len);
 	}
 
 	/* 3. Retrieve EMEM image. */
@@ -398,8 +395,7 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 		puc_mappedfile += firmware->fw_imem_len;
 
 		memcpy(firmware->fw_emem, puc_mappedfile,
-		       pfwheader->img_sram_size);
-		firmware->fw_emem_len = pfwheader->img_sram_size;
+		       firmware->fw_emem_len);
 	}
 
 	/* 4. download fw now */
