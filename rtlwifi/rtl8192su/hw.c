@@ -804,7 +804,6 @@ static u8 _rtl92s_set_sysclk(struct ieee80211_hw *hw, u8 data)
 static void _rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	u8 u1btmp;
 

@@ -817,7 +817,6 @@ static struct urb *_rtl_usb_tx_urb_setup(struct ieee80211_hw *hw,
 	if (!_urb) {
 		RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
 			 "Can't allocate URB for bulk out!\n");
-		kfree_skb(skb);
 		return NULL;
 	}
 	_rtl_install_trx_info(rtlusb, skb, ep_num);
@@ -837,6 +836,7 @@ int rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct sk_buff *_skb = NULL;
 	struct sk_buff_head *skb_list;
 	struct usb_anchor *urb_list;
+	int err;
 
 	WARN_ON(NULL == rtlusb->usb_tx_aggregate_hdl);
 	ep_num = rtlusb->ep_map.ep_mapping[qnum];
@@ -846,11 +846,16 @@ int rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (unlikely(!_urb)) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "Can't allocate urb. Drop skb!\n");
-		dev_kfree_skb_any(skb);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out;
 	}
 	urb_list = &rtlusb->tx_pending[ep_num];
-	return _rtl_submit_tx_urb(hw, _urb);
+	err = _rtl_submit_tx_urb(hw, _urb);
+out:
+	if (err) {
+		ieee80211_free_txskb(hw, skb);
+	}
+	return err;
 }
 EXPORT_SYMBOL_GPL(rtl_usb_transmit);
 

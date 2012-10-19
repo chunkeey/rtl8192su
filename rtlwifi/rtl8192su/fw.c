@@ -130,13 +130,18 @@ static int _rtl92s_cmd_send_packet(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_tcb_desc *tcb_desc;
 	u8 *pdesc;
+	int err;
 
 	pdesc = (u8 *)skb_push(skb, RTL_TX_HEADER_SIZE);
 	rtlpriv->cfg->ops->fill_tx_cmddesc(hw, pdesc, 1, 1, skb);
 
 	tcb_desc = (struct rtl_tcb_desc *)(skb->cb);
-	return rtl_usb_transmit(hw, skb, tcb_desc->queue_index,
+	err = rtl_usb_transmit(hw, skb, tcb_desc->queue_index,
 				_rtl92s_cmd_complete);
+	if (err) {
+		dev_kfree_skb_any(skb);
+	}
+	return err;
 }
 
 static int _rtl92s_firmware_downloadcode(struct ieee80211_hw *hw,
