@@ -692,7 +692,7 @@ static int _rtl92su_set_media_status(struct ieee80211_hw *hw,
 
 	switch (type) {
 	case NL80211_IFTYPE_UNSPECIFIED:
-		err = rtl92s_set_fw_opmode_cmd(hw, OP_ADHOC);
+		err = rtl92s_set_fw_opmode_cmd(hw, OP_AUTO);
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
 			 "Set Network type to NO LINK!\n");
 		break;
