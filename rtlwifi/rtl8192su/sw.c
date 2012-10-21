@@ -222,7 +222,6 @@ static struct rtl_hal_ops rtl8192su_hal_ops = {
 	.set_channel_access = rtl92su_update_channel_access_setting,
 	.radio_onoff_checking = rtl92su_gpio_radio_on_off_checking,
 	.set_bw_mode = rtl92s_phy_set_bw_mode,
-	.switch_channel = rtl92s_phy_sw_chnl,
 	.switch_channel = rtl92s_set_fw_setchannel_cmd,
 	.dm_watchdog = rtl92s_dm_watchdog,
 	.scan_operation_backup = rtl92s_phy_scan_operation_backup,
@@ -251,7 +250,7 @@ static struct rtl_hal_usbint_cfg rtl92su_interface_cfg = {
 	.in_ep_num = RTL92S_USB_BULK_IN_NUM,
 	.in_ep = RTL92S_USB_BULK_IN_EP,
 	.rx_urb_num = RTL92S_NUM_RX_URBS,
-	.rx_max_size = RTL92S_SIZE_MAX_RX_BUFFER,
+	.rx_max_size = RTL92SU_SIZE_MAX_RX_BUFFER,
 	.usb_rx_hdl = rtl8192su_rx_hdl,
 	.usb_rx_segregate_hdl = NULL, /* rtl8192s_rx_segregate_hdl; */
 	/* tx */

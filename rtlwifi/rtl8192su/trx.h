@@ -33,7 +33,7 @@
 #define RTL92S_USB_BULK_IN_EP			3
 #define RTL92S_NUM_RX_URBS			8
 
-#define RTL92S_SIZE_MAX_RX_BUFFER		30720
+#define RTL92SU_SIZE_MAX_RX_BUFFER		9100
 #define RX_DRV_INFO_SIZE_UNIT			8
 
 int rtl8192su_endpoint_mapping(struct ieee80211_hw *hw);
