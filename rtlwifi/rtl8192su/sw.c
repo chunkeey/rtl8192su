@@ -110,8 +110,7 @@ static int rtl92su_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->dm.disable_framebursting = false;
 	rtlpriv->dm.thermalvalue = 0;
 	rtlpriv->dm.useramask = true;
-	//rtlpriv->dbg.global_debuglevel = rtlpriv->cfg->mod_params->debug;
-	rtlpriv->dbg.global_debuglevel = DBG_TRACE;
+	rtlpriv->dbg.global_debuglevel = rtlpriv->cfg->mod_params->debug;
 
 	/* compatible 5G band 91su just 2.4G band & smsp */
 	rtlpriv->rtlhal.current_bandtype = BAND_ON_2_4G;
@@ -242,7 +241,7 @@ static struct rtl_mod_params rtl92su_mod_params = {
 	.inactiveps = false,
 	.swctrl_lps = false,
 	.fwctrl_lps = true,
-	.debug = DBG_TRACE,
+	.debug = DBG_EMERG,
 };
 
 static struct rtl_hal_usbint_cfg rtl92su_interface_cfg = {

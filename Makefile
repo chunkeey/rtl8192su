@@ -18,12 +18,19 @@ KMOD_OPTIONS += CONFIG_RTL8192CU=n CONFIG_RTL8192DE=n CONFIG_RTL8192CE=n CONFIG_
 EXTRA_CFLAGS += -DDEBUG
 
 all:
-	$(MAKE) -C $(KSRC) M=$(KMOD_SRC) $(KMOD_OPTIONS) C=$(C) CF=$(CF)
+	$(MAKE) -C $(KSRC) M=$(KMOD_SRC) $(KMOD_OPTIONS) C=$(C) CF=$(CF) -j4
 
 clean:
 	$(MAKE) -C $(KSRC) M=$(KMOD_SRC) clean $(KMOD_OPTIONS)
 
+#debug trace load
 load:	all
+	modprobe mac80211
+	insmod $(KMOD_SRC)/rtlwifi.ko
+	insmod $(KMOD_SRC)/rtl8192su/rtl8192su.ko swenc=1 debug=5
+
+#silent load
+ld:	all
 	modprobe mac80211
 	insmod $(KMOD_SRC)/rtlwifi.ko
 	insmod $(KMOD_SRC)/rtl8192su/rtl8192su.ko swenc=1
