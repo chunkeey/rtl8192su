@@ -42,8 +42,6 @@
 
 static void usbctrl_async_callback(struct urb *urb)
 {
-	if (urb)
-		kfree(urb->context);
 }
 
 static int _usbctrl_vendorreq_async_write(struct usb_device *udev, u8 request,
@@ -85,6 +83,8 @@ static int _usbctrl_vendorreq_async_write(struct usb_device *udev, u8 request,
 	usb_fill_control_urb(urb, udev, pipe,
 			     (unsigned char *)dr, buf, len,
 			     usbctrl_async_callback, buf);
+
+	urb->transfer_flags |= URB_FREE_BUFFER;
 	rc = usb_submit_urb(urb, GFP_ATOMIC);
 	if (rc < 0)
 		kfree(buf);
