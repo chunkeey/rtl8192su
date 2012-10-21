@@ -318,9 +318,15 @@ static struct rtl_hal_cfg rtl92su_hal_cfg = {
 	.maps[RTL_RC_HT_RATEMCS15] = DESC92_RATEMCS15,
 };
 
-module_param_named(swenc, rtl92su_mod_params.sw_crypto, bool, 0444);
+/*
+ * Currently we only support sw crypto. Once the HW crypto
+ * is implemented this comment can be removed and the setting
+ * can be configurable.
+ *
+ * module_param_named(swenc, rtl92su_mod_params.sw_crypto, bool, 0444);
+ * MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 1)");
+ */
 module_param_named(debug, rtl92su_mod_params.debug, int, 0444);
-MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 0)");
 MODULE_PARM_DESC(debug, "Set debug level (0-5) (default 0)");
 
 #define USB_VENDER_ID_REALTEK		0x0bda

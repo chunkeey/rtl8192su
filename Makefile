@@ -27,13 +27,13 @@ clean:
 load:	all
 	modprobe mac80211
 	insmod $(KMOD_SRC)/rtlwifi.ko
-	insmod $(KMOD_SRC)/rtl8192su/rtl8192su.ko swenc=1 debug=5
+	insmod $(KMOD_SRC)/rtl8192su/rtl8192su.ko debug=5
 
 #silent load
 ld:	all
 	modprobe mac80211
 	insmod $(KMOD_SRC)/rtlwifi.ko
-	insmod $(KMOD_SRC)/rtl8192su/rtl8192su.ko swenc=1
+	insmod $(KMOD_SRC)/rtl8192su/rtl8192su.ko
 
 unload:
 	rmmod $(KMOD_SRC)/rtl8192su/rtl8192su.ko
