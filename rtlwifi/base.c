@@ -454,7 +454,9 @@ int rtl_init_core(struct ieee80211_hw *hw)
 	spin_lock_init(&rtlpriv->locks.rf_lock);
 	spin_lock_init(&rtlpriv->locks.waitq_lock);
 	spin_lock_init(&rtlpriv->locks.cck_and_rw_pagea_lock);
+	spin_lock_init(&rtlpriv->locks.cmd_rsp_lock);
 
+	init_completion(&rtlpriv->cmd_rsp.complete);
 	rtlmac->link_state = MAC80211_NOLINK;
 
 	/* <5> init deferred work */

@@ -1311,6 +1311,12 @@ struct rtl_ps_ctl {
 	unsigned long last_slept;
 };
 
+struct rtl_cmd_rsp {
+	u8 *buf;
+	unsigned int size;
+	struct completion complete;
+};
+
 struct rtl_stats {
 	u32 mac_time[2];
 	s8 rssi;
@@ -1601,6 +1607,7 @@ struct rtl_locks {
 	spinlock_t waitq_lock;
 	spinlock_t entry_list_lock;
 	spinlock_t usb_lock;
+	spinlock_t cmd_rsp_lock;
 
 	/*Dual mac*/
 	spinlock_t cck_and_rw_pagea_lock;
@@ -1786,6 +1793,9 @@ struct rtl_priv {
 	__le32 *usb_data;
 	int usb_data_index;
 
+	/* command response */
+	struct rtl_cmd_rsp cmd_rsp;
+
 	/*This must be the last item so
 	   that it points to the data allocated
 	   beyond  this structure like:
@@ -1798,7 +1808,7 @@ struct rtl_priv {
 #define rtl_hal(rtlpriv)	(&((rtlpriv)->rtlhal))
 #define rtl_efuse(rtlpriv)	(&((rtlpriv)->efuse))
 #define rtl_psc(rtlpriv)	(&((rtlpriv)->psc))
-
+#define rtl_cmd_rsp(rtlpriv)	(&((rtlpriv)->cmd_rsp))
 
 /***************************************
     Bluetooth Co-existence Related
