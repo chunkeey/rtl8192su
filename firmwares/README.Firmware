@@ -1,0 +1,28 @@
+RTL8192SU / RTL8712U firmwares
+
+Since some people reported that not all firmwares
+are compatible with all devices, we have to figure
+out which is the most compatible, feature-rich and
+bug-free of them all.
+
+Currently, there are three different contenders:
+
+ - rtl8712u-oldest-but-good.bin
+   (Original firmware from 2010 - used by the r8712u
+    staging driver - Take this image if you don't
+    want to test)
+
+ - rtl8712u-linux-firmware-bad.bin
+   Firmware 2012-04-02 (Known to be bad?)
+   Taken from the linux-firmware.git
+
+ - rtl8712u-most-recent-v2.6.6-bad.bin
+   Firmware 2012-04-05 (04?) (Reported not to work with ASUS devices?)
+   Taken from the latest vendor driver (v2.6.6 vendor website)
+
+These firmwares have to be placed into
+
+	/lib/firmware/rtlwifi/
+
+the driver will only load the firmware which is named "rtl8712u.bin",
+so either rename one of these or set a symlink.
