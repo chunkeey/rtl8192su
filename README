@@ -19,3 +19,7 @@ to load the module.
 
 Note: This driver might not be compatible with
 other drivers that use the rtlwifi framework.
+---
+
+Note2: If you don't want to be spammed by debug messages,
+use "make ld".
