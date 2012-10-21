@@ -102,7 +102,6 @@ void rtl92s_phy_set_rf_reg(struct ieee80211_hw *hw,	enum radio_path rfpath,
 			   u32 regaddr, u32 bitmask, u32 data);
 void rtl92s_phy_set_bw_mode(struct ieee80211_hw *hw,
 			    enum nl80211_channel_type ch_type);
-u8 rtl92s_phy_sw_chnl(struct ieee80211_hw *hw);
 bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
 				   enum rf_pwrstate rfpower_state);
 int rtl92s_phy_mac_config(struct ieee80211_hw *hw);

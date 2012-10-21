@@ -622,4 +622,6 @@ u8 rtl92s_fw_iocmd_write(struct ieee80211_hw *hw, u8 ioclass, u16 iovalue, u8 io
 void rtl92su_set_mac_addr(struct ieee80211_hw *hw, const u8 * addr);
 void rtl92su_set_basic_rate(struct ieee80211_hw *hw);
 
+u8 rtl92s_set_fw_assoc(struct ieee80211_hw *hw, u8 *mac, bool assoc);
+
 #endif

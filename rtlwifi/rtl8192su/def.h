@@ -40,10 +40,10 @@
 #define	RX_SMOOTH_FACTOR			20
 
 /* Queue Select Value in TxDesc */
-#define QSLT_BK					0x2
-#define QSLT_BE					0x0
+#define QSLT_BK					0x1
+#define QSLT_BE					0x3
 #define QSLT_VI					0x5
-#define QSLT_VO					0x6
+#define QSLT_VO					0x7
 #define QSLT_BEACON				0x10
 #define QSLT_HIGH				0x11
 #define QSLT_MGNT				0x12

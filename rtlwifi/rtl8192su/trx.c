@@ -52,11 +52,11 @@ int rtl8192su_endpoint_mapping(struct ieee80211_hw *hw)
 	 * is enabled. Since we can't change the EPs "on demand",
 	 * we always presume that it is enabled.
 	 */
-	ep_map->ep_mapping[RTL_TXQ_BK]	= 0x0d;
-	ep_map->ep_mapping[RTL_TXQ_BE]	= 0x0d;
-	ep_map->ep_mapping[RTL_TXQ_VI]	= 0x0d;
-	ep_map->ep_mapping[RTL_TXQ_VO]	= 0x0d;
-	ep_map->ep_mapping[RTL_TXQ_MGT] = 0x0d;
+	ep_map->ep_mapping[RTL_TXQ_BK]	= 0x04;
+	ep_map->ep_mapping[RTL_TXQ_BE]	= 0x04;
+	ep_map->ep_mapping[RTL_TXQ_VI]	= 0x06;
+	ep_map->ep_mapping[RTL_TXQ_VO]	= 0x06;
+	ep_map->ep_mapping[RTL_TXQ_MGT] = 0x06;
 	ep_map->ep_mapping[RTL_TXQ_BCN] = 0x0d;
 	ep_map->ep_mapping[RTL_TXQ_HI]	= 0x0d;
 	return 0;
@@ -619,13 +619,17 @@ static void rtl92su_c2h_event(struct ieee80211_hw *hw, u8 *pdesc)
 	//RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE, "C2H ID:%d len:%u\n", evnum, len);
 
 	switch(evnum) {
-	case 0x08:
+	case C2H_SURVEY_EVENT:
 		break;
-	case 0x09:
+	case C2H_SURVEY_DONE_EVENT:
 		break;
-	case 0x13: // FWDBG
+	case C2H_FWDBG_EVENT:
 		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE, "fwdbg: %s%s",
 			 data, data[len - 2] == '\n' ? "" : "\n");
+		break;
+	case C2H_ADD_STA_EVENT:
+		break;
+	case C2H_WPS_PBC_EVENT:
 		break;
 
 	default:
@@ -680,8 +684,8 @@ bool rtl92su_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 
 	hdr = (struct ieee80211_hdr *)(skb->data + stats->rx_drvinfo_size
 	      + stats->rx_bufshift);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE, "RX DATA fc[%02x] a1[%pM] a2[%pM] a3[%pM]\n",
-		 hdr->frame_control, hdr->addr1, hdr->addr2, hdr->addr3);
+//	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE, "RX DATA fc[%02x] a1[%pM] a2[%pM] a3[%pM]\n",
+//		 hdr->frame_control, hdr->addr1, hdr->addr2, hdr->addr3);
 
 	if (stats->crc)
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
@@ -789,8 +793,8 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 	u8 fw_qsel = _rtl92se_map_hwqueue_to_fwqueue(skb, hw_queue);
 	u8 bw_40 = 0;
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE, "TX DATA fc[%02x] a1[%pM] a2[%pM] a3[%pM]\n",
-		 hdr->frame_control, hdr->addr1, hdr->addr2, hdr->addr3);
+//	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE, "TX DATA fc[%02x] a1[%pM] a2[%pM] a3[%pM]\n",
+//		 hdr->frame_control, hdr->addr1, hdr->addr2, hdr->addr3);
 
 	if (mac->opmode == NL80211_IFTYPE_STATION) {
 		bw_40 = mac->bw_40;
@@ -804,7 +808,7 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 	/* 3 Fill necessary field in First Descriptor */
 	/*DWORD 0*/
 	SET_TX_DESC_LINIP(pdesc, 0);
-	SET_TX_DESC_OFFSET(pdesc, 32);
+	SET_TX_DESC_OFFSET(pdesc, RTL_TX_HEADER_SIZE);
 	SET_TX_DESC_QUEUE_SEL(pdesc, fw_qsel);
 
 	/* fill in packet size before adding pdesc header */
@@ -822,8 +826,7 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 		}
 	}
 
-	SET_TX_DESC_RSVD_MACID(pdesc, reserved_macid);
-
+	SET_TX_DESC_SEQ(pdesc, seq_number);
 	SET_TX_DESC_TXHT(pdesc, ((ptcb_desc->hw_rate >=
 			 DESC92_RATEMCS0) ? 1 : 0));
 
@@ -844,9 +847,6 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 	/* Aggregation related */
 	if (info->flags & IEEE80211_TX_CTL_AMPDU)
 		SET_TX_DESC_AGG_ENABLE(pdesc, 1);
-
-	/* For AMPDU, we must insert SSN into TX_DESC */
-	SET_TX_DESC_SEQ(pdesc, seq_number);
 
 	/* Protection mode related */
 	/* For 92S, if RTS/CTS are set, HW will execute RTS. */
@@ -918,18 +918,19 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 	if (!ieee80211_is_data_qos(fc))
 		SET_TX_DESC_NON_QOS(pdesc, 1);
 
-	if (is_multicast_ether_addr(ieee80211_get_DA(hdr))) {
+	if (!sta && is_multicast_ether_addr(ieee80211_get_DA(hdr))) {
 		SET_TX_DESC_BMC(pdesc, 1);
 
 		/*
 		 * Note: In station mode, the station sends a
 		 * copy of a broadcast data frame to the AP
-		 * (of course, with a broadcast DA!)... This
-		 * copy is sometimes a QoS-data frame and this
-		 * seems to confuse the FW which seem so expect
-		 * all broadcast data to be non-qos?!
+		 * (of course, with a broadcast DA!)... So, what
+		 * do we do in this case? For now we ignore it
+		 * and don't set the BMC... However, I'm not
+		 * sure if this is really the right thing to do
+		 * or not. But apparently, there are no
+		 * consequences?!
 		 */
-		SET_TX_DESC_NON_QOS(pdesc, 1);
 	}
 
 	_rtl_fill_usb_tx_desc(pdesc);

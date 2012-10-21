@@ -197,11 +197,6 @@ void rtl92s_phy_set_bw_mode(struct ieee80211_hw *hw,
 	return;
 }
 
-u8 rtl92s_phy_sw_chnl(struct ieee80211_hw *hw)
-{
-	return 1;
-}
-
 static void _rtl92se_phy_set_rf_sleep(struct ieee80211_hw *hw)
 {
 	return;

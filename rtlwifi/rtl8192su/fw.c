@@ -366,7 +366,7 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 	pfwheader->fwpriv.usb_ep_num = rtlusb->in_ep_nums +
 			rtlusb->out_ep_nums;
 
-	pfwheader->fwpriv.mp_mode = 1;
+	pfwheader->fwpriv.mp_mode = 0;
 	pfwheader->fwpriv.turbo_mode = 0;
 	pfwheader->fwpriv.beacon_offload = 0;
 	pfwheader->fwpriv.mlme_offload = 0;
@@ -391,7 +391,7 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 	}
 
 	/* 3. Retrieve EMEM image. */
-	if (pfwheader->img_sram_size > sizeof(firmware->fw_emem)) {
+	if (firmware->fw_emem_len > sizeof(firmware->fw_emem)) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "memory for data image is less than EMEM required\n");
 		err = -EINVAL;
@@ -508,60 +508,6 @@ static u32 _rtl92s_fill_h2c_cmd(struct sk_buff *skb, u32 h2cbufferlen,
 	return totallen;
 }
 
-#if 0
-static u32 _rtl92s_fill_h2c_cmd(struct sk_buff *skb, u32 h2cbufferlen,
-				u32 cmd_num, u32 *pelement_id, u32 *pcmd_len,
-				u8 *pcmb_buffer, u8 *cmd_start_seq)
-{
-	u32 totallen = 0, len = 0, tx_desclen = 0;
-	u32 pre_continueoffset = 0;
-	u8 *ph2c_buffer;
-	u8 i = 0;
-
-	do {
-		/* 8 - Byte aligment */
-		len = H2C_TX_CMD_HDR_LEN + N_BYTE_ALIGMENT(pcmd_len[i], 8);
-
-		/* Buffer length is not enough  */
-		if (h2cbufferlen < totallen + len + tx_desclen)
-			break;
-
-		/* Clear content */
-		ph2c_buffer = (u8 *)skb_put(skb, (u32)len);
-		memset((ph2c_buffer + totallen + tx_desclen), 0, len);
-
-		/* CMD len */
-		SET_BITS_TO_LE_4BYTE((ph2c_buffer + totallen + tx_desclen),
-				      0, 16, N_BYTE_ALIGMENT(pcmd_len[i], 8));
-
-		/* CMD ID */
-		SET_BITS_TO_LE_4BYTE((ph2c_buffer + totallen + tx_desclen),
-				      16, 8, pelement_id[i]);
-
-		/* CMD Sequence */
-		*cmd_start_seq = *cmd_start_seq % 0x80;
-		SET_BITS_TO_LE_4BYTE((ph2c_buffer + totallen + tx_desclen),
-				      24, 7, *cmd_start_seq);
-		++*cmd_start_seq;
-
-		/* Copy memory */
-		memcpy((ph2c_buffer + totallen + tx_desclen +
-			H2C_TX_CMD_HDR_LEN), &pcmb_buffer[i], pcmd_len[i]);
-
-		/* CMD continue */
-		/* set the continue in prevoius cmd. */
-		if (i < cmd_num - 1)
-			SET_BITS_TO_LE_4BYTE((ph2c_buffer + pre_continueoffset),
-					      31, 1, 1);
-
-		pre_continueoffset = totallen;
-
-		totallen += len;
-	} while (++i < cmd_num);
-	return totallen;
-}
-#endif
-
 static u32 _rtl92s_get_h2c_cmdlen(u32 h2cbufferlen, u32 cmd_num, u32 *pcmd_len)
 {
 	u32 totallen = 0, len = 0, tx_desclen = 0;
@@ -656,12 +602,47 @@ void rtl92s_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw,
 	joinbss_rpt.opmode = mstatus;
 	joinbss_rpt.ps_qos_info = ps_qosinfo;
 	memcpy(joinbss_rpt.bssid, mac->bssid, ETH_ALEN);
-	SET_BITS_TO_LE_2BYTE((u8 *)(&joinbss_rpt) + 8, 0, 16,
-			mac->vif->bss_conf.beacon_int);
-	SET_BITS_TO_LE_2BYTE((u8 *)(&joinbss_rpt) + 10, 0, 16, mac->assoc_id);
+	joinbss_rpt.bcnitv = cpu_to_le16(mac->vif->bss_conf.beacon_int);
+	joinbss_rpt.aid = cpu_to_le16(mac->assoc_id);
 
 	_rtl92s_firmware_set_h2c_cmd(hw, H2C_JOINBSSRPT_CMD, sizeof(joinbss_rpt),
 		(u8 *)&joinbss_rpt);
+}
+
+u8 rtl92s_set_fw_assoc(struct ieee80211_hw *hw, u8 *mac, bool assoc) {
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_cmd_rsp *rtl_cmdrsp = rtl_cmd_rsp(rtlpriv);
+	unsigned long flags;
+	struct c2h_addsta_event macid;
+	u32 cmd;
+	int ret;
+
+	if (assoc)
+		cmd = H2C_SETASSOCSTA_CMD;
+	else
+		cmd = H2C_DELASSOCSTA_CMD;
+
+	spin_lock_irqsave(&rtlpriv->locks.cmd_rsp_lock, flags);
+	rtl_cmdrsp->buf = (u8 *) &macid;
+	rtl_cmdrsp->size = sizeof(macid);
+	spin_unlock_irqrestore(&rtlpriv->locks.cmd_rsp_lock, flags);
+
+	/*
+	 * Doesn't work? no callback
+	 */
+
+	_rtl92s_firmware_set_h2c_cmd(hw, cmd, ETH_ALEN, mac);
+
+	if (assoc) {
+		ret = wait_for_completion_timeout(&rtl_cmdrsp->complete, HZ);
+
+		if (ret == 0)
+			return -ETIMEDOUT;
+
+		return macid.cam_id;
+	} else {
+		return 0;
+	}
 }
 
 int rtl92s_set_fw_sitesurvey_cmd(struct ieee80211_hw *hw,
