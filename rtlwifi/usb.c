@@ -86,8 +86,6 @@ static int _usbctrl_vendorreq_async_write(struct usb_device *udev, u8 request,
 
 	urb->transfer_flags |= URB_FREE_BUFFER;
 	rc = usb_submit_urb(urb, GFP_ATOMIC);
-	if (rc < 0)
-		kfree(buf);
 	usb_free_urb(urb);
 	return rc;
 }
