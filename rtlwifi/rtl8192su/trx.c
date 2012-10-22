@@ -47,18 +47,34 @@ int rtl8192su_endpoint_mapping(struct ieee80211_hw *hw)
 	struct rtl_usb *rtlusb = rtl_usbdev(usb_priv);
 	struct rtl_ep_map *ep_map = &(rtlusb->ep_map);
 
-	/*
-	 * The vendor driver uses the same EP when TX aggregation
-	 * is enabled. Since we can't change the EPs "on demand",
-	 * we always presume that it is enabled.
-	 */
-	ep_map->ep_mapping[RTL_TXQ_BK]	= 0x04;
-	ep_map->ep_mapping[RTL_TXQ_BE]	= 0x04;
-	ep_map->ep_mapping[RTL_TXQ_VI]	= 0x06;
-	ep_map->ep_mapping[RTL_TXQ_VO]	= 0x06;
-	ep_map->ep_mapping[RTL_TXQ_MGT] = 0x06;
-	ep_map->ep_mapping[RTL_TXQ_BCN] = 0x0d;
-	ep_map->ep_mapping[RTL_TXQ_HI]	= 0x0d;
+	ep_map->ep_mapping[RTL_TXQ_BE]  = 0x06;
+	ep_map->ep_mapping[RTL_TXQ_VO]	= 0x04;
+
+	switch (rtlusb->out_ep_nums) {
+	case 3:
+		ep_map->ep_mapping[RTL_TXQ_BK]	= 0x06;
+		ep_map->ep_mapping[RTL_TXQ_MGT] = 0x06;
+		ep_map->ep_mapping[RTL_TXQ_VI]	= 0x04;
+		ep_map->ep_mapping[RTL_TXQ_BCN] = 0x0d;
+		ep_map->ep_mapping[RTL_TXQ_HI]	= 0x0d;
+		break;
+	case 5:
+		ep_map->ep_mapping[RTL_TXQ_BK]  = 0x07;
+		ep_map->ep_mapping[RTL_TXQ_VI]  = 0x05;
+		ep_map->ep_mapping[RTL_TXQ_MGT] = 0x0d;
+		ep_map->ep_mapping[RTL_TXQ_BCN] = 0x0d;
+		ep_map->ep_mapping[RTL_TXQ_HI]  = 0x0d;
+		break;
+	case 8:
+		ep_map->ep_mapping[RTL_TXQ_BK]  = 0x07;
+		ep_map->ep_mapping[RTL_TXQ_VI]  = 0x05;
+		ep_map->ep_mapping[RTL_TXQ_MGT] = 0x0c;
+		ep_map->ep_mapping[RTL_TXQ_BCN] = 0x0a;
+		ep_map->ep_mapping[RTL_TXQ_HI]  = 0x0b;
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 
