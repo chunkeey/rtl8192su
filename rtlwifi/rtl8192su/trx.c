@@ -984,17 +984,17 @@ void rtl92su_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 	}
 }
 
-void rtl8192s_tx_cleanup(struct ieee80211_hw *hw, struct sk_buff  *skb)
+void rtl92s_tx_cleanup(struct ieee80211_hw *hw, struct sk_buff  *skb)
 {
 }
 
-int rtl8192s_tx_post_hdl(struct ieee80211_hw *hw, struct urb *urb,
+int rtl92s_tx_post_hdl(struct ieee80211_hw *hw, struct urb *urb,
 			 struct sk_buff *skb)
 {
 	return 0;
 }
 
-struct sk_buff *rtl8192s_tx_aggregate_hdl(struct ieee80211_hw *hw,
+struct sk_buff *rtl92s_tx_aggregate_hdl(struct ieee80211_hw *hw,
 					   struct sk_buff_head *list)
 {
 	return skb_dequeue(list);
