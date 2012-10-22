@@ -268,7 +268,7 @@ static u8 _rtl92su_halset_sysclk(struct ieee80211_hw *hw, u16 data)
 	return bresult;
 }
 
-static int rtl8192su_gpiobit4_cfg_inputmode(struct ieee80211_hw *hw)
+static int _rtl92su_gpiobit4_cfg_inputmode(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 u1tmp;
@@ -629,7 +629,8 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 	if (err)
 		return err;
 
-	err = rtl8192su_gpiobit4_cfg_inputmode(hw);
+	/* enable WPS push button control */
+	err = _rtl92su_gpiobit4_cfg_inputmode(hw);
 	if (err)
 		return err;
 
@@ -982,7 +983,7 @@ void rtl92su_card_disable(struct ieee80211_hw *hw)
 
 	/* we should change GPIO to input mode
 	 * this will drop away current about 25mA*/
-	rtl8192su_gpiobit4_cfg_inputmode(hw);
+	_rtl92su_gpiobit4_cfg_inputmode(hw);
 
 	/* this is very important for ips power save */
 	while (wait-- >= 10 && rtlpriv->psc.pwrdomain_protect) {

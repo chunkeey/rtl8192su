@@ -196,7 +196,7 @@ static void rtl92su_deinit_sw_vars(struct ieee80211_hw *hw)
 	}
 }
 
-static struct rtl_hal_ops rtl8192su_hal_ops = {
+static struct rtl_hal_ops rtl92su_hal_ops = {
 	.init_sw_vars = rtl92su_init_sw_vars,
 	.deinit_sw_vars = rtl92su_deinit_sw_vars,
 	.read_chip_version = rtl92su_read_chip_version,
@@ -250,21 +250,21 @@ static struct rtl_hal_usbint_cfg rtl92su_interface_cfg = {
 	.in_ep = RTL92S_USB_BULK_IN_EP,
 	.rx_urb_num = RTL92S_NUM_RX_URBS,
 	.rx_max_size = RTL92SU_SIZE_MAX_RX_BUFFER,
-	.usb_rx_hdl = rtl8192su_rx_hdl,
+	.usb_rx_hdl = rtl92su_rx_hdl,
 	.usb_rx_segregate_hdl = NULL, /* rtl8192s_rx_segregate_hdl; */
 	/* tx */
-	.usb_tx_cleanup = rtl8192s_tx_cleanup,
-	.usb_tx_post_hdl = rtl8192s_tx_post_hdl,
-	.usb_tx_aggregate_hdl = rtl8192s_tx_aggregate_hdl,
+	.usb_tx_cleanup = rtl92s_tx_cleanup,
+	.usb_tx_post_hdl = rtl92s_tx_post_hdl,
+	.usb_tx_aggregate_hdl = rtl92s_tx_aggregate_hdl,
 	/* endpoint mapping */
-	.usb_endpoint_mapping = rtl8192su_endpoint_mapping,
-	.usb_mq_to_hwq = rtl8192su_mq_to_hwq,
+	.usb_endpoint_mapping = rtl92su_endpoint_mapping,
+	.usb_mq_to_hwq = rtl92su_mq_to_hwq,
 };
 
 static struct rtl_hal_cfg rtl92su_hal_cfg = {
 	.name = "rtl92s_usb",
 	.fw_name = "rtlwifi/rtl8712u.bin",
-	.ops = &rtl8192su_hal_ops,
+	.ops = &rtl92su_hal_ops,
 	.mod_params = &rtl92su_mod_params,
 	.usb_interface_cfg = &rtl92su_interface_cfg,
 
@@ -331,7 +331,7 @@ MODULE_PARM_DESC(debug, "Set debug level (0-5) (default 0)");
 
 #define USB_VENDER_ID_REALTEK		0x0bda
 
-static struct usb_device_id rtl8192s_usb_ids[] = {
+static struct usb_device_id rtl92s_usb_ids[] = {
 
 /* RTL8188SU */
 	/* Realtek */
@@ -453,13 +453,13 @@ static struct usb_device_id rtl8192s_usb_ids[] = {
 	{}
 };
 
-MODULE_DEVICE_TABLE(usb, rtl8192s_usb_ids);
+MODULE_DEVICE_TABLE(usb, rtl92s_usb_ids);
 
-static struct usb_driver rtl8192su_driver = {
+static struct usb_driver rtl92su_driver = {
 	.name = "rtl8192su",
 	.probe = rtl_usb_probe,
 	.disconnect = rtl_usb_disconnect,
-	.id_table = rtl8192s_usb_ids,
+	.id_table = rtl92s_usb_ids,
 
 #ifdef CONFIG_PM
 	/* .suspend = rtl_usb_suspend, */
@@ -471,4 +471,4 @@ static struct usb_driver rtl8192su_driver = {
 #endif
 };
 
-module_usb_driver(rtl8192su_driver);
+module_usb_driver(rtl92su_driver);

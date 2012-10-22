@@ -61,7 +61,6 @@ void rtl92su_update_hal_rate_tbl(struct ieee80211_hw *hw,
 void rtl92su_update_channel_access_setting(struct ieee80211_hw *hw);
 bool rtl92su_gpio_radio_on_off_checking(struct ieee80211_hw *hw,
 					u8 *valid);
-void rtl8192su_gpiobit3_cfg_inputmode(struct ieee80211_hw *hw);
 void rtl92su_enable_hw_security_config(struct ieee80211_hw *hw);
 void rtl92su_set_key(struct ieee80211_hw *hw,
 		     u32 key_index, u8 *macaddr, bool is_group,

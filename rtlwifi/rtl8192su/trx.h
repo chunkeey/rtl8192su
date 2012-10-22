@@ -36,16 +36,16 @@
 #define RTL92SU_SIZE_MAX_RX_BUFFER		9100
 #define RX_DRV_INFO_SIZE_UNIT			8
 
-int rtl8192su_endpoint_mapping(struct ieee80211_hw *hw);
-u16 rtl8192su_mq_to_hwq(__le16 fc, u16 mac80211_queue_index);
+int rtl92su_endpoint_mapping(struct ieee80211_hw *hw);
+u16 rtl92su_mq_to_hwq(__le16 fc, u16 mac80211_queue_index);
 bool rtl92su_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 			   struct ieee80211_rx_status *rx_status, u8 *pdesc,
 			   struct sk_buff *skb);
-void  rtl8192su_rx_hdl(struct ieee80211_hw *hw, struct sk_buff * skb);
-void rtl8192s_tx_cleanup(struct ieee80211_hw *hw, struct sk_buff  *skb);
-int rtl8192s_tx_post_hdl(struct ieee80211_hw *hw, struct urb *urb,
+void  rtl92su_rx_hdl(struct ieee80211_hw *hw, struct sk_buff * skb);
+void rtl92s_tx_cleanup(struct ieee80211_hw *hw, struct sk_buff  *skb);
+int rtl92s_tx_post_hdl(struct ieee80211_hw *hw, struct urb *urb,
 			 struct sk_buff *skb);
-struct sk_buff *rtl8192s_tx_aggregate_hdl(struct ieee80211_hw *,
+struct sk_buff *rtl92s_tx_aggregate_hdl(struct ieee80211_hw *,
 					   struct sk_buff_head *);
 void rtl92su_tx_fill_desc(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 			  u8 *pdesc, struct ieee80211_tx_info *info,

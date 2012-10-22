@@ -41,7 +41,7 @@
 #include "dm.h"
 
 /* endpoint mapping */
-int rtl8192su_endpoint_mapping(struct ieee80211_hw *hw)
+int rtl92su_endpoint_mapping(struct ieee80211_hw *hw)
 {
 	struct rtl_usb_priv *usb_priv = rtl_usbpriv(hw);
 	struct rtl_usb *rtlusb = rtl_usbdev(usb_priv);
@@ -78,7 +78,7 @@ int rtl8192su_endpoint_mapping(struct ieee80211_hw *hw)
 	return 0;
 }
 
-u16 rtl8192su_mq_to_hwq(__le16 fc, u16 mac80211_queue_index)
+u16 rtl92su_mq_to_hwq(__le16 fc, u16 mac80211_queue_index)
 {
 	u16 hw_queue_index;
 
@@ -757,7 +757,7 @@ bool rtl92su_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 	return true;
 }
 
-void  rtl8192su_rx_hdl(struct ieee80211_hw *hw, struct sk_buff * skb)
+void  rtl92su_rx_hdl(struct ieee80211_hw *hw, struct sk_buff * skb)
 {
 	struct ieee80211_rx_status *rx_status =
 		 (struct ieee80211_rx_status *)IEEE80211_SKB_RXCB(skb);
