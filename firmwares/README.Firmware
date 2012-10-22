@@ -11,14 +11,19 @@ Currently, there are three different contenders:
    (Original firmware from 2010 - used by the r8712u
     staging driver - Take this image if you don't
     want to test)
+   From Vendor's rtl8712_8188_8191_8192SU_usb_linux_v7_0.20100831
 
  - rtl8712u-linux-firmware-bad.bin
    Firmware 2012-04-02 (Known to be bad?)
    Taken from the linux-firmware.git
+   From rtl8188C_8192C_8192D_usb_linux_v3.4.2_3727.20120404
+
 
  - rtl8712u-most-recent-v2.6.6-bad.bin
    Firmware 2012-04-05 (04?) (Reported not to work with ASUS devices?)
-   Taken from the latest vendor driver (v2.6.6 vendor website)
+   From RTL819xSU_usb_linux_v2.6.6.0.20120405
+
+Licence: Redistributable. See LICENCE.rtlwifi_firmware.txt for details.
 
 These firmwares have to be placed into
 
@@ -26,3 +31,5 @@ These firmwares have to be placed into
 
 the driver will only load the firmware which is named "rtl8712u.bin",
 so either rename one of these or set a symlink.
+
+File: rtlwifi/rtl8712u.bin
