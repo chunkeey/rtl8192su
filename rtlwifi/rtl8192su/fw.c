@@ -138,9 +138,10 @@ static int _rtl92s_cmd_send_packet(struct ieee80211_hw *hw,
 	tcb_desc = (struct rtl_tcb_desc *)(skb->cb);
 	err = rtl_usb_transmit(hw, skb, tcb_desc->queue_index,
 				_rtl92s_cmd_complete);
-	if (err) {
-		dev_kfree_skb_any(skb);
-	}
+	/*
+	 * If an error occured in rtl_usb_transmit, the skb is
+	 * being freed automatically.
+	 */
 	return err;
 }
 
@@ -151,6 +152,7 @@ static int _rtl92s_firmware_downloadcode(struct ieee80211_hw *hw,
 	struct sk_buff *skb;
 	struct rtl_tcb_desc *tcb_desc;
 	unsigned char *seg_ptr;
+	int err;
 	u16 frag_threshold = 0xC000;
 	u16 frag_length, frag_offset = 0;
 	u16 extra_descoffset = 0;
@@ -189,7 +191,9 @@ static int _rtl92s_firmware_downloadcode(struct ieee80211_hw *hw,
 		tcb_desc->cmd_or_init = DESC_PACKET_TYPE_INIT;
 		tcb_desc->last_inipkt = last_inipkt;
 
-		_rtl92s_cmd_send_packet(hw, skb, last_inipkt);
+		err = _rtl92s_cmd_send_packet(hw, skb, last_inipkt);
+		if (err)
+			return err;
 
 		frag_offset += (frag_length - extra_descoffset);
 
