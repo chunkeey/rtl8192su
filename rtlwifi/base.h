@@ -131,7 +131,9 @@ void rtl_watchdog_wq_callback(void *data);
 void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		      struct ieee80211_tx_info *info,
 		      struct ieee80211_sta *sta,
-		      struct sk_buff *skb, struct rtl_tcb_desc *tcb_desc);
+		      struct sk_buff *skb,
+		      struct ieee80211_hdr *hdr,
+		      struct rtl_tcb_desc *tcb_desc);
 
 int rtl_send_smps_action(struct ieee80211_hw *hw,
 		struct ieee80211_sta *sta, u8 *da, u8 *bssid,

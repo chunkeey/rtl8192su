@@ -517,7 +517,7 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 	u8 *txdesc = pdesc_tx;
 
 	seq_number = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
-	rtl_get_tcb_desc(hw, info, sta, skb, tcb_desc);
+	rtl_get_tcb_desc(hw, info, sta, skb, hdr, tcb_desc);
 	SET_TX_DESC_PKT_SIZE(txdesc, pktlen);
 	SET_TX_DESC_LINIP(txdesc, 0);
 	SET_TX_DESC_PKT_OFFSET(txdesc, RTL_DUMMY_OFFSET);

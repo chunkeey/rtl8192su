@@ -622,7 +622,7 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 
 	seq_number = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
 
-	rtl_get_tcb_desc(hw, info, sta, skb, ptcb_desc);
+	rtl_get_tcb_desc(hw, info, sta, skb, hdr, ptcb_desc);
 
 	CLEAR_PCI_TX_DESC_CONTENT(pdesc, TX_DESC_SIZE_RTL8192S);
 

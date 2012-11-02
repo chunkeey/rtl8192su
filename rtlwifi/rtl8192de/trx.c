@@ -578,7 +578,7 @@ void rtl92de_tx_fill_desc(struct ieee80211_hw *hw,
 				IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 	}
 	seq_number = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
-	rtl_get_tcb_desc(hw, info, sta, skb, ptcb_desc);
+	rtl_get_tcb_desc(hw, info, sta, skb, hdr, ptcb_desc);
 	/* reserve 8 byte for AMPDU early mode */
 	if (rtlhal->earlymode_enable) {
 		skb_push(skb, EM_HDR_LEN);

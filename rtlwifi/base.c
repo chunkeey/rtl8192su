@@ -832,11 +832,12 @@ EXPORT_SYMBOL(rtlwifi_rate_mapping);
 void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		      struct ieee80211_tx_info *info,
 		      struct ieee80211_sta *sta,
-		      struct sk_buff *skb, struct rtl_tcb_desc *tcb_desc)
+		      struct sk_buff *skb,
+		      struct ieee80211_hdr *hdr,
+		      struct rtl_tcb_desc *tcb_desc)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *rtlmac = rtl_mac(rtl_priv(hw));
-	struct ieee80211_hdr *hdr = rtl_get_hdr(skb);
 	struct ieee80211_rate *txrate;
 	__le16 fc = hdr->frame_control;
 
