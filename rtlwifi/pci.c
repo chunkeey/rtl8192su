@@ -583,6 +583,8 @@ static void _rtl_pci_tx_isr(struct ieee80211_hw *hw, int prio)
 		info->flags |= IEEE80211_TX_STAT_ACK;
 		/*info->status.rates[0].count = 1; */
 
+		rtl_tx_free(hw, skb);
+
 		ieee80211_tx_status_irqsafe(hw, skb);
 
 		if ((ring->entries - skb_queue_len(&ring->queue))
