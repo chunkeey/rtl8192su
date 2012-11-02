@@ -669,6 +669,9 @@ static int rtl_usb_start(struct ieee80211_hw *hw)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 
+	usb_unpoison_anchored_urbs(&rtlusb->rx_submitted);
+	usb_unpoison_anchored_urbs(&rtlusb->tx_submitted);
+
 	err = rtlpriv->cfg->ops->hw_init(hw);
 	if (!err) {
 		rtl_init_rx_config(hw);
@@ -699,9 +702,6 @@ static void rtl_usb_cleanup(struct ieee80211_hw *hw)
 
 	SET_USB_STOP(rtlusb);
 
-	/* clean up rx stuff. */
-	usb_unlink_anchored_urbs(&rtlusb->rx_submitted);
-
 	/* clean up tx stuff */
 	for (i = 0; i < RTL_USB_MAX_EP_NUM; i++) {
 		while ((_skb = skb_dequeue(&rtlusb->tx_skb_queue[i]))) {
@@ -713,7 +713,10 @@ static void rtl_usb_cleanup(struct ieee80211_hw *hw)
 		}
 		usb_unlink_anchored_urbs(&rtlusb->tx_pending[i]);
 	}
-	usb_unlink_anchored_urbs(&rtlusb->tx_submitted);
+	usb_poison_anchored_urbs(&rtlusb->tx_submitted);
+
+	/* clean up rx stuff. */
+	usb_poison_anchored_urbs(&rtlusb->rx_submitted);
 }
 
 /**
@@ -755,7 +758,7 @@ static int _rtl_submit_tx_urb(struct ieee80211_hw *hw, struct urb *_urb)
 			 "Failed to submit urb\n");
 		usb_unanchor_urb(_urb);
 		skb = (struct sk_buff *)_urb->context;
-		dev_kfree_skb_any(skb);
+		ieee80211_free_txskb(hw, skb);
 	}
 	usb_free_urb(_urb);
 	return err;
@@ -781,6 +784,7 @@ static int _usb_tx_post(struct ieee80211_hw *hw, struct urb *urb,
 	}
 	/*  TODO:	statistics */
 out:
+	rtl_tx_free(hw, skb);
 	ieee80211_tx_status_irqsafe(hw, skb);
 	return urb->status;
 }
@@ -834,7 +838,6 @@ int rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct sk_buff *_skb = NULL;
 	struct sk_buff_head *skb_list;
 	struct usb_anchor *urb_list;
-	int err;
 
 	WARN_ON(NULL == rtlusb->usb_tx_aggregate_hdl);
 	ep_num = rtlusb->ep_map.ep_mapping[qnum];
@@ -844,16 +847,11 @@ int rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (unlikely(!_urb)) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "Can't allocate urb. Drop skb!\n");
-		err = -ENOMEM;
-		goto out;
+		ieee80211_free_txskb(hw, skb);
+		return -ENOMEM;
 	}
 	urb_list = &rtlusb->tx_pending[ep_num];
-	err = _rtl_submit_tx_urb(hw, _urb);
-out:
-	if (err) {
-		ieee80211_free_txskb(hw, skb);
-	}
-	return err;
+	return _rtl_submit_tx_urb(hw, _urb);
 }
 EXPORT_SYMBOL_GPL(rtl_usb_transmit);
 
@@ -937,7 +935,7 @@ static int rtl_usb_tx(struct ieee80211_hw *hw,
 	return NETDEV_TX_OK;
 
 err_free:
-	dev_kfree_skb_any(skb);
+	ieee80211_free_txskb(hw, skb);
 	return NETDEV_TX_OK;
 }
 
