@@ -86,7 +86,9 @@ static int rtl_op_start(struct ieee80211_hw *hw)
 		return 0;
 	if (!test_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status))
 		return 0;
+
 	mutex_lock(&rtlpriv->locks.conf_mutex);
+	atomic_set(&rtlhal->tx_pending, 0);
 	err = rtlpriv->intf_ops->adapter_start(hw);
 	if (!err)
 		rtl_watch_dog_timer_callback((unsigned long)hw);
@@ -124,6 +126,27 @@ static void rtl_op_stop(struct ieee80211_hw *hw)
 	mutex_unlock(&rtlpriv->locks.conf_mutex);
 }
 
+#define RTL_MAX_TX_PENDING 256
+
+static void rtl_tx_accounting(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
+
+	if (atomic_inc_return(&rtlhal->tx_pending) >= RTL_MAX_TX_PENDING)
+		ieee80211_stop_queues(hw);
+}
+
+void rtl_tx_free(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
+
+	if (atomic_dec_return(&rtlhal->tx_pending) < RTL_MAX_TX_PENDING)
+		ieee80211_wake_queues(hw);
+}
+EXPORT_SYMBOL_GPL(rtl_tx_free);
+
 static void rtl_op_tx(struct ieee80211_hw *hw,
 		      struct ieee80211_tx_control *control,
 		      struct sk_buff *skb)
@@ -140,13 +163,15 @@ static void rtl_op_tx(struct ieee80211_hw *hw,
 	if (!test_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status))
 		goto err_free;
 
+	rtl_tx_accounting(hw, skb);
+
 	if (!rtlpriv->intf_ops->waitq_insert(hw, control->sta, skb))
 		rtlpriv->intf_ops->adapter_tx(hw, control->sta, skb, &tcb_desc);
 
 	return;
 
 err_free:
-	dev_kfree_skb_any(skb);
+	ieee80211_free_txskb(hw, skb);
 }
 
 static int rtl_op_add_interface(struct ieee80211_hw *hw,

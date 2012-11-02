@@ -39,6 +39,7 @@
 #include <linux/usb.h>
 #include <net/mac80211.h>
 #include <linux/completion.h>
+#include <linux/atomic.h>
 #include "debug.h"
 
 #define RF_CHANGE_BY_INIT			0
@@ -1104,6 +1105,9 @@ struct rtl_hal {
 	bool disable_amsdu_8k;
 	bool master_of_dmsp;
 	bool slave_of_dmsp;
+
+	/* tx */
+	atomic_t tx_pending;
 };
 
 struct rtl_security {

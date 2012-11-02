@@ -41,5 +41,6 @@
 
 extern const struct ieee80211_ops rtl_ops;
 void rtl_fw_cb(const struct firmware *firmware, void *context);
+void rtl_tx_free(struct ieee80211_hw *hw, struct sk_buff *skb);
 
 #endif
