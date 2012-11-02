@@ -239,11 +239,11 @@ struct h2c_iocmd {
 	union {
 		struct {
 			u8 cmdclass;
-			u16 value;
+			__le16 value;
 			u8 index;
 		} __packed;
 
-		__le32 cmd;
+		u32 cmd;
 	} __packed;
 } __packed;
 

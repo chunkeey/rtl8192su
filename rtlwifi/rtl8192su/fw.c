@@ -362,7 +362,7 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 	/* 1. Retrieve FW header. */
 	firmware->pfwheader = (struct fw_hdr *) puc_mappedfile;
 	pfwheader = firmware->pfwheader;
-	firmware->firmwareversion =  byte(pfwheader->version, 0);
+	firmware->firmwareversion = le16_to_cpu(pfwheader->version);
 	pfwheader->fwpriv.usb_ep_num = rtlusb->in_ep_nums +
 			rtlusb->out_ep_nums;
 
@@ -777,13 +777,12 @@ void rtl92s_fw_iocmd_data(struct ieee80211_hw *hw, u32* cmd, u8 flag)
 
 u32 rtl92s_fw_iocmd_read(struct ieee80211_hw *hw, u8 ioclass, u16 iovalue, u8 ioindex)
 {
-	struct h2c_iocmd cmd = {
-		.cmdclass = ioclass,
-		.value = iovalue,
-		.index = ioindex,
-	};
-
+	struct h2c_iocmd cmd = { };
 	u32 retval;
+
+	cmd.cmdclass = ioclass;
+	cmd.value = cpu_to_le16(iovalue);
+	cmd.index = ioindex;
 
 	if (rtl92s_fw_iocmd(hw, cmd.cmd))
 		rtl92s_fw_iocmd_data(hw, &retval, 1);
@@ -795,11 +794,11 @@ u32 rtl92s_fw_iocmd_read(struct ieee80211_hw *hw, u8 ioclass, u16 iovalue, u8 io
 
 u8 rtl92s_fw_iocmd_write(struct ieee80211_hw *hw, u8 ioclass, u16 iovalue, u8 ioindex, u32 val)
 {
-	struct h2c_iocmd cmd = {
-		.cmdclass = ioclass,
-		.value = iovalue,
-		.index = ioindex,
-	};
+	struct h2c_iocmd cmd = { };
+
+	cmd.cmdclass = ioclass;
+	cmd.value = cpu_to_le16(iovalue);
+	cmd.index = ioindex;
 
 	rtl92s_fw_iocmd_data(hw, &val, 0);
 	msleep(100);
