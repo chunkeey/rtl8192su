@@ -451,6 +451,13 @@ struct h2c_bss {		/* ndis_wlan_bssid_ex */
 	struct h2c_fixed_ies ies;
 } __packed;
 
+typedef u8 mac_rates_t[13];
+
+struct h2c_data_rates {
+	u8 mac_id;
+	mac_rates_t rates;
+} __packed;
+
 struct h2c_wpa_two_way_parm {
 	/* algorithm TKIP or AES */
 	u8 pairwise_en_alg;

@@ -705,11 +705,26 @@ int rtl92s_set_fw_opmode_cmd(struct ieee80211_hw *hw, enum h2c_op_modes mode)
 
 	mode_args.mode = mode;
 
-	RT_TRACE(rtlpriv, COMP_CMD, DBG_TRACE, "SetOpMode: %i\n",
+	RT_TRACE(rtlpriv, COMP_CMD, DBG_TRACE, "SetOpMode: %d\n",
 			 mode_args.mode);
 
 	return _rtl92s_firmware_set_h2c_cmd(hw, H2C_SETOPMODE_CMD, sizeof(mode_args),
 		(u8 *)&mode_args);
+}
+
+int rtl92s_set_fw_datarate_cmd(struct ieee80211_hw *hw, u8 mac_id, mac_rates_t rates)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct h2c_data_rates rates_args = { };
+
+	rates_args.mac_id = mac_id;
+	memcpy(rates_args.rates, rates, sizeof(rates_args.rates));
+
+	RT_TRACE(rtlpriv, COMP_CMD, DBG_TRACE, "Set Data Rates for macId %d: [%*ph]\n",
+		mac_id, (int)sizeof(rates), rates);
+
+	return _rtl92s_firmware_set_h2c_cmd(hw, H2C_SETDATARATE_CMD,
+		sizeof(rates_args), (u8 *)&rates_args);
 }
 
 void rtl92su_set_mac_addr(struct ieee80211_hw *hw, const u8 *addr)
