@@ -31,11 +31,6 @@ TODO:
  - set the correct RF configuration
    (Currently everything is hardcoded to 1:1T1R)
 
- - deal with surprise remove and rmmod kernel OOPS
-   (Currently the kernel crashes when the device is unplugged at
-   a "bad" (which is basically "always" when it's up) time, or
-   when the rtl8192su module is unloaded... )
-
  - QoS/WMM/802.11e
    (cwmin/cwmax/aifs/txop are not set yet)
 
@@ -44,6 +39,16 @@ TODO:
    (Note: The same is true for firmware response. This will
    be harder to figure out, as we need to trigger the condition
    in the firmware somehow - and this is difficult)  
+
+INPROGRESS:
+ - deal with surprise remove and rmmod kernel OOPS
+   (Currently the kernel crashes when the device is unplugged at
+   a "bad" (which is basically "always" when it's up) time, or
+   when the rtl8192su module is unloaded... )
+   [It no longer crashes! At least not for me]
+
+ - figure out rate control
+   [seems to work as well?]
 
 TESTS:
  - stability test
