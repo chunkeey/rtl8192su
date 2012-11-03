@@ -801,11 +801,9 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	u8 *pdesc = (u8 *) pdesc_tx;
 	u16 seq_number;
 	__le16 fc = hdr->frame_control;
-	u8 reserved_macid = 0;
 	u8 fw_qsel = _rtl92se_map_hwqueue_to_fwqueue(skb, hw_queue);
 	u8 bw_40 = 0;
 
@@ -832,28 +830,17 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 
 	seq_number = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
 
-	rtl_get_tcb_desc(hw, info, sta, skb, ptcb_desc);
+	rtl_get_tcb_desc(hw, info, sta, skb, hdr, ptcb_desc);
 
 	if (rtlpriv->dm.useramask) {
 		/* set pdesc macId */
-		if (ptcb_desc->mac_id < 32) {
+		if (ptcb_desc->mac_id < 32)
 			SET_TX_DESC_MACID(pdesc, ptcb_desc->mac_id);
-			reserved_macid |= ptcb_desc->mac_id;
-		}
 	}
 
 	SET_TX_DESC_SEQ(pdesc, seq_number);
 	SET_TX_DESC_TXHT(pdesc, ((ptcb_desc->hw_rate >=
 			 DESC92_RATEMCS0) ? 1 : 0));
-
-	if (rtlhal->version == VERSION_8192S_ACUT) {
-		if (ptcb_desc->hw_rate == DESC92_RATE1M ||
-			ptcb_desc->hw_rate  == DESC92_RATE2M ||
-			ptcb_desc->hw_rate == DESC92_RATE5_5M ||
-			ptcb_desc->hw_rate == DESC92_RATE11M) {
-			ptcb_desc->hw_rate = DESC92_RATE12M;
-		}
-	}
 
 	SET_TX_DESC_TX_RATE(pdesc, ptcb_desc->hw_rate);
 
