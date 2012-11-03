@@ -221,7 +221,84 @@ void rtl92su_enable_hw_security_config(struct ieee80211_hw *hw)
 }
 
 void rtl92su_update_interrupt_mask(struct ieee80211_hw *hw,
-                                  u32 add_msr, u32 rm_msr)
+				   u32 add_msr, u32 rm_msr)
+{
+}
+
+void rtl92su_update_hal_rate_tbl(struct ieee80211_hw *hw,
+				 struct ieee80211_sta *sta,
+				 u8 rssi_level)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_phy *rtlphy = &(rtlpriv->phy);
+	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
+
+	u32 ratr_value = (u32) mac->basic_rates;
+	u8 *mcsrate = mac->mcs;
+	u8 ratr_index = 0;
+	u8 nmode = mac->ht_enable;
+	u8 mimo_ps = 1;
+	u16 shortgi_rate = 0;
+	u32 tmp_ratr_value = 0;
+	u8 curtxbw_40mhz = mac->bw_40;
+	u8 curshortgi_40mhz = mac->sgi_40;
+	u8 curshortgi_20mhz = mac->sgi_20;
+	enum wireless_mode wirelessmode = mac->mode;
+
+	ratr_value |= ((*(u16 *) (mcsrate))) << 12;
+	switch (wirelessmode) {
+	case WIRELESS_MODE_B:
+		if (ratr_value & 0x0000000c)
+			ratr_value &= 0x0000000d;
+		else
+			ratr_value &= 0x0000000f;
+		break;
+	case WIRELESS_MODE_G:
+		ratr_value &= 0x00000FF5;
+		break;
+	case WIRELESS_MODE_N_24G:
+	case WIRELESS_MODE_N_5G:
+		nmode = 1;
+		if (mimo_ps == 0) {
+			ratr_value &= 0x0007F005;
+		} else {
+			u32 ratr_mask;
+
+			if (get_rf_type(rtlphy) == RF_1T2R ||
+			    get_rf_type(rtlphy) == RF_1T1R)
+				ratr_mask = 0x000ff005;
+			else
+				ratr_mask = 0x0f0ff005;
+			if (curtxbw_40mhz)
+				ratr_mask |= 0x00000010;
+			ratr_value &= ratr_mask;
+		}
+		break;
+	default:
+		if (rtlphy->rf_type == RF_1T2R)
+			ratr_value &= 0x000ff0ff;
+		else
+			ratr_value &= 0x0f0ff0ff;
+		break;
+	}
+	ratr_value &= 0x0FFFFFFF;
+	if (nmode && ((curtxbw_40mhz && curshortgi_40mhz) ||
+	    (!curtxbw_40mhz && curshortgi_20mhz))) {
+		ratr_value |= 0x10000000;
+		tmp_ratr_value = (ratr_value >> 12);
+		for (shortgi_rate = 15; shortgi_rate > 0; shortgi_rate--) {
+			if ((1 << shortgi_rate) & tmp_ratr_value)
+				break;
+		}
+		shortgi_rate = (shortgi_rate << 12) | (shortgi_rate << 8) |
+			       (shortgi_rate << 4) | (shortgi_rate);
+	}
+	rtl_write_dword(rtlpriv, REG_ARFR0 + ratr_index * 4, ratr_value);
+	RT_TRACE(rtlpriv, COMP_RATR, DBG_DMESG, "%x\n",
+		 rtl_read_dword(rtlpriv, REG_ARFR0));
+}
+
+void rtl92su_update_hal_rate_mask(struct ieee80211_hw *hw, u8 rssi_level)
 {
 }
 
@@ -1399,11 +1476,6 @@ void rtl92su_read_eeprom_info(struct ieee80211_hw *hw)
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Autoload ERR!!\n");
 		rtlefuse->autoload_failflag = true;
 	}
-}
-
-void rtl92su_update_hal_rate_tbl(struct ieee80211_hw *hw,
-		struct ieee80211_sta *sta, u8 rssi_level)
-{
 }
 
 void rtl92su_update_channel_access_setting(struct ieee80211_hw *hw)
