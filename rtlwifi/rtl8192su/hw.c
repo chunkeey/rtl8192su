@@ -744,6 +744,9 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 	/*3 Set Hardware(Do nothing now) */
 	err = _rtl92su_hw_configure(hw);
 
+	/* enable video mode, 40MHz mode and STBC */
+	rtl92s_fw_iocmd(hw, 0xf4000700);
+
 	/* Read EEPROM TX power index and PHY_REG_PG.txt to capture correct */
 	/* TX power index for different rate set. */
 	/* Get original hw reg values */
