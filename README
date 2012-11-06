@@ -23,3 +23,13 @@ other drivers that use the rtlwifi framework.
 
 Note2: If you don't want to be spammed by debug messages,
 use "make ld".
+
+---
+Note3: The rtl8192su driver and rtlwifi framework is kept
+in sync with wireless-testing.git:
+<git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git>
+
+If you want to know more about git (in context with wireless-testing
+then visit our Git-Guide at:
+<http://wireless.kernel.org/en/developers/Documentation/git-guide>
+
