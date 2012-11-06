@@ -721,7 +721,7 @@ int rtl92s_set_fw_datarate_cmd(struct ieee80211_hw *hw, u8 mac_id, mac_rates_t r
 	memcpy(rates_args.rates, rates, sizeof(rates_args.rates));
 
 	RT_TRACE(rtlpriv, COMP_CMD, DBG_TRACE, "Set Data Rates for macId %d: [%*ph]\n",
-		mac_id, (int)sizeof(rates), rates);
+		mac_id, (int)sizeof(*rates), rates);
 
 	return _rtl92s_firmware_set_h2c_cmd(hw, H2C_SETDATARATE_CMD,
 		sizeof(rates_args), (u8 *)&rates_args);
