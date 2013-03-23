@@ -1,42 +1,28 @@
 # fallback to the current kernel source
 KSRC ?= /lib/modules/$(shell uname -r)/build
 
-KMOD_SRC ?= $(PWD)/rtlwifi
+KMOD_SRC ?= $(PWD)/r92su
 
 # Each configuration option enables a list of files.
 
-C ?= 0
-CF ?= -D__CHECK_ENDIAN__ 
-KMOD_OPTIONS = CONFIG_RTLWIFI=m 
-KMOD_OPTIONS += CONFIG_RTLWIFI_DEBUG=m 
-KMOD_OPTIONS += CONFIG_RTL8192SU=m
+KMOD_OPTIONS += CONFIG_R92SU=m CONFIG_R92SU_DEBUGFS=y CONFIG_R92SU_WPC=y
 
 # Don't build any of the other drivers
-KMOD_OPTIONS += CONFIG_RTL8192CU=n CONFIG_RTL8192DE=n CONFIG_RTL8192CE=n CONFIG_RTL8192SE=n CONFIG_RTL8192C_COMMON=n CONFIG_RTL8723AE=n
-
-
-EXTRA_CFLAGS += -DDEBUG
+EXTRA_CFLAGS += -DDEBUG -DCONFIG_R92SU=m -DCONFIG_R92SU_DEBUGFS=y -DCONFIG_R92SU_WPC=y
 
 all:
-	$(MAKE) -C $(KSRC) M=$(KMOD_SRC) $(KMOD_OPTIONS) C=$(C) CF=$(CF) -j4
+	$(MAKE) -C $(KSRC) M=$(KMOD_SRC) $(KMOD_OPTIONS) $(MAKECMDGOALS) EXTRA_CFLAGS="$(EXTRA_CFLAGS)"
+
+.PHONY: all load unload reload clean
 
 clean:
 	$(MAKE) -C $(KSRC) M=$(KMOD_SRC) clean $(KMOD_OPTIONS)
 
 #debug trace load
-load:	all
-	modprobe mac80211
-	insmod $(KMOD_SRC)/rtlwifi.ko
-	insmod $(KMOD_SRC)/rtl8192su/rtl8192su.ko debug=5
-
-#silent load
-ld:	all
-	modprobe mac80211
-	insmod $(KMOD_SRC)/rtlwifi.ko
-	insmod $(KMOD_SRC)/rtl8192su/rtl8192su.ko
+load:	
+	insmod $(KMOD_SRC)/r92su.ko
 
 unload:
-	rmmod $(KMOD_SRC)/rtl8192su/rtl8192su.ko
-	rmmod $(KMOD_SRC)/rtlwifi.ko
+	rmmod r92su
 
 reload:	unload load

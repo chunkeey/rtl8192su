@@ -1,0 +1,24 @@
+
+config R92SU
+	tristate "Realtek RTL8192SU/RTL8191SU/RTL8188SU USB Wireless Network Adapter"
+	depends on USB && CFG80211
+	select FW_LOADER
+	---help---
+	This is the driver for Realtek RTL8192SU/RTL8191SU/RTL8188SU 802.11 USB
+	wireless network adapters.
+
+	If you choose to build it as a module, it will be called r92su
+
+config R92SU_DEBUGFS
+	bool "R92SU Debugfs Support"
+	depends on R92SU && DEBUG_FS
+	default n
+	help
+	 Export several driver and device internals to user space.
+
+	 Say N, unless you have a good reason. 
+
+config R92SU_WPC
+	bool
+	depends on R92SU && (INPUT = y || INPUT = R92SU)
+	default y
