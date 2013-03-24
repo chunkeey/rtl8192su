@@ -360,10 +360,12 @@ static int r92su_connect(struct wiphy *wiphy, struct net_device *ndev,
 		goto out;
 
 	r92su->want_connect_bss = bss;
-	err = r92su_h2c_connect(r92su, &bss_priv->fw_bss, ie_buf, ie - ie_buf);
+	err = r92su_h2c_connect(r92su, &bss_priv->fw_bss, true,
+				ie_buf, ie - ie_buf);
 	if (err)
 		goto out;
 
+	synchronize_rcu();
 out:
 	if (err) {
 		if (bss_priv)
@@ -572,15 +574,28 @@ static void r92su_connect_bss_work(struct work_struct *work)
 		status = WLAN_STATUS_SUCCESS;
 
 		bss_priv->sta = sta;
-		rcu_assign_pointer(r92su->connect_bss, r92su->want_connect_bss);
+		rcu_assign_pointer(r92su->connect_bss, cfg_bss);
 		r92su->want_connect_bss = NULL;
 		r92su_set_state(r92su, R92SU_CONNECTED);
 	}
 
 report_cfg80211:
-	cfg80211_connect_result(r92su->wdev.netdev, join_bss->bss.bssid,
-		bss_priv->assoc_ie, bss_priv->assoc_ie_len,
-		resp_ie, resp_ie_len, status, GFP_KERNEL);
+	switch (r92su->wdev.iftype) {
+	case NL80211_IFTYPE_STATION:
+		cfg80211_connect_result(r92su->wdev.netdev,
+			join_bss->bss.bssid, bss_priv->assoc_ie,
+			bss_priv->assoc_ie_len, resp_ie, resp_ie_len,
+			status, GFP_KERNEL);
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		cfg80211_ibss_joined(r92su->wdev.netdev, join_bss->bss.bssid,
+				     GFP_KERNEL);
+		break;
+
+	default:
+		WARN(1, "unsupported network type %d\n", r92su->wdev.iftype);
+		break;
+	}
 
 	kfree(bss_priv->assoc_ie);
 	bss_priv->assoc_ie = NULL;
@@ -878,6 +893,17 @@ static int r92su_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 		return -EOPNOTSUPP;
 }
 
+static int r92su_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
+			   struct cfg80211_ibss_params *params)
+{
+	return -EOPNOTSUPP;
+}
+
+static int r92su_leave_ibss(struct wiphy *wiphy, struct net_device *ndev)
+{
+	return r92su_disconnect(wiphy, ndev, WLAN_REASON_UNSPECIFIED);
+}
+
 static const struct cfg80211_ops r92su_cfg80211_ops = {
 	.change_virtual_intf = r92su_change_virtual_intf,
 	.set_monitor_channel = r92su_set_monitor_channel,
@@ -891,6 +917,9 @@ static const struct cfg80211_ops r92su_cfg80211_ops = {
 	.scan = r92su_scan,
 	.connect = r92su_connect,
 	.disconnect = r92su_disconnect,
+
+	.join_ibss = r92su_join_ibss,
+	.leave_ibss = r92su_leave_ibss,
 
 	.set_wiphy_params = r92su_set_wiphy_params,
 };

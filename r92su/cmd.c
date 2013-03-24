@@ -194,7 +194,7 @@ int r92su_h2c_disconnect(struct r92su *r92su)
 }
 
 int r92su_h2c_connect(struct r92su *r92su, const struct h2cc2h_bss *orig_bss,
-		      const u8 *ie, const u32 ie_len)
+		      const bool join, const u8 *ie, const u32 ie_len)
 {
 	struct h2cc2h_bss *bss;
 	struct sk_buff *skb;
@@ -215,7 +215,8 @@ int r92su_h2c_connect(struct r92su *r92su, const struct h2cc2h_bss *orig_bss,
 	bss->length = cpu_to_le32(skb->len);
 	rest = H2CC2H_HDR_LEN - (skb->len % H2CC2H_HDR_LEN);
 	memset(skb_put(skb, rest), 0, rest);
-	return r92su_h2c_submit(r92su, skb, H2C_JOINBSS_CMD);
+	return r92su_h2c_submit(r92su, skb, join ? H2C_JOINBSS_CMD :
+		H2C_CREATEBSS_CMD);
 }
 
 static const u8 r92su_enc_alg_len[] = {

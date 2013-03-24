@@ -58,7 +58,7 @@ int r92su_h2c_survey(struct r92su *r92su, struct cfg80211_ssid *ssid);
 int r92su_h2c_disconnect(struct r92su *r92su);
 
 int r92su_h2c_connect(struct r92su *r92su, const struct h2cc2h_bss *bss,
-		      const u8 *ie, const u32 ie_len);
+		      const bool join, const u8 *ie, const u32 ie_len);
 
 int r92su_h2c_set_key(struct r92su *r92su, const enum r92su_enc_alg algo,
 		      const u8 key_id, const bool group_key,
