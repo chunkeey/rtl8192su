@@ -1,4 +1,4 @@
-RTL8192SU mac80211-port driver
+Realtek RTL8188SU/RTL8191SU/RTL8192SU driver
 -----------------------
 
 This is "a" driver repository for the WIP r92su for
