@@ -88,7 +88,7 @@ static int r92su_sync_read(struct r92su *r92su, __le16 address,
 	return (ret < 0) ? ret : ((ret == size) ? 0 : -EMSGSIZE);
 }
 
-static void r92su_read_helper(struct r92su *r92su, const u16 address,
+static void r92su_read_helper(struct r92su *r92su, const u32 address,
 			      void *data, const u16 size)
 {
 	int ret;
@@ -121,7 +121,7 @@ u32 r92su_read32(struct r92su *r92su, const u32 address)
 	return le32_to_cpu(data);
 }
 
-static void r92su_write_helper(struct r92su *r92su, const u16 address,
+static void r92su_write_helper(struct r92su *r92su, const u32 address,
 			       const void *data, const u16 size)
 {
 	int ret;
