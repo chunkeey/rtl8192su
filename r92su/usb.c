@@ -62,7 +62,7 @@ static int r92su_sync_write(struct r92su *r92su, __le16 address,
 	return (ret < 0) ? ret : ((ret == size) ? 0 : -EMSGSIZE);
 }
 
-static int r92su_sync_read(struct r92su *r92su, __le16 address,
+static int r92su_sync_read(struct r92su *r92su, __u16 address,
 			   void *data, u16 size)
 {
 	struct usb_device *udev = r92su->udev;
@@ -88,11 +88,11 @@ static int r92su_sync_read(struct r92su *r92su, __le16 address,
 	return (ret < 0) ? ret : ((ret == size) ? 0 : -EMSGSIZE);
 }
 
-static void r92su_read_helper(struct r92su *r92su, const u16 address,
+static void r92su_read_helper(struct r92su *r92su, const u32 address,
 			      void *data, const u16 size)
 {
 	int ret;
-	ret = r92su_sync_read(r92su, cpu_to_le16(address), data, size);
+	ret = r92su_sync_read(r92su, address, data, size);
 	WARN_ONCE(ret, "unable to read %d bytes from address:0x%x (%d).",
 		      size, address, ret);
 
@@ -121,11 +121,11 @@ u32 r92su_read32(struct r92su *r92su, const u32 address)
 	return le32_to_cpu(data);
 }
 
-static void r92su_write_helper(struct r92su *r92su, const u16 address,
+static void r92su_write_helper(struct r92su *r92su, const u32 address,
 			       const void *data, const u16 size)
 {
 	int ret;
-	ret = r92su_sync_write(r92su, cpu_to_le16(address), data, size);
+	ret = r92su_sync_write(r92su, address, data, size);
 	WARN_ONCE(ret, "unable to write %d bytes to address:0x%x (%d).",
 		size, address, ret);
 
