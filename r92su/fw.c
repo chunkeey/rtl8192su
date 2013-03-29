@@ -51,8 +51,8 @@ static int r92su_parse_firmware(struct r92su *r92su)
 
 	r92su->fw_header = hdr = (const void *) r92su->fw->data;
 
-	if ((hdr->signature != cpu_to_le32(R8192SU_FW_SIGNATURE)) &&
-	    (hdr->signature != cpu_to_le32(R8712SU_FW_SIGNATURE))) {
+	if ((hdr->signature != cpu_to_le16(R8192SU_FW_SIGNATURE)) &&
+	    (hdr->signature != cpu_to_le16(R8712SU_FW_SIGNATURE))) {
 		wiphy_err(r92su->wdev.wiphy, "firmware signature check has failed.\n");
 		return -EINVAL;
 	}
