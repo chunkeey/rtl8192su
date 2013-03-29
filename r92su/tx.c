@@ -278,6 +278,21 @@ r92su_tx_prepare_tx_info_and_find_sta(struct r92su *r92su, struct sk_buff *skb,
 	struct r92su_tx_info *tx_info = r92su_get_tx_info(skb);
 	struct r92su_sta *sta;
 	struct ethhdr *hdr = (void *) skb->data;
+	int needed_tailroom;
+
+	/* The network core does not guarantee that every frame has the
+	 * needed headroom and tailroom available. So, the driver has
+	 * to check whenever there's enough required free room for the
+	 * extra data we add.
+	 */
+	needed_tailroom = r92su->wdev.netdev->needed_tailroom;
+	needed_tailroom -= skb_tailroom(skb);
+	needed_tailroom = max_t(int, needed_tailroom, 0);
+
+	if (pskb_expand_head(skb, r92su->wdev.netdev->needed_headroom,
+			     needed_tailroom, GFP_ATOMIC)) {
+		return TX_DROP;
+	}
 
 	/* clean up tx info */
 	memset(tx_info, 0, sizeof(tx_info));
