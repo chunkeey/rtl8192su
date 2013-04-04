@@ -482,9 +482,9 @@ static void r92su_add_bss_work(struct work_struct *work)
 
 		bss = cfg80211_inform_bss(r92su->wdev.wiphy,
 			&r92su->band_2GHZ.channels[chan_idx], c2h_bss->bssid,
-			le32_to_cpu(c2h_bss->ies.timestamp),
+			le64_to_cpu(c2h_bss->ies.timestamp),
 			le16_to_cpu(c2h_bss->ies.caps),
-			le16_to_cpu(c2h_bss->config.beacon_period),
+			le32_to_cpu(c2h_bss->config.beacon_period),
 			c2h_bss->ies.ie, ie_len,
 			le32_to_cpu(c2h_bss->rssi), GFP_KERNEL);
 

@@ -94,12 +94,7 @@ r92su_tx_fill_desc(struct r92su *r92su, struct sk_buff *skb,
 
 	/* firmware will increase the seqnum by itself, when
 	 * the driver passes the correct "priority" to it */
-	hdr->seq = prio;
-	hdr->more_frag = !!(i3e->frame_control &
-		cpu_to_le16(IEEE80211_FCTL_MOREFRAGS));
-	hdr->more_data = !!(i3e->frame_control &
-		cpu_to_le16(IEEE80211_FCTL_MOREDATA));
-	hdr->frag = le16_to_cpu(i3e->seq_ctrl & IEEE80211_SCTL_FRAG);
+	hdr->priority = prio;
 
 	hdr->non_qos = !ieee80211_is_data_qos(i3e->frame_control);
 	hdr->bmc = is_multicast_ether_addr(ieee80211_get_DA(i3e));

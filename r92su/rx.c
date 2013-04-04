@@ -73,7 +73,7 @@ static void r92su_rx_add_radiotap(struct r92su *r92su,
 
 	/* IEEE80211_RADIOTAP_FLAGS */
 	*pos = IEEE80211_RADIOTAP_F_FCS;
-	if (rx_hdr->crc32)
+	if (rx_hdr->pkt_len_and_bits & cpu_to_le16(RX_CRC32_ERR))
 		*pos |= IEEE80211_RADIOTAP_F_BADFCS;
 	if (rx_hdr->splcp)
 		*pos |= IEEE80211_RADIOTAP_F_SHORTPRE;
@@ -606,7 +606,7 @@ r92su_rx_hw_header_check(struct r92su *r92su, struct sk_buff *skb,
 	hdr = (struct ieee80211_hdr *) skb->data;
 
 	/* filter out frames with bad fcs... if they did end up here */
-	if (rx->hdr.crc32)
+	if (rx->hdr.pkt_len_and_bits & cpu_to_le16(RX_CRC32_ERR))
 		return RX_DROP;
 
 	has_protect = ieee80211_has_protected(hdr->frame_control);
@@ -1131,7 +1131,8 @@ void r92su_rx(struct r92su *r92su, void *buf, const unsigned int len)
 	while (buf < end && pkt_cnt--) {
 		rx = (struct rx_packet *) buf;
 
-		pkt_len = le16_to_cpu(rx->hdr.pkt_len);
+		pkt_len = le16_to_cpu(rx->hdr.pkt_len_and_bits) &
+			  RX_LENGTH_MASK;
 		hdr_len = RX_DESC_SIZE + rx->hdr.drvinfo_size * 8;
 
 		if (buf + pkt_len + hdr_len + rx->hdr.shift > end)

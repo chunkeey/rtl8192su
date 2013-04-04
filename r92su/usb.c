@@ -38,7 +38,7 @@
 #include "rx.h"
 #include "tx.h"
 
-static int r92su_sync_write(struct r92su *r92su, __le16 address,
+static int r92su_sync_write(struct r92su *r92su, u16 address,
 			    const void *data, u16 size)
 {
 	struct usb_device *udev = r92su->udev;
@@ -62,7 +62,7 @@ static int r92su_sync_write(struct r92su *r92su, __le16 address,
 	return (ret < 0) ? ret : ((ret == size) ? 0 : -EMSGSIZE);
 }
 
-static int r92su_sync_read(struct r92su *r92su, __u16 address,
+static int r92su_sync_read(struct r92su *r92su, u16 address,
 			   void *data, u16 size)
 {
 	struct usb_device *udev = r92su->udev;

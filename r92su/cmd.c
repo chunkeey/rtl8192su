@@ -67,7 +67,7 @@ static void r92su_h2c_fill_header(struct r92su *r92su,
 
 	memset(h2c, 0, sizeof(*h2c));
 	h2c->cmd_seq = r92su->h2c_seq++;
-	h2c->len = ALIGN(len, H2CC2H_HDR_LEN);
+	h2c->len = cpu_to_le16(ALIGN(len, H2CC2H_HDR_LEN));
 	h2c->event = cmd;
 	h2c->last = last;
 }
@@ -75,7 +75,7 @@ static void r92su_h2c_fill_header(struct r92su *r92su,
 static void __r92su_tx_fill_header(struct tx_hdr *tx_hdr, unsigned int len,
 				   bool first, bool last, unsigned int qsel)
 {
-	tx_hdr->pkt_len = len - TX_DESC_SIZE;
+	tx_hdr->pkt_len = cpu_to_le16(len - TX_DESC_SIZE);
 	tx_hdr->offset = TX_DESC_SIZE;
 	tx_hdr->last_seg = last;
 	tx_hdr->first_seg = first;

@@ -107,7 +107,8 @@ struct tx_hdr {
 	/* DWORD 3 */
 	u8 heap_page;		/* 0  -  7 */
 	u8 tail_page;		/* 8  - 15 */
-	__le16 seq:12;		/* 16 - 27 */
+	u8 priority;		/* 16 - 23 */
+	u8 unkn:4;		/* 24 - 27 */
 	u8 frag:4;		/* 28 - 31 */
 
 	/* DWORD 4 */
@@ -131,11 +132,11 @@ struct tx_hdr {
 	u8 user_rate:1;		/* 31 */
 
 	/* DWORD 5 */
-	__le16 packet_id:9;	/*  0 -  8 */
+	u16 unkn2:9;	/*  0 -  8 */
 	u8 tx_rate:6;		/*  9 - 14 */
 	u8 dis_fb:1;		/* 15 */
 	u8 data_rate_fb_limit:5;/* 16 - 20 */
-	__le16 tx_agc:11;	/* 21 - 31 */
+	u16 unkn3:11;		/* 21 - 31 */
 
 	/* DWORD 6 */
 	__le16 ip_check_sum;	/* 0  - 15 */
@@ -151,12 +152,13 @@ struct tx_hdr {
 /* Rx Desc */
 #define RX_DESC_SIZE				24
 #define RX_DRV_INFO_SIZE_UNIT			8
+#define RX_LENGTH_MASK				0x3fff /* Bit 0 - 13 */
+#define RX_CRC32_ERR				BIT(14)
+#define RX_ICV_ERR				BIT(15)
 
 struct rx_hdr {
 	/* DWORD 0 */
-	__le16 pkt_len:14;	/*  0 - 13 */
-	u8 crc32:1;		/* 14 */
-	u8 icv:1;		/* 15 */
+	__le16 pkt_len_and_bits;/*  0 - 13, 14, 15 */
 	u8 drvinfo_size:4;	/* 16 - 19 */
 	u8 security:3;		/* 20 - 22 */
 	u8 qos:1;		/* 23 */
@@ -185,8 +187,7 @@ struct rx_hdr {
 	u8 bc:1;		/* 31 */
 
 	/* DWORD 2 */
-	__le16 seq:12;		/*  0 - 11 */
-	u8 frag:4;		/* 12 - 15 */
+	__le16 seq_and_frag;	/*  0 - 15 */
 	u8 pkt_cnt;		/* 16 - 23 */
 	u8 unkn0200:6;		/* 24 - 29 */
 	u8 next_ind:1;		/* 30 */

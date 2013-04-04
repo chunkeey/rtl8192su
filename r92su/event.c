@@ -40,22 +40,26 @@ typedef void (*c2h_handler)(struct r92su *, const struct h2cc2h *);
 
 static void c2h_fwdbg_event(struct r92su *r92su, const struct h2cc2h *c2h)
 {
-	wiphy_notice(r92su->wdev.wiphy, "fwdbg: %.*s%s", c2h->len, c2h->data,
-		    c2h->data[c2h->len - 2] == '\n' ? "" : "\n");
+	u16 c2h_len = le16_to_cpu(c2h->len);
+
+	wiphy_notice(r92su->wdev.wiphy, "fwdbg: %.*s%s", c2h_len, c2h->data,
+		    c2h->data[c2h_len - 2] == '\n' ? "" : "\n");
 }
 
 static void c2h_survey_event(struct r92su *r92su, const struct h2cc2h *c2h)
 {
 	const struct h2cc2h_bss *c2h_bss = (const void *)&c2h->data;
 	struct r92su_add_bss *bss_priv;
+	u32 bss_len;
 	u16 len;
 
 	/* Looks like the FW just attaches the raw probe_response IEs
 	 * ... along with the FCS (since we enabled the RX flag for it
 	 */
 	len = le16_to_cpu(c2h->len) - FCS_LEN;
+	bss_len = le32_to_cpu(c2h_bss->length)- FCS_LEN;
 
-	if (len < sizeof(*c2h_bss) || c2h->len != c2h_bss->length ||
+	if (len < sizeof(*c2h_bss) || len != bss_len ||
 	    le32_to_cpu(c2h_bss->ie_length) <= 12) {
 		wiphy_err(r92su->wdev.wiphy, "received survey event with bad length.");
 		r92su_mark_dead(r92su);
@@ -69,8 +73,8 @@ static void c2h_survey_event(struct r92su *r92su, const struct h2cc2h *c2h)
 
 	memcpy(&bss_priv->fw_bss, c2h_bss, len);
 	bss_priv->fw_bss.length = cpu_to_le32(len);
-	bss_priv->fw_bss.ie_length =
-		le32_to_cpu(bss_priv->fw_bss.ie_length) - FCS_LEN;
+	bss_priv->fw_bss.ie_length = cpu_to_le32(
+		le32_to_cpu(bss_priv->fw_bss.ie_length) - FCS_LEN);
 	llist_add(&bss_priv->head, &r92su->add_bss_list);
 	queue_work(r92su->wq, &r92su->add_bss_work);
 }
@@ -93,7 +97,8 @@ static void c2h_join_bss_event(struct r92su *r92su, const struct h2cc2h *c2h)
 	if (r92su->connect_result)
 		return;
 
-	r92su->connect_result = kmemdup(join_bss, c2h->len, GFP_ATOMIC);
+	r92su->connect_result = kmemdup(join_bss, le16_to_cpu(c2h->len),
+					GFP_ATOMIC);
 	queue_work(r92su->wq, &r92su->connect_bss_work);
 }
 
@@ -195,7 +200,7 @@ void r92su_c2h_event(struct r92su *r92su, const struct h2cc2h *c2h)
 		wiphy_err(r92su->wdev.wiphy, "received invalid c2h event:%x\n",
 			  c2h->event);
 		print_hex_dump_bytes("C2H:", DUMP_PREFIX_OFFSET, c2h,
-				     c2h->len + sizeof(*c2h));
+				     le16_to_cpu(c2h->len) + sizeof(*c2h));
 		r92su_mark_dead(r92su);
 		break;
 	}

@@ -147,7 +147,7 @@ static int r92su_upload_firmware_part(struct r92su *r92su,
 		current_block = min(block_size, len - done);
 		done += current_block;
 
-		hdr->pkt_len = current_block;
+		hdr->pkt_len = cpu_to_le16(current_block);
 		hdr->linip = (len == done);
 
 		memcpy(skb_put(skb, current_block), iter, current_block);
