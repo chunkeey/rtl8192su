@@ -805,7 +805,7 @@ r92su_sta_reorder_release(struct r92su *r92su, struct r92su_rx_tid *tid,
 			}
 
 			if (skipped &&
-			    time_is_before_jiffies(tid->reorder_time[j]))
+			    time_is_after_jiffies(tid->reorder_time[j]))
 				goto set_release_timer;
 
 			tid->head_seq = ieee80211_sn_add(tid->head_seq,
@@ -835,8 +835,6 @@ set_release_timer:
 		del_timer(&tid->reorder_timer);
 	}
 }
-
-#define HT_RX_REORDER_INIT (HZ * 5)
 
 static enum r92su_rx_control_t
 r92su_rx_ampdu_reorder(struct r92su *r92su, struct sk_buff *skb,
@@ -898,8 +896,6 @@ r92su_rx_ampdu_reorder(struct r92su *r92su, struct sk_buff *skb,
 		tid->len++;
 		r92su_sta_reorder_release(r92su, tid, queue);
 	}
-
-	tid->last_rx = jiffies + HT_RX_REORDER_INIT;
 	spin_unlock(&tid->lock);
 
 out:
