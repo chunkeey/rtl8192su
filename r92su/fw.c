@@ -302,8 +302,11 @@ int r92su_load_firmware(struct r92su *r92su)
 
 	err = request_firmware(&r92su->fw, RTL8192SU_FIRMWARE,
 			       &r92su->udev->dev);
-	if (err)
+	if (err) {
+		wiphy_err(r92su->wdev.wiphy, "firmware '%s' not found.\n",
+			  RTL8192SU_FIRMWARE);
 		return err;
+	}
 
 	err = r92su_parse_firmware(r92su);
 	if (err)
