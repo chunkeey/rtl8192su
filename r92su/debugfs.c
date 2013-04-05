@@ -30,6 +30,7 @@
  *****************************************************************************/
 #include <linux/kernel.h>
 #include <linux/debugfs.h>
+#include <linux/vmalloc.h>
 #include "r92su.h"
 
 #include "debugfs.h"
