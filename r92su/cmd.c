@@ -67,30 +67,30 @@ static void r92su_h2c_fill_header(struct r92su *r92su,
 
 	memset(h2c, 0, sizeof(*h2c));
 	h2c->cmd_seq = r92su->h2c_seq++;
+	if (last)
+		h2c->cmd_seq |= 0x80;
 	h2c->len = cpu_to_le16(ALIGN(len, H2CC2H_HDR_LEN));
 	h2c->event = cmd;
-	h2c->last = last;
 }
 
-static void __r92su_tx_fill_header(struct tx_hdr *tx_hdr, unsigned int len,
+static void __r92su_tx_fill_header(tx_hdr *tx_hdr, unsigned int len,
 				   bool first, bool last, unsigned int qsel)
 {
-	tx_hdr->pkt_len = cpu_to_le16(len - TX_DESC_SIZE);
-	tx_hdr->offset = TX_DESC_SIZE;
-	tx_hdr->last_seg = last;
-	tx_hdr->first_seg = first;
-	tx_hdr->own = 1;
-	tx_hdr->queue_sel = qsel;
+	SET_TX_DESC_PKT_SIZE(tx_hdr, len);
+	SET_TX_DESC_OFFSET(tx_hdr, TX_DESC_SIZE);
+	SET_TX_DESC_LAST_SEG(tx_hdr, last);
+	SET_TX_DESC_FIRST_SEG(tx_hdr, first);
+	SET_TX_DESC_OWN(tx_hdr, 1);
+	SET_TX_DESC_QUEUE_SEL(tx_hdr, qsel);
 }
 
 static void r92su_tx_fill_header(struct sk_buff *skb,
 				 unsigned int len, bool first, bool last)
 {
-	struct tx_hdr *tx_hdr;
-	tx_hdr = (struct tx_hdr *) skb_push(skb, TX_DESC_SIZE);
-
-	memset(tx_hdr, 0, sizeof(*tx_hdr));
-	__r92su_tx_fill_header(tx_hdr, len, first, last, QSLT_CMD);
+	tx_hdr *txhdr;
+	txhdr = (tx_hdr *) skb_push(skb, sizeof(*txhdr));
+	memset(txhdr, 0, sizeof(*txhdr));
+	__r92su_tx_fill_header(txhdr, len, first, last, QSLT_CMD);
 }
 
 int r92su_h2c_submit(struct r92su *r92su, struct sk_buff *skb,

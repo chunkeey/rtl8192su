@@ -37,6 +37,7 @@
 
 #include "r92su.h"
 #include "tx.h"
+#include "reg.h"
 #include "def.h"
 #include "usb.h"
 #include "cmd.h"
@@ -75,45 +76,48 @@ r92su_tx_fill_desc(struct r92su *r92su, struct sk_buff *skb,
 {
 	struct r92su_tx_info *tx_info = r92su_get_tx_info(skb);
 	struct ieee80211_hdr *i3e = (struct ieee80211_hdr *) skb->data;
-	struct tx_hdr *hdr = NULL;
+	tx_hdr *hdr = NULL;
 	u8 prio = skb->priority % ARRAY_SIZE(ieee802_1d_to_ac);
 
-	hdr = (struct tx_hdr *) skb_push(skb, sizeof(*hdr));
+	hdr = (tx_hdr *) skb_push(skb, sizeof(*hdr));
 	memset(hdr, 0 , sizeof(*hdr));
 
-	hdr->pkt_len = cpu_to_le16(skb->len - sizeof(*hdr));
-	hdr->offset = sizeof(*hdr);
-	hdr->linip = 0;
+	SET_TX_DESC_PKT_SIZE(hdr, skb->len - sizeof(*hdr));
+	SET_TX_DESC_OFFSET(hdr, sizeof(*hdr));
+	SET_TX_DESC_LAST_SEG(hdr, 1);
+	SET_TX_DESC_FIRST_SEG(hdr, 1);
+	SET_TX_DESC_OWN(hdr, 1);
 
 	if (ieee80211_is_data(i3e->frame_control))
-		hdr->mac_id = tx_info->sta->mac_id;
+		SET_TX_DESC_MACID(hdr, tx_info->sta->mac_id);
 	else if (ieee80211_is_mgmt(i3e->frame_control))
-		hdr->mac_id = 5;
+		SET_TX_DESC_MACID(hdr, 5);
 
-	hdr->queue_sel = r92su_802_1d_to_ac[ieee802_1d_to_ac[prio]];
+	SET_TX_DESC_QUEUE_SEL(hdr, r92su_802_1d_to_ac[ieee802_1d_to_ac[prio]]);
 
 	/* firmware will increase the seqnum by itself, when
 	 * the driver passes the correct "priority" to it */
-	hdr->priority = prio;
+	SET_TX_DESC_PRIORITY(hdr, prio);
 
-	hdr->non_qos = !ieee80211_is_data_qos(i3e->frame_control);
-	hdr->bmc = is_multicast_ether_addr(ieee80211_get_DA(i3e));
+	SET_TX_DESC_NON_QOS(hdr, !ieee80211_is_data_qos(i3e->frame_control));
+
+	SET_TX_DESC_BMC(hdr, is_multicast_ether_addr(ieee80211_get_DA(i3e)));
 
 	if (tx_info->key) {
 		switch (tx_info->key->type) {
 		case WEP40_ENCRYPTION:
 		case WEP104_ENCRYPTION: {
-			hdr->sec_type = 1;
-			hdr->key_id = tx_info->key->index;
+			SET_TX_DESC_SEC_TYPE(hdr, 1);
+			SET_TX_DESC_KEY_ID(hdr,	tx_info->key->index);
 			break;
 		}
 
 		case TKIP_ENCRYPTION:
-			hdr->sec_type = 2;
+			SET_TX_DESC_SEC_TYPE(hdr, 2);
 			break;
 
 		case AESCCMP_ENCRYPTION:
-			hdr->sec_type = 3;
+			SET_TX_DESC_SEC_TYPE(hdr, 3);
 			break;
 
 		default:
@@ -125,19 +129,16 @@ r92su_tx_fill_desc(struct r92su *r92su, struct sk_buff *skb,
 
 	/* send EAPOL with failsafe rate */
 	if (tx_info->low_rate) {
-		hdr->user_rate = 1;
-		hdr->dis_fb = 1;
-		hdr->data_rate_fb_limit = 0x1f;
-		hdr->agg_break = 1;
+		SET_TX_DESC_USER_RATE(hdr, 1);
+		SET_TX_DESC_USER_TX_RATE(hdr, 0x001f8000);	 /* 1M */
+		if (tx_info->sta->ht_sta)
+			SET_TX_DESC_AGG_BREAK(hdr, 1);
 	} else if (tx_info->ampdu) {
 		/* The firmware will automatically enable aggregation
 		 * there's no need to set hdr->agg_en = 1 and hdr->tx_ht = 1;
 		 */
 	}
 
-	hdr->own = 1;
-	hdr->first_seg = 1;
-	hdr->last_seg = 1;
 	return TX_CONTINUE;
 }
 
@@ -588,7 +589,7 @@ tx_drop:
 		r92su->wdev.netdev->stats.tx_packets++;
 		r92su->wdev.netdev->stats.tx_bytes += skb->len;
 
-		r92su_usb_tx(r92su, skb, tx_hdr->queue_sel);
+		r92su_usb_tx(r92su, skb, GET_TX_DESC_QUEUE_SEL(tx_hdr));
 	}
 	rcu_read_unlock();
 	return;

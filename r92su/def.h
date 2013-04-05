@@ -61,158 +61,183 @@
 /* Tx Desc */
 #define TX_DESC_SIZE				32
 
-struct tx_hdr {
-	/* DWORD 0 */
-	__le16 pkt_len;		/*  0 - 15 */
-	__u8 offset;		/* 16 - 23 */
-	u8 type:2;		/* 24 - 25 */
-	u8 last_seg:1;		/* 26 */
-	u8 first_seg:1;		/* 27 */
-	u8 linip:1;		/* 28 */
-	u8 amsdu:1;		/* 29 */
-	u8 gf:1;		/* 30 */
-	u8 own:1;		/* 31 */
+#define BIT_LEN_MASK_32(__bitlen)	 \
+	(0xFFFFFFFF >> (32 - (__bitlen)))
 
-	/* DWORD 1 */
-	u8 mac_id:5;		/*  0 -  4 */
-	u8 more_data:1;		/*  5 */
-	u8 more_frag:1;		/*  6 */
-	u8 pifs:1;		/*  7 */
-	u8 queue_sel:5;		/*  8 - 12 */
-	u8 ack_policy:2;	/* 13 - 14 */
-	u8 no_acm:1;		/* 15 */
-	u8 non_qos:1;		/* 16 */
-	u8 key_id:2;		/* 17 - 18 */
-	u8 oui:1;		/* 19 */
-	u8 pkt_type:1;		/* 20 */
-	u8 en_desc_id:1;	/* 21 */
-	u8 sec_type:2;		/* 22 - 23 */
-	u8 wds:1;		/* 24 */
-	u8 htc:1;		/* 25 */
-	u8 pkt_offset:5;	/* 26 - 30 */
-	u8 hwpc:1;		/* 31 */
+#define SHIFT_AND_MASK_LE(__pdesc, __off, __shift, __mask)		\
+	((le32_to_cpup(((__le32 *) __pdesc) + (__off)) >> (__shift)) &	\
+	BIT_LEN_MASK_32(__mask))
 
-	/* DWORD 2 */
-	u8 data_retry_limit:6;	/*  0 -  5 */
-	u8 retry_limit_en:1;	/*  6 */
-	u8 bmc:1;		/*  7 */
-	u8 tsfl:4;		/*  8 - 11 */
-	u8 rts_retry_count:6;	/* 12 - 17 */
-	u8 data_retry_count:6;	/* 18 - 23 */
-	u8 rsvd_macid:5;	/* 24 - 28 */
-	u8 agg_en:1;		/* 29 */
-	u8 agg_break:1;		/* 30 */
-	u8 own_mac:1;		/* 31 */
+#define SET_BITS_OFFSET_LE(__pdesc, __off, __shift, __len, __val)	\
+	do {								\
+		__le32 *__ptr = ((__le32 *)(__pdesc)) + (__off);	\
+		u32 __mask = BIT_LEN_MASK_32(__len) << (__shift);	\
+		*__ptr &= cpu_to_le32(~__mask);				\
+		*__ptr |= cpu_to_le32(((__val) << (__shift)) & __mask);	\
+	} while (0)
 
-	/* DWORD 3 */
-	u8 heap_page;		/* 0  -  7 */
-	u8 tail_page;		/* 8  - 15 */
-	u8 priority;		/* 16 - 23 */
-	u8 unkn:4;		/* 24 - 27 */
-	u8 frag:4;		/* 28 - 31 */
+/* macros to read/write various fields in RX or TX descriptors */
 
-	/* DWORD 4 */
-	u8 rts_rate:6;		/*  0 -  5 */
-	u8 dis_rts_fb:1;	/*  6 */
-	u8 rts_rate_fb_limit:4;	/*  7 - 10 */
-	u8 cts_en:1;		/* 11 */
-	u8 rts_en:1;		/* 12 */
-	u8 ra_brsr_id:3;	/* 13 - 15 */
-	u8 tx_ht:1;		/* 16 */
-	u8 tx_short:1;		/* 17 */
-	u8 tx_bw:1;		/* 18 */
-	u8 tx_sub_carrier:2;	/* 19 - 20 */
-	u8 tx_stbc:2;		/* 21 - 22 */
-	u8 tx_rd:1;		/* 23 */
-	u8 rts_ht:1;		/* 24 */
-	u8 rts_short:1;		/* 25 */
-	u8 rts_bw:1;		/* 26 */
-	u8 rts_sub_carrier:2;	/* 27 - 28 */
-	u8 rts_stbc:2;		/* 29 - 30 */
-	u8 user_rate:1;		/* 31 */
+/* Dword 0 */
+#define SET_TX_DESC_PKT_SIZE(__pdesc, __val)			\
+	SET_BITS_OFFSET_LE(__pdesc, 0, 0, 16, __val)
+#define SET_TX_DESC_OFFSET(__pdesc, __val)			\
+	SET_BITS_OFFSET_LE(__pdesc, 0, 16, 8, __val)
+#define SET_TX_DESC_TYPE(__pdesc, __val)			\
+	SET_BITS_OFFSET_LE(__pdesc, 0, 24, 2, __val)
+#define SET_TX_DESC_LAST_SEG(__pdesc, __val)			\
+	SET_BITS_OFFSET_LE(__pdesc, 0, 26, 1, __val)
+#define SET_TX_DESC_FIRST_SEG(__pdesc, __val)			\
+	SET_BITS_OFFSET_LE(__pdesc, 0, 27, 1, __val)
+#define SET_TX_DESC_LINIP(__pdesc, __val)			\
+	SET_BITS_OFFSET_LE(__pdesc, 0, 28, 1, __val)
+#define SET_TX_DESC_OWN(__pdesc, __val)				\
+	SET_BITS_OFFSET_LE(__pdesc, 0, 31, 1, __val)
 
-	/* DWORD 5 */
-	u16 unkn2:9;	/*  0 -  8 */
-	u8 tx_rate:6;		/*  9 - 14 */
-	u8 dis_fb:1;		/* 15 */
-	u8 data_rate_fb_limit:5;/* 16 - 20 */
-	u16 unkn3:11;		/* 21 - 31 */
+/* Dword 1 */
+#define GET_TX_DESC_QUEUE_SEL(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 8, 5)
 
-	/* DWORD 6 */
-	__le16 ip_check_sum;	/* 0  - 15 */
-	__le16 tcp_check_sum;	/* 16 - 31 */
+#define SET_TX_DESC_MACID(__pdesc, __val)			\
+	SET_BITS_OFFSET_LE(__pdesc, 1, 0, 5, __val)
+#define SET_TX_DESC_QUEUE_SEL(__pdesc, __val)			\
+	SET_BITS_OFFSET_LE(__pdesc, 1, 8, 5, __val)
+#define SET_TX_DESC_NON_QOS(__pdesc, __val)			\
+	SET_BITS_OFFSET_LE(__pdesc, 1, 16, 1, __val)
+#define SET_TX_DESC_KEY_ID(__pdesc, __val)			\
+	SET_BITS_OFFSET_LE(__pdesc, 1, 17, 2, __val)
+#define SET_TX_DESC_SEC_TYPE(__pdesc, __val)			\
+	SET_BITS_OFFSET_LE(__pdesc, 1, 22, 2, __val)
 
-	/* DWORD 7 */
-	__le16 tx_buffer_size;	/* 0  - 15 */
-	u8 ip_hdr_offset:8;	/* 16 - 23 */
-	u8 cmd_seq:7;		/* 24 - 30 */
-	u8 tcp_en:1;		/* 31 */
-} __packed;
+/* Dword 2 */
+#define SET_TX_DESC_BMC(__pdesc, __val)				\
+	SET_BITS_OFFSET_LE(__pdesc, 2, 7, 1, __val)
+#define SET_TX_DESC_AGG_BREAK(__pdesc, __val)			\
+	SET_BITS_OFFSET_LE(__pdesc, 2, 30, 1, __val)
+
+/* Dword 3 */
+#define SET_TX_DESC_PRIORITY(__pdesc, __val)			\
+	SET_BITS_OFFSET_LE(__pdesc, 3, 16, 12, __val)
+
+/* Dword 4 */
+#define SET_TX_DESC_USER_RATE(__pdesc, __val)			\
+	SET_BITS_OFFSET_LE(__pdesc, 4, 31, 1, __val)
+
+/* Dword 5 */
+#define SET_TX_DESC_USER_TX_RATE(__pdesc, __val)		\
+	SET_BITS_OFFSET_LE(__pdesc, 5, 0, 31, __val)
+
+/* Dword 6 */
+#define SET_TX_DESC_IP_CHECK_SUM(__pdesc, __val)		\
+	SET_BITS_OFFSET_LE(__pdesc, 6, 0, 16, __val)
+#define SET_TX_DESC_TCP_CHECK_SUM(__pdesc, __val)		\
+	SET_BITS_OFFSET_LE(__pdesc, 6, 16, 16, __val)
+
+/* Dword 7 */
+#define SET_TX_DESC_TX_BUFFER_SIZE(__pdesc, __val)		\
+	SET_BITS_OFFSET_LE(__pdesc, 7, 0, 16, __val)
+#define SET_TX_DESC_CMD_SEQ(__pdesc, __val)			\
+	SET_BITS_OFFSET_LE(__pdesc, 7, 24, 7, __val)
+
+/* Rx Desc */
+#define RX_STATUS_DESC_SIZE				24
+#define RX_DRV_INFO_SIZE_UNIT				8
+
+/* DWORD 0 */
+#define GET_RX_STATUS_DESC_PKT_LEN(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 0, 14)
+#define GET_RX_STATUS_DESC_CRC32(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 14, 1)
+#define GET_RX_STATUS_DESC_ICV(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 15, 1)
+#define GET_RX_STATUS_DESC_DRVINFO_SIZE(__pdesc)		\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 16, 4)
+#define GET_RX_STATUS_DESC_SECURITY(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 20, 3)
+#define GET_RX_STATUS_DESC_QOS(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 23, 1)
+#define GET_RX_STATUS_DESC_SHIFT(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 24, 2)
+#define GET_RX_STATUS_DESC_PHY_STATUS(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 26, 1)
+#define GET_RX_STATUS_DESC_SWDEC(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 27, 1)
+#define GET_RX_STATUS_DESC_LAST_SEG(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 28, 1)
+#define GET_RX_STATUS_DESC_FIRST_SEG(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 29, 1)
+#define GET_RX_STATUS_DESC_EOR(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 30, 1)
+#define GET_RX_STATUS_DESC_OWN(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 31, 1)
+
+/* DWORD 1 */
+#define GET_RX_STATUS_DESC_IS_CMD(__pdesc)			\
+	(SHIFT_AND_MASK_LE(__pdesc, 1, 0, 9) == 0x1ff)
+#define GET_RX_STATUS_DESC_MACID(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 0, 5)
+#define GET_RX_STATUS_DESC_TID(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 5, 4)
+#define GET_RX_STATUS_DESC_PAGGR(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 14, 1)
+#define GET_RX_STATUS_DESC_FAGGR(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 15, 1)
+#define GET_RX_STATUS_DESC_A1_FIT(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 16, 4)
+#define GET_RX_STATUS_DESC_A2_FIT(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 20, 4)
+#define GET_RX_STATUS_DESC_PAM(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 24, 1)
+#define GET_RX_STATUS_DESC_PWR(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 25, 1)
+#define GET_RX_STATUS_DESC_MORE_DATA(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 26, 1)
+#define GET_RX_STATUS_DESC_MORE_FRAG(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 27, 1)
+#define GET_RX_STATUS_DESC_TYPE(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 28, 2)
+#define GET_RX_STATUS_DESC_MC(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 30, 1)
+#define GET_RX_STATUS_DESC_BC(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 31, 1)
+
+/* DWORD 2 */
+#define GET_RX_STATUS_DESC_SEQ(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 2, 0, 12)
+#define GET_RX_STATUS_DESC_FRAG(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 2, 12, 4)
+#define GET_RX_STATUS_DESC_PKTCNT(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 2, 16, 8)
+
+/* DWORD 3 */
+#define GET_RX_STATUS_DESC_RX_MCS(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 3, 0, 6)
+#define GET_RX_STATUS_DESC_RX_HT(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 3, 6, 1)
+#define GET_RX_STATUS_DESC_SPLCP(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 3, 8, 1)
+#define GET_RX_STATUS_DESC_BW(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 3, 9, 1)
+#define GET_RX_STATUS_DESC_TCP_CHK_RPT(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 3, 11, 1)
+#define GET_RX_STATUS_DESC_IP_CHK_RPT(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 3, 12, 1)
+#define GET_RX_STATUS_DESC_TCP_CHK_VALID(__pdesc)		\
+	SHIFT_AND_MASK_LE(__pdesc, 3, 13, 1)
+
+/* DWORD 5 */
+#define SET_RX_STATUS_DESC_TSFL(__pdesc, __val)			\
+	SET_BITS_OFFSET_LE(__pdesc, 5, 0, 32, __val)
+#define GET_RX_STATUS_DESC_TSFL(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 5, 0, 32)
+
+typedef __le32 tx_hdr[8];
 
 /* Rx Desc */
 #define RX_DESC_SIZE				24
 #define RX_DRV_INFO_SIZE_UNIT			8
-#define RX_LENGTH_MASK				0x3fff /* Bit 0 - 13 */
-#define RX_CRC32_ERR				BIT(14)
-#define RX_ICV_ERR				BIT(15)
 
-struct rx_hdr {
-	/* DWORD 0 */
-	__le16 pkt_len_and_bits;/*  0 - 13, 14, 15 */
-	u8 drvinfo_size:4;	/* 16 - 19 */
-	u8 security:3;		/* 20 - 22 */
-	u8 qos:1;		/* 23 */
-	u8 shift:2;		/* 24 - 25 */
-	u8 phy_status:1;	/* 26 */
-	u8 swdec:1;		/* 27 */
-	u8 last_seg:1;		/* 28 */
-	u8 first_seg:1;		/* 29 */
-	u8 eor:1;		/* 30 */
-	u8 own:1;		/* 31 */
-
-	/* DWORD 1 */
-	u8 mac_id:5;		/*  0 -  4 */
-	u8 tid:4;		/*  5 -  8 */
-	u8 unkn0100:5;		/*  9 - 13 */
-	u8 paggr:1;		/* 14 */
-	u8 faggr:1;		/* 15 */
-	u8 a1_fit:4;		/* 16 - 19 */
-	u8 a2_fit:4;		/* 20 - 23 */
-	u8 pam:1;		/* 24 */
-	u8 pwr:1;		/* 25 */
-	u8 more_data:1;		/* 26 */
-	u8 more_frag:1;		/* 27 */
-	u8 type:2;		/* 28 - 29 */
-	u8 mc:1;		/* 30 */
-	u8 bc:1;		/* 31 */
-
-	/* DWORD 2 */
-	__le16 seq_and_frag;	/*  0 - 15 */
-	u8 pkt_cnt;		/* 16 - 23 */
-	u8 unkn0200:6;		/* 24 - 29 */
-	u8 next_ind:1;		/* 30 */
-	u8 unkn0201:1;		/* 31 */
-
-	/* DWORD 3 */
-	u8 rx_mcs:6;		/*  0 -  5 */
-	u8 rx_ht:1;		/*  6 */
-	u8 amsdu:1;		/*  7 */
-	u8 splcp:1;		/*  8 */
-	u8 bw:1;		/*  9 */
-	u8 htc:1;		/* 10 */
-	u8 tcp_chk_rpt:1;	/* 11 */
-	u8 ip_chk_rpt:1;	/* 12 */
-	u8 tcp_chk_valid:1;	/* 13 */
-	u8 htc2:1;		/* 14 */
-	u8 hwpc_ind:1;		/* 15 */
-	__le16 iv0;		/* 16 - 31 */
-
-	/* DWORD 4 */
-	__le32 iv1;		/*  0 - 31 */
-
-	/* DWORD 5 */
-	__le32 tsf32;		/*  0 - 31 */
-} __packed;
+typedef __le32 rx_hdr[6];
 
 struct rx_hdr_phy_cck {
 	/* For CCK rate descriptor. This is an unsigned 8:1 variable.
@@ -220,8 +245,7 @@ struct rx_hdr_phy_cck {
 	 * Range from -64 to + 63.5 */
 	u8 adc_pwdb_X[4];
 	u8 sq_rpt;
-	u8 cck_agc_rpt:6;
-	u8 report:2;
+	u8 cck_agc_rpt;
 } __packed;
 
 struct rx_hdr_phy_ofdm {
@@ -248,8 +272,7 @@ union rx_hdr_phy {
 struct h2cc2h {
 	__le16 len;
 	u8 event;
-	u8 cmd_seq:7;
-	u8 last:1;
+	u8 cmd_seq;
 
 	u8 agg_num;
 	u8 unkn;
@@ -259,7 +282,7 @@ struct h2cc2h {
 } __packed;
 
 struct tx_packet {
-	struct tx_hdr hdr;
+	tx_hdr hdr;
 
 	union {
 		struct ieee80211_hdr i3e;
@@ -269,7 +292,7 @@ struct tx_packet {
 } __packed;
 
 struct rx_packet {
-	struct rx_hdr hdr;
+	rx_hdr hdr;
 	union {
 		/* No direct access to the rx data possible. The rx_hdr
 		 * contains shift value (used to tell the offset of the
@@ -353,13 +376,9 @@ enum r92su_enc_alg {
 
 static inline void __check_def__(void)
 {
-	BUILD_BUG_ON(sizeof(struct tx_hdr) != TX_DESC_SIZE);
-	BUILD_BUG_ON(sizeof(struct rx_hdr) != RX_DESC_SIZE);
+	BUILD_BUG_ON(sizeof(tx_hdr) != TX_DESC_SIZE);
+	BUILD_BUG_ON(sizeof(rx_hdr) != RX_DESC_SIZE);
 	BUILD_BUG_ON(sizeof(struct h2cc2h) != H2CC2H_HDR_LEN);
-
-	BUILD_BUG_ON(offsetof(struct tx_hdr, ip_check_sum) != 24);
-	BUILD_BUG_ON(offsetof(struct tx_hdr, heap_page) != 12);
-	BUILD_BUG_ON(offsetof(struct rx_hdr, tsf32) != 20);
 }
 
 #endif /* __R92SU_DEF_H__ */

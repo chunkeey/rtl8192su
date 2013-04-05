@@ -133,7 +133,7 @@ static int r92su_upload_firmware_part(struct r92su *r92su,
 	int err;
 
 	do {
-		struct tx_hdr *hdr;
+		tx_hdr *hdr;
 		struct sk_buff *skb;
 		unsigned int current_block;
 
@@ -141,14 +141,15 @@ static int r92su_upload_firmware_part(struct r92su *r92su,
 		if (!skb)
 			return -ENOMEM;
 
-		hdr = (struct tx_hdr *) skb_put(skb, sizeof(*hdr));
+		hdr = (tx_hdr *) skb_put(skb, sizeof(*hdr));
 		memset(hdr, 0, sizeof(*hdr));
 
 		current_block = min(block_size, len - done);
 		done += current_block;
 
-		hdr->pkt_len = cpu_to_le16(current_block);
-		hdr->linip = (len == done);
+		SET_TX_DESC_PKT_SIZE(hdr, current_block);
+		if (len == done)
+			SET_TX_DESC_LINIP(hdr, 1);
 
 		memcpy(skb_put(skb, current_block), iter, current_block);
 		err = r92su_usb_tx(r92su, skb, RTL8712_VOQ);
