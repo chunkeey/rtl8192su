@@ -1,7 +1,7 @@
 TODO:
  - rx statistics (Signal/Quality)
    rtl8192su provides a wide range of noise and signal levels,
-   but they need to be read, processed and passed to mac80211.
+   but they need to be read, processed and passed to cfg80211.
 
  - figure out which firmware commands are really implemented
    in the firmware. Some just seem to be NOPs.
@@ -35,3 +35,4 @@ KNOWN LIMITATIONS:
  - No AP/P2P mode (firmware limitation)
  - No accurate tx feedback (fw-host protocol limitation)
  - (More to come)
+ - In ibss mode, the device sends out frames with HT rates.

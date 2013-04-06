@@ -190,7 +190,7 @@ static const struct r92su_debugfs_fops r92su_debugfs_##name ##_ops = {	\
 			     _read_bufsize, S_IRUSR | S_IWUSR)
 
 #define __DEBUGFS_DECLARE_RW_FILE(name, _read_bufsize, _dstate)		\
-        __DEBUGFS_DECLARE_FILE(name, r92su_debugfs_##name ##_read,	\
+	__DEBUGFS_DECLARE_FILE(name, r92su_debugfs_##name ##_read,	\
 			       r92su_debugfs_##name ##_write,		\
 			       _read_bufsize, S_IRUSR | S_IWUSR, _dstate)
 
@@ -503,6 +503,5 @@ int r92su_register_debugfs(struct r92su *r92su)
 
 void r92su_unregister_debugfs(struct r92su *r92su)
 {
-	if (r92su->dfs)
-		debugfs_remove_recursive(r92su->dfs);
+	debugfs_remove_recursive(r92su->dfs);
 }

@@ -276,7 +276,7 @@ static int r92su_connect_set_auth(struct r92su *r92su,
 
 	default:
 		wiphy_err(r92su->wdev.wiphy, "Invalid auth type %d\n",
-			  sme->auth_type);
+			  auth_type);
 		return -EINVAL;
 	}
 
@@ -1125,7 +1125,7 @@ static int r92su_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	r92su->want_connect_bss = bss;
-	err = r92su_h2c_connect(r92su, &bss_priv->fw_bss, create,
+	err = r92su_h2c_connect(r92su, &bss_priv->fw_bss, join,
 				ie_buf, ie - ie_buf);
 	if (err)
 		goto out;
@@ -1550,29 +1550,25 @@ err_out:
 	return err;
 }
 
-#define ADD_REV(type)	[(R92SU_##type)] = (#type)
 static const char *rev_to_string[__R92SU_MAX_REV] = {
-	ADD_REV(FPGA),
-	ADD_REV(A_CUT),
-	ADD_REV(B_CUT),
-	ADD_REV(C_CUT),
+	[R92SU_FPGA] = "FPGA",
+	[R92SU_A_CUT] = "A CUT",
+	[R92SU_B_CUT] = "B CUT",
+	[R92SU_C_CUT] = "C CUT",
 };
 
 static const char *rf_to_string(const enum r92su_rf_type_t type)
 {
-#define ADD_RF(type)	case R92SU_##type: return #type
 	switch (type) {
-	ADD_RF(1T1R);
-	ADD_RF(1T2R);
-	ADD_RF(2T2R);
+	case R92SU_1T1R: return "1T1R";
+	case R92SU_1T2R: return "1T2R";
+	case R92SU_2T2R: return "2T2R";
 	default:
 		return "UNKN";
 	};
 }
-#undef ADD_REV
 
 #define NAME_LEN 32
-
 static int r92su_register_wps_button(struct r92su *r92su)
 {
 #ifdef CONFIG_R92SU_WPC

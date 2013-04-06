@@ -494,7 +494,8 @@ r92su_rx_handle_icv_mic(struct r92su *r92su, struct sk_buff *skb,
 			return RX_DROP;
 
 		tail = data + data_len;
-		michael_mic(&key->tkip.key.key[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY],
+		michael_mic(&key->tkip.key.
+			    key[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY],
 			    hdr, data, data_len, mic);
 
 		if (memcmp(mic, tail, MICHAEL_MIC_LEN) != 0) {

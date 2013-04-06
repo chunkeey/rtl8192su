@@ -57,7 +57,7 @@ static void c2h_survey_event(struct r92su *r92su, const struct h2cc2h *c2h)
 	 * ... along with the FCS (since we enabled the RX flag for it
 	 */
 	len = le16_to_cpu(c2h->len) - FCS_LEN;
-	bss_len = le32_to_cpu(c2h_bss->length)- FCS_LEN;
+	bss_len = le32_to_cpu(c2h_bss->length) - FCS_LEN;
 
 	if (len < sizeof(*c2h_bss) || len != bss_len ||
 	    le32_to_cpu(c2h_bss->ie_length) <= 12) {
@@ -169,8 +169,6 @@ static void c2h_addba_report_event(struct r92su *r92su,
 
 void r92su_c2h_event(struct r92su *r92su, const struct h2cc2h *c2h)
 {
-#define ADD_HANDLER(_id, _handler)	case (_id): (_handler((r92su), (c2h))); break;
-
 	unsigned int sequence = r92su->c2h_seq++;
 
 	if (sequence != c2h->cmd_seq) {
@@ -185,16 +183,36 @@ void r92su_c2h_event(struct r92su *r92su, const struct h2cc2h *c2h)
 		     c2h->event, le16_to_cpu(c2h->len));
 
 	switch (c2h->event) {
-	ADD_HANDLER(C2H_FWDBG_EVENT, c2h_fwdbg_event);
-	ADD_HANDLER(C2H_SURVEY_EVENT, c2h_survey_event);
-	ADD_HANDLER(C2H_SURVEY_DONE_EVENT, c2h_survey_done_event);
-	ADD_HANDLER(C2H_JOIN_BSS_EVENT, c2h_join_bss_event);
-	ADD_HANDLER(C2H_ADD_STA_EVENT, c2h_add_sta_event);
-	ADD_HANDLER(C2H_DEL_STA_EVENT, c2h_del_sta_event);
-	ADD_HANDLER(C2H_ATIM_DONE_EVENT, c2h_atim_done_event);
-	ADD_HANDLER(C2H_REPORT_PWR_STATE_EVENT, c2h_report_pwr_state_event);
-	ADD_HANDLER(C2H_WPS_PBC_EVENT, c2h_wps_pbc_event);
-	ADD_HANDLER(C2H_ADDBA_REPORT_EVENT, c2h_addba_report_event);
+	case C2H_FWDBG_EVENT:
+		c2h_fwdbg_event(r92su, c2h);
+		break;
+	case C2H_SURVEY_EVENT:
+		c2h_survey_event(r92su, c2h);
+		break;
+	case C2H_SURVEY_DONE_EVENT:
+		c2h_survey_done_event(r92su, c2h);
+		break;
+	case C2H_JOIN_BSS_EVENT:
+		c2h_join_bss_event(r92su, c2h);
+		break;
+	case C2H_ADD_STA_EVENT:
+		c2h_add_sta_event(r92su, c2h);
+		break;
+	case C2H_DEL_STA_EVENT:
+		c2h_del_sta_event(r92su, c2h);
+		break;
+	case C2H_ATIM_DONE_EVENT:
+		c2h_atim_done_event(r92su, c2h);
+		break;
+	case C2H_REPORT_PWR_STATE_EVENT:
+		c2h_report_pwr_state_event(r92su, c2h);
+		break;
+	case C2H_WPS_PBC_EVENT:
+		c2h_wps_pbc_event(r92su, c2h);
+		break;
+	case C2H_ADDBA_REPORT_EVENT:
+		c2h_addba_report_event(r92su, c2h);
+		break;
 
 	default:
 		wiphy_err(r92su->wdev.wiphy, "received invalid c2h event:%x\n",
@@ -204,6 +222,4 @@ void r92su_c2h_event(struct r92su *r92su, const struct h2cc2h *c2h)
 		r92su_mark_dead(r92su);
 		break;
 	}
-
-#undef ADD_HANDLER
 }

@@ -207,12 +207,9 @@ enum h2c_network_infrastruct_mode {
 	MODE_IBSS,
 	MODE_BSS,
 	MODE_AUTO,
-	MODE_INFRA_MAX,		/*
-				 * Apparently that's not a real value,
+	MODE_INFRA_MAX,		/* Apparently that's not a real value,
 				 * just the upper bound
 				 */
-	MODE_AP,		/* maybe this should be = INFRA_MAX? */
-
 	/* keep this last */
 	__MAX_NETWORK_MODE
 };
@@ -221,10 +218,6 @@ enum h2c_op_modes {
 	OP_AUTO = 0,		/* Let the driver decides which AP to join */
 	OP_ADHOC,		/* Single cell network (Ad-Hoc Clients) */
 	OP_INFRA,		/* Multi cell network, roaming, ... */
-	OP_MASTER,		/* Synchronisation master or AP - useless */
-	OP_REPEAT,		/* Wireless Repeater (forwarder) - useless */
-	OP_SECOND,		/* Secondary master/repeater (backup) - useless */
-	OP_MONITOR,		/* Passive monitor (listen only) - useless */
 
 	/* keep this last */
 	__MAC_OP_MODES

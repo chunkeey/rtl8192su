@@ -127,27 +127,22 @@ r92su_tx_fill_desc(struct r92su *r92su, struct sk_buff *skb,
 		}
 	}
 
-	/* send EAPOL with failsafe rate */
+	/* send EAPOL, ARPs and DHCP traffic with failsafe rates */
 	if (tx_info->low_rate) {
 		SET_TX_DESC_USER_RATE(hdr, 1);
 		SET_TX_DESC_USER_TX_RATE(hdr, 0x001f8000);	 /* 1M */
-		if (tx_info->sta->ht_sta)
-			SET_TX_DESC_AGG_BREAK(hdr, 1);
 	} else if (tx_info->ampdu) {
 		/* The firmware will automatically enable aggregation
-		 * there's no need to set hdr->agg_en = 1 and hdr->tx_ht = 1;
+		 * there's no need to set agg_en = 1, tx_ht = 1 or
+		 * anything else.
 		 */
 	}
-
 	return TX_CONTINUE;
 }
 
-#define WEP_IV_LEN		4
 #define WEP_ICV_LEN		4
-#define CCMP_HDR_LEN		8
 #define CCMP_MIC_LEN		8
 #define CCMP_TK_LEN		16
-#define TKIP_IV_LEN		8
 #define TKIP_ICV_LEN		4
 
 static enum r92su_tx_control_t
@@ -251,7 +246,8 @@ r92su_tx_add_icv_mic(struct r92su *r92su, struct sk_buff *skb,
 		return TX_CONTINUE;
 
 	case TKIP_ENCRYPTION:
-		michael_mic(&key->tkip.key.key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY],
+		michael_mic(&key->tkip.key.
+			    key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY],
 			    hdr, data, data_len, skb_put(skb, MICHAEL_MIC_LEN));
 		tx_info->ht_possible = false;
 		return TX_CONTINUE;
