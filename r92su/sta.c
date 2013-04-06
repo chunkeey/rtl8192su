@@ -180,9 +180,11 @@ void r92su_sta_del(struct r92su *r92su, int mac_id)
 	struct r92su_sta *old_sta;
 	BUG_ON(mac_id > ARRAY_SIZE(r92su->sta_table));
 
+	rcu_read_lock();
 	old_sta = rcu_dereference(r92su->sta_table[mac_id]);
 	rcu_assign_pointer(r92su->sta_table[mac_id], NULL);
 	r92su_free_sta(old_sta);
+	rcu_read_unlock();
 }
 
 void r92su_sta_add(struct r92su *r92su, struct r92su_sta *new_sta)

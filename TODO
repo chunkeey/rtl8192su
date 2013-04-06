@@ -3,10 +3,6 @@ TODO:
    rtl8192su provides a wide range of noise and signal levels,
    but they need to be read, processed and passed to mac80211.
 
- - ADHOC
-   Apparently the firmware supports ADHOC, but the driver
-   does not.
-
  - figure out which firmware commands are really implemented
    in the firmware. Some just seem to be NOPs.
    (Note: The same is true for firmware response. This will

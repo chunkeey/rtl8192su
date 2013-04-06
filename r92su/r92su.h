@@ -164,6 +164,8 @@ struct r92su {
 	struct cfg80211_bss __rcu *connect_bss;
 	struct work_struct connect_bss_work;
 	struct delayed_work survey_done_work;
+	struct completion scan_done;
+	bool scanned;
 
 	/* cmd */
 	unsigned int h2c_seq:7;

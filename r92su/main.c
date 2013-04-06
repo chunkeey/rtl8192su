@@ -121,6 +121,8 @@ static const struct ieee80211_sta_ht_cap r92su_ht_info = {
 	},
 };
 
+#define R92SU_SCAN_TIMEOUT	5000
+
 static int r92su_get_station(struct wiphy *wiphy, struct net_device *ndev,
 			     u8 *mac, struct station_info *sinfo)
 {
@@ -303,16 +305,48 @@ static int r92su_connect_set_shared_key(struct r92su *r92su,
 				sme->key);
 }
 
+static int r92su_internal_scan(struct r92su *r92su, const u8 *ssid,
+			       const u8 ssid_len)
+{
+	int err = -ENODEV;
+
+	if (r92su->scanned)
+		return 0;
+
+	mutex_lock(&r92su->lock);
+	if (r92su_is_open(r92su)) {
+		struct cfg80211_ssid _ssid;
+		if (ssid) {
+			memcpy(&_ssid.ssid, ssid, ssid_len);
+			_ssid.ssid_len = ssid_len;
+		}
+		err = r92su_h2c_survey(r92su, ssid ? &_ssid : NULL);
+	}
+	mutex_unlock(&r92su->lock);
+	if (err)
+		return err;
+
+	queue_delayed_work(r92su->wq, &r92su->survey_done_work,
+			   msecs_to_jiffies(R92SU_SCAN_TIMEOUT));
+
+	wait_for_completion(&r92su->scan_done);
+	return 0;
+}
+
 static int r92su_connect(struct wiphy *wiphy, struct net_device *ndev,
 			 struct cfg80211_connect_params *sme)
 {
 	struct r92su *r92su = wiphy_priv(wiphy);
 	struct cfg80211_bss *bss = NULL;
 	struct r92su_bss_priv *bss_priv = NULL;
-	int i, err = -EAGAIN;
+	int err = -ENODEV;
 	u8 ie_buf[256];
 	u8 *ie = ie_buf;
 	u32 ie_len_left = sizeof(ie_buf);
+
+	err = r92su_internal_scan(r92su, sme->ssid, sme->ssid_len);
+	if (err)
+		return err;
 
 	mutex_lock(&r92su->lock);
 	if (!r92su_is_open(r92su))
@@ -335,9 +369,6 @@ static int r92su_connect(struct wiphy *wiphy, struct net_device *ndev,
 	if (err)
 		goto out;
 
-	for (i = 0; i < ARRAY_SIZE(bss_priv->tx_tid); i++)
-		skb_queue_head_init(&bss_priv->tx_tid[i].agg_queue);
-
 	bss_priv->control_port = sme->crypto.control_port;
 	bss_priv->control_port_ethertype = sme->crypto.control_port_ethertype;
 	bss_priv->control_port_no_encrypt = sme->crypto.control_port_no_encrypt;
@@ -356,8 +387,10 @@ static int r92su_connect(struct wiphy *wiphy, struct net_device *ndev,
 	bss_priv->assoc_ie_len = ie - ie_buf;
 	bss_priv->assoc_ie = kmemdup(ie_buf, bss_priv->assoc_ie_len,
 				     GFP_KERNEL);
-	if (!bss_priv->assoc_ie)
+	if (!bss_priv->assoc_ie) {
+		err = -ENOMEM;
 		goto out;
+	}
 
 	r92su->want_connect_bss = bss;
 	err = r92su_h2c_connect(r92su, &bss_priv->fw_bss, true,
@@ -454,6 +487,19 @@ void r92su_disconnect_bss_event(struct r92su *r92su)
 	netif_carrier_off(r92su->wdev.netdev);
 }
 
+static void r92su_bss_init(struct r92su *r92su, struct cfg80211_bss *bss,
+			   const struct h2cc2h_bss *c2h_bss)
+{
+	struct r92su_bss_priv *cfg_priv;
+	int i;
+
+	cfg_priv = (void *) bss->priv;
+	memcpy(&cfg_priv->fw_bss, c2h_bss, sizeof(*c2h_bss));
+
+	for (i = 0; i < ARRAY_SIZE(cfg_priv->tx_tid); i++)
+		skb_queue_head_init(&cfg_priv->tx_tid[i].agg_queue);
+}
+
 static void r92su_add_bss_work(struct work_struct *work)
 {
 	struct r92su *r92su;
@@ -464,7 +510,6 @@ static void r92su_add_bss_work(struct work_struct *work)
 	while (node) {
 		const struct h2cc2h_bss *c2h_bss;
 		struct r92su_add_bss *bss_priv;
-		struct r92su_bss_priv *cfg_priv;
 		struct cfg80211_bss *bss;
 		int chan_idx;
 		int ie_len;
@@ -490,12 +535,10 @@ static void r92su_add_bss_work(struct work_struct *work)
 			c2h_bss->ies.ie, ie_len,
 			le32_to_cpu(c2h_bss->rssi), GFP_KERNEL);
 
-		cfg_priv = (void *) bss->priv;
-		memcpy(&cfg_priv->fw_bss, c2h_bss, sizeof(*c2h_bss));
-
-		if (bss)
+		if (bss) {
+			r92su_bss_init(r92su, bss, c2h_bss);
 			cfg80211_put_bss(r92su->wdev.wiphy, bss);
-
+		}
 next:
 		node = ACCESS_ONCE(node->next);
 
@@ -609,8 +652,6 @@ out:
 		netif_carrier_on(r92su->wdev.netdev);
 	}
 }
-
-#define R92SU_SCAN_TIMEOUT	5000
 
 static int r92su_scan(struct wiphy *wiphy, struct cfg80211_scan_request *req)
 {
@@ -893,10 +934,211 @@ static int r92su_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 		return -EOPNOTSUPP;
 }
 
+static int r92su_ibss_build_ie(struct r92su *r92su, u8 **ie, u32 *ie_len_left,
+			       struct cfg80211_ibss_params *params)
+{
+	struct ieee80211_supported_band *sband;
+	unsigned int i, rates_len = 0;
+	u8 supp_rates[16];
+	u8 ibss_params[2] = { };
+	u8 chan;
+
+	sband = &r92su->band_2GHZ;
+	chan = ieee80211_frequency_to_channel(params->chandef.
+					      chan->center_freq);
+	rates_len = min_t(unsigned int, sband->n_bitrates, sizeof(supp_rates));
+	for (i = 0; i < rates_len; i++) {
+		supp_rates[i] = sband->bitrates[i].bitrate / 5;
+		if (params->basic_rates & BIT(i))
+			supp_rates[i] |= 0x80;
+	}
+
+	if (!r92su_add_ie(r92su, WLAN_EID_SSID, ie, ie_len_left,
+			  params->ssid, params->ssid_len))
+		return -EINVAL;
+
+	if (!r92su_add_ie(r92su, WLAN_EID_SUPP_RATES, ie, ie_len_left,
+			  supp_rates, min(rates_len, 8u)))
+		return -EINVAL;
+
+	if (!r92su_add_ie(r92su, WLAN_EID_DS_PARAMS, ie, ie_len_left,
+			  &chan, sizeof(chan)))
+		return -EINVAL;
+
+	if (!r92su_add_ie(r92su, WLAN_EID_IBSS_PARAMS, ie, ie_len_left,
+			  ibss_params, sizeof(ibss_params)))
+		return -EINVAL;
+
+	if (rates_len > 8) {
+		if (!r92su_add_ie(r92su, WLAN_EID_EXT_SUPP_RATES, ie,
+				  ie_len_left, &supp_rates[8], rates_len - 8))
+			return -EINVAL;
+	}
+
+	if (!r92su_ht_update(r92su, ie, ie_len_left))
+		return -EINVAL;
+
+	if (!r92su_add_ies(r92su, ie, ie_len_left, params->ie, params->ie_len))
+		return -ENOSPC;
+	return 0;
+}
+
+static int r92su_bss_build_fw_bss(struct r92su *r92su, struct cfg80211_bss *bss,
+				  u8 *ies_data, const unsigned int ies_len)
+{
+	struct r92su_bss_priv *bss_priv = r92su_get_bss_priv(bss);
+	struct h2cc2h_bss *fw_bss = &bss_priv->fw_bss;
+	u8 *tmp;
+	int i;
+
+	fw_bss->length = cpu_to_le32(sizeof(*fw_bss));
+	memcpy(fw_bss->bssid, bss->bssid, ETH_ALEN);
+	fw_bss->privacy = cpu_to_le32(!!(bss->capability &
+					WLAN_CAPABILITY_PRIVACY));
+
+	tmp = r92su_find_ie(ies_data, ies_len, WLAN_EID_SSID);
+	if (!tmp || !(tmp[1] > 0))
+		return -EINVAL;
+
+	fw_bss->ssid.length = cpu_to_le32(tmp[1]);
+	memcpy(fw_bss->ssid.ssid, &tmp[2],
+	       min_t(unsigned int, sizeof(fw_bss->ssid.ssid), tmp[1]));
+	fw_bss->type = cpu_to_le32(TYPE_11OFDM2GHZ);
+
+	if (bss->capability & WLAN_CAPABILITY_IBSS)
+		fw_bss->mode = cpu_to_le32(MODE_IBSS);
+	else if (bss->capability & WLAN_CAPABILITY_ESS)
+		fw_bss->mode = cpu_to_le32(MODE_BSS);
+	else
+		fw_bss->mode = cpu_to_le32(MODE_AUTO);
+
+	fw_bss->config.length = cpu_to_le32(sizeof(fw_bss->config));
+	fw_bss->config.beacon_period = cpu_to_le32(bss->beacon_interval);
+	tmp = r92su_find_ie(ies_data, ies_len, WLAN_EID_IBSS_PARAMS);
+	if (tmp && tmp[1] >= 2) {
+		const __le16 *atim = (const __le16 *) &tmp[2];
+		fw_bss->config.atim_window = cpu_to_le32(le16_to_cpup(atim));
+	}
+
+	tmp = r92su_find_ie(ies_data, ies_len, WLAN_EID_DS_PARAMS);
+	if (!tmp && tmp[1] < 1)
+		return -EINVAL;
+	fw_bss->config.frequency = cpu_to_le32(tmp[2]);
+
+	tmp = r92su_find_ie(ies_data, ies_len, WLAN_EID_SUPP_RATES);
+	if (!tmp)
+		return -EINVAL;
+	i = min_t(unsigned int, 8u, tmp[1]);
+	memcpy(fw_bss->rates.rates, &tmp[2], i);
+
+	tmp = r92su_find_ie(ies_data, ies_len, WLAN_EID_EXT_SUPP_RATES);
+	if (tmp) {
+		u8 len = min_t(unsigned int, sizeof(fw_bss->rates.rates) - i,
+			       tmp[1]);
+		memcpy(&fw_bss->rates.rates[i], &tmp[2], len);
+	}
+	fw_bss->ies.timestamp = cpu_to_le64(0);
+	fw_bss->ies.beaconint = cpu_to_le16(bss->beacon_interval);
+	fw_bss->ies.caps = cpu_to_le16(bss->capability);
+	return 0;
+}
+
 static int r92su_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 			   struct cfg80211_ibss_params *params)
 {
-	return -EOPNOTSUPP;
+
+	struct r92su *r92su = wiphy_priv(wiphy);
+	struct cfg80211_bss *bss = NULL;
+	struct r92su_bss_priv *bss_priv = NULL;
+	int err = -EAGAIN;
+	u8 ie_buf[256];
+	u8 *ie = ie_buf;
+	u32 ie_len_left = sizeof(ie_buf);
+	bool create = false;
+
+	err = r92su_internal_scan(r92su, params->ssid, params->ssid_len);
+	if (err)
+		return err;
+
+	mutex_lock(&r92su->lock);
+	if (!r92su_is_open(r92su))
+		goto out;
+
+	bss = cfg80211_get_bss(wiphy, NULL, params->bssid,
+			       params->ssid, params->ssid_len,
+			       WLAN_CAPABILITY_IBSS, WLAN_CAPABILITY_IBSS);
+	if (!bss) {
+		u8 bssid[ETH_ALEN];
+		u16 capability;
+
+		capability = WLAN_CAPABILITY_IBSS |
+			     WLAN_CAPABILITY_SHORT_PREAMBLE;
+		if (params->privacy)
+			capability |= WLAN_CAPABILITY_PRIVACY;
+
+		if (!params->bssid) {
+			/* generate random, not broadcast, locally administered
+			 * bssid.
+			 */
+			get_random_bytes(&bssid, sizeof(bssid));
+			bssid[0] &= ~0x01;
+			bssid[0] |= 0x02;
+		} else {
+			memcpy(bssid, params->bssid, ETH_ALEN);
+		}
+
+		err = r92su_ibss_build_ie(r92su, &ie, &ie_len_left, params);
+		if (err)
+			goto out;
+
+		bss = cfg80211_inform_bss(r92su->wdev.wiphy,
+			params->chandef.chan, bssid,
+			0, capability, params->beacon_interval,
+			ie_buf, ie - ie_buf, 0, GFP_KERNEL);
+		if (!bss)
+			goto out;
+
+		bss_priv = r92su_get_bss_priv(bss);
+		err = r92su_bss_build_fw_bss(r92su, bss, ie_buf, ie - ie_buf);
+		if (err)
+			goto out;
+	} else {
+		create = true;
+
+		bss_priv = r92su_get_bss_priv(bss);
+		WARN(!r92su_add_ies(r92su, &ie, &ie_len_left, params->ie,
+		     params->ie_len), "no space left for cfg80211's ies");
+
+	}
+
+	bss_priv->assoc_ie_len = ie - ie_buf;
+	bss_priv->assoc_ie = kmemdup(ie_buf, bss_priv->assoc_ie_len,
+			     GFP_KERNEL);
+	if (!bss_priv->assoc_ie) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	r92su->want_connect_bss = bss;
+	err = r92su_h2c_connect(r92su, &bss_priv->fw_bss, create,
+				ie_buf, ie - ie_buf);
+	if (err)
+		goto out;
+
+	synchronize_rcu();
+out:
+	if (err) {
+		if (bss_priv)
+			kfree(bss_priv->assoc_ie);
+
+		r92su->want_connect_bss = NULL;
+	}
+
+	mutex_unlock(&r92su->lock);
+
+	if (bss)
+		cfg80211_put_bss(wiphy, bss);
+	return err;
 }
 
 static int r92su_leave_ibss(struct wiphy *wiphy, struct net_device *ndev)
@@ -1070,6 +1312,8 @@ static void r92su_survey_done_work(struct work_struct *work)
 	if (req)
 		cfg80211_scan_done(req, req->aborted);
 
+	r92su->scanned = true;
+	complete(&r92su->scan_done);
 out:
 	mutex_unlock(&r92su->lock);
 }
@@ -1200,6 +1444,7 @@ struct r92su *r92su_alloc(struct device *main_dev)
 
 	wiphy->privid = r92su_priv_id;
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+				 BIT(NL80211_IFTYPE_ADHOC) |
 				 BIT(NL80211_IFTYPE_MONITOR);
 	wiphy->max_scan_ssids = 1;
 	wiphy->max_scan_ie_len = 256;
@@ -1208,6 +1453,7 @@ struct r92su *r92su_alloc(struct device *main_dev)
 	wiphy->n_cipher_suites = ARRAY_SIZE(r92su_chiper_suites);
 	wiphy->bss_priv_size = sizeof(struct r92su_bss_priv);
 
+	init_completion(&r92su->scan_done);
 	init_llist_head(&r92su->add_bss_list);
 	INIT_WORK(&r92su->add_bss_work, r92su_add_bss_work);
 	INIT_WORK(&r92su->connect_bss_work, r92su_connect_bss_work);
