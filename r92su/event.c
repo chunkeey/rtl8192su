@@ -182,7 +182,7 @@ void r92su_c2h_event(struct r92su *r92su, const struct h2cc2h *c2h)
 	}
 
 	wiphy_notice(r92su->wdev.wiphy, "c2h event:%x len:%d\n",
-		     c2h->event, c2h->len);
+		     c2h->event, le16_to_cpu(c2h->len));
 
 	switch (c2h->event) {
 	ADD_HANDLER(C2H_FWDBG_EVENT, c2h_fwdbg_event);
