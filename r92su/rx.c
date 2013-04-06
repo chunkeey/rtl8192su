@@ -70,21 +70,21 @@ static void r92su_rx_add_radiotap(struct r92su *r92su,
 	while ((pos - (u8 *)rthdr) & 7)
 		*pos++ = 0;
 
-	put_unaligned_le64(GET_RX_STATUS_DESC_TSFL(rx_hdr), pos);
+	put_unaligned_le64(GET_RX_DESC_TSFL(rx_hdr), pos);
 	pos += 8;
 
 	/* IEEE80211_RADIOTAP_FLAGS */
 	*pos = IEEE80211_RADIOTAP_F_FCS;
-	if (GET_RX_STATUS_DESC_CRC32(rx_hdr))
+	if (GET_RX_DESC_CRC32(rx_hdr))
 		*pos |= IEEE80211_RADIOTAP_F_BADFCS;
-	if (GET_RX_STATUS_DESC_SPLCP(rx_hdr))
+	if (GET_RX_DESC_SPLCP(rx_hdr))
 		*pos |= IEEE80211_RADIOTAP_F_SHORTPRE;
 	pos++;
 
-	rx_mcs = GET_RX_STATUS_DESC_RX_MCS(rx_hdr);
+	rx_mcs = GET_RX_DESC_RX_MCS(rx_hdr);
 
 	/* IEEE80211_RADIOTAP_RATE */
-	ht = GET_RX_STATUS_DESC_RX_HT(rx_hdr);
+	ht = GET_RX_DESC_RX_HT(rx_hdr);
 	if (ht) {
 		/* Without rate information don't add it. If we have,
 		 * MCS information is a separate field in radiotap,
@@ -127,13 +127,13 @@ static void r92su_rx_add_radiotap(struct r92su *r92su,
 		*pos++ = IEEE80211_RADIOTAP_MCS_HAVE_MCS |
 			 IEEE80211_RADIOTAP_MCS_HAVE_BW;
 		*pos = 0;
-		if (GET_RX_STATUS_DESC_BW(rx_hdr))
+		if (GET_RX_DESC_BW(rx_hdr))
 			*pos |= IEEE80211_RADIOTAP_MCS_BW_40;
 		pos++;
 		*pos++ = rx_mcs;
 	}
 
-	if (GET_RX_STATUS_DESC_PAGGR(rx_hdr)) {
+	if (GET_RX_DESC_PAGGR(rx_hdr)) {
 		u16 flags = 0;
 
 		/* ensure 4 byte alignment */
@@ -143,7 +143,7 @@ static void r92su_rx_add_radiotap(struct r92su *r92su,
 		rthdr->it_present |=
 			cpu_to_le32(1 << IEEE80211_RADIOTAP_AMPDU_STATUS);
 
-		if (GET_RX_STATUS_DESC_FAGGR(rx_hdr))
+		if (GET_RX_DESC_FAGGR(rx_hdr))
 			r92su->ampdu_reference++;
 
 		put_unaligned_le32(r92su->ampdu_reference, pos);
@@ -175,10 +175,10 @@ static unsigned int r92su_rx_calc_radiotap_len(struct r92su *r92su,
 	/* padding for RX_FLAGS if necessary */
 	rtap_len = ALIGN(rtap_len, 2);
 
-	if (GET_RX_STATUS_DESC_RX_HT(rx_hdr))
+	if (GET_RX_DESC_RX_HT(rx_hdr))
 		rtap_len += 3;
 
-	if (GET_RX_STATUS_DESC_PAGGR(rx_hdr)) {
+	if (GET_RX_DESC_PAGGR(rx_hdr)) {
 		rtap_len = ALIGN(rtap_len, 4);
 		rtap_len += 8;
 	}
@@ -612,12 +612,12 @@ r92su_rx_hw_header_check(struct r92su *r92su, struct sk_buff *skb,
 	hdr = (struct ieee80211_hdr *) skb->data;
 
 	/* filter out frames with bad fcs... if they did end up here */
-	if (GET_RX_STATUS_DESC_CRC32(&rx->hdr))
+	if (GET_RX_DESC_CRC32(&rx->hdr))
 		return RX_DROP;
 
 	has_protect = ieee80211_has_protected(hdr->frame_control);
 
-	if (has_protect && GET_RX_STATUS_DESC_SWDEC(&rx->hdr)) {
+	if (has_protect && GET_RX_DESC_SWDEC(&rx->hdr)) {
 		wiphy_err(r92su->wdev.wiphy, "hw didn't decipher frame.\n");
 		return RX_DROP;
 	}
@@ -1093,7 +1093,7 @@ static void r92su_rx_tasklet(unsigned long arg0)
 		unsigned int drvinfo_size;
 
 		rx = (struct rx_packet *) skb->data;
-		drvinfo_size = GET_RX_STATUS_DESC_DRVINFO_SIZE(&rx->hdr);
+		drvinfo_size = GET_RX_DESC_DRVINFO_SIZE(&rx->hdr);
 		hdr = (struct ieee80211_hdr *) skb_pull(skb,
 			RX_DESC_SIZE + drvinfo_size * 8);
 		switch (r92su->wdev.iftype) {
@@ -1130,23 +1130,23 @@ void r92su_rx(struct r92su *r92su, void *buf, const unsigned int len)
 		RTL92SU_SIZE_MAX_RX_BUFFER - RX_DESC_SIZE);
 
 	/* pkt_cnt seems to be valid only for the first aggregated packet?! */
-	pkt_cnt = GET_RX_STATUS_DESC_PKTCNT(rx->hdr);
+	pkt_cnt = GET_RX_DESC_PKTCNT(rx->hdr);
 	pkt_cnt = max_t(unsigned int, pkt_cnt, 1);
 
 	while (buf < end && pkt_cnt--) {
 		unsigned int drvinfo, shift;
 		rx = (struct rx_packet *) buf;
 
-		drvinfo = GET_RX_STATUS_DESC_DRVINFO_SIZE(&rx->hdr) *
+		drvinfo = GET_RX_DESC_DRVINFO_SIZE(&rx->hdr) *
 			RX_DRV_INFO_SIZE_UNIT;
-		shift = GET_RX_STATUS_DESC_SHIFT(&rx->hdr);
-		pkt_len = GET_RX_STATUS_DESC_PKT_LEN(&rx->hdr);
+		shift = GET_RX_DESC_SHIFT(&rx->hdr);
+		pkt_len = GET_RX_DESC_PKT_LEN(&rx->hdr);
 		hdr_len = RX_DESC_SIZE + drvinfo;
 
 		if (buf + pkt_len + hdr_len + shift > end)
 			goto err_garbage;
 
-		if (GET_RX_STATUS_DESC_IS_CMD(&rx->hdr)) {
+		if (GET_RX_DESC_IS_CMD(&rx->hdr)) {
 			if (len - sizeof(rx->hdr) <
 			    le16_to_cpu(rx->c2h.len) + sizeof(rx->c2h)) {
 				wiphy_err(r92su->wdev.wiphy, "received clipped c2h command.");

@@ -139,103 +139,97 @@
 #define SET_TX_DESC_CMD_SEQ(__pdesc, __val)			\
 	SET_BITS_OFFSET_LE(__pdesc, 7, 24, 7, __val)
 
-/* Rx Desc */
-#define RX_STATUS_DESC_SIZE				24
-#define RX_DRV_INFO_SIZE_UNIT				8
-
-/* DWORD 0 */
-#define GET_RX_STATUS_DESC_PKT_LEN(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 0, 0, 14)
-#define GET_RX_STATUS_DESC_CRC32(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 0, 14, 1)
-#define GET_RX_STATUS_DESC_ICV(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc, 0, 15, 1)
-#define GET_RX_STATUS_DESC_DRVINFO_SIZE(__pdesc)		\
-	SHIFT_AND_MASK_LE(__pdesc, 0, 16, 4)
-#define GET_RX_STATUS_DESC_SECURITY(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 0, 20, 3)
-#define GET_RX_STATUS_DESC_QOS(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc, 0, 23, 1)
-#define GET_RX_STATUS_DESC_SHIFT(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 0, 24, 2)
-#define GET_RX_STATUS_DESC_PHY_STATUS(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 0, 26, 1)
-#define GET_RX_STATUS_DESC_SWDEC(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 0, 27, 1)
-#define GET_RX_STATUS_DESC_LAST_SEG(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 0, 28, 1)
-#define GET_RX_STATUS_DESC_FIRST_SEG(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 0, 29, 1)
-#define GET_RX_STATUS_DESC_EOR(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc, 0, 30, 1)
-#define GET_RX_STATUS_DESC_OWN(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc, 0, 31, 1)
-
-/* DWORD 1 */
-#define GET_RX_STATUS_DESC_IS_CMD(__pdesc)			\
-	(SHIFT_AND_MASK_LE(__pdesc, 1, 0, 9) == 0x1ff)
-#define GET_RX_STATUS_DESC_MACID(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 1, 0, 5)
-#define GET_RX_STATUS_DESC_TID(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc, 1, 5, 4)
-#define GET_RX_STATUS_DESC_PAGGR(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 1, 14, 1)
-#define GET_RX_STATUS_DESC_FAGGR(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 1, 15, 1)
-#define GET_RX_STATUS_DESC_A1_FIT(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 1, 16, 4)
-#define GET_RX_STATUS_DESC_A2_FIT(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 1, 20, 4)
-#define GET_RX_STATUS_DESC_PAM(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc, 1, 24, 1)
-#define GET_RX_STATUS_DESC_PWR(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc, 1, 25, 1)
-#define GET_RX_STATUS_DESC_MORE_DATA(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 1, 26, 1)
-#define GET_RX_STATUS_DESC_MORE_FRAG(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 1, 27, 1)
-#define GET_RX_STATUS_DESC_TYPE(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 1, 28, 2)
-#define GET_RX_STATUS_DESC_MC(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc, 1, 30, 1)
-#define GET_RX_STATUS_DESC_BC(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc, 1, 31, 1)
-
-/* DWORD 2 */
-#define GET_RX_STATUS_DESC_SEQ(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc, 2, 0, 12)
-#define GET_RX_STATUS_DESC_FRAG(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 2, 12, 4)
-#define GET_RX_STATUS_DESC_PKTCNT(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 2, 16, 8)
-
-/* DWORD 3 */
-#define GET_RX_STATUS_DESC_RX_MCS(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 3, 0, 6)
-#define GET_RX_STATUS_DESC_RX_HT(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 3, 6, 1)
-#define GET_RX_STATUS_DESC_SPLCP(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 3, 8, 1)
-#define GET_RX_STATUS_DESC_BW(__pdesc)				\
-	SHIFT_AND_MASK_LE(__pdesc, 3, 9, 1)
-#define GET_RX_STATUS_DESC_TCP_CHK_RPT(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 3, 11, 1)
-#define GET_RX_STATUS_DESC_IP_CHK_RPT(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 3, 12, 1)
-#define GET_RX_STATUS_DESC_TCP_CHK_VALID(__pdesc)		\
-	SHIFT_AND_MASK_LE(__pdesc, 3, 13, 1)
-
-/* DWORD 5 */
-#define SET_RX_STATUS_DESC_TSFL(__pdesc, __val)			\
-	SET_BITS_OFFSET_LE(__pdesc, 5, 0, 32, __val)
-#define GET_RX_STATUS_DESC_TSFL(__pdesc)			\
-	SHIFT_AND_MASK_LE(__pdesc, 5, 0, 32)
-
 typedef __le32 tx_hdr[8];
 
 /* Rx Desc */
 #define RX_DESC_SIZE				24
 #define RX_DRV_INFO_SIZE_UNIT			8
+
+/* Dword 0 */
+#define GET_RX_DESC_PKT_LEN(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 0, 14)
+#define GET_RX_DESC_CRC32(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 14, 1)
+#define GET_RX_DESC_ICV(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 15, 1)
+#define GET_RX_DESC_DRVINFO_SIZE(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 16, 4)
+#define GET_RX_DESC_SECURITY(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 20, 3)
+#define GET_RX_DESC_QOS(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 23, 1)
+#define GET_RX_DESC_SHIFT(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 24, 2)
+#define GET_RX_DESC_PHY_STATUS(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 26, 1)
+#define GET_RX_DESC_SWDEC(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 27, 1)
+#define GET_RX_DESC_LAST_SEG(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 28, 1)
+#define GET_RX_DESC_FIRST_SEG(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 29, 1)
+#define GET_RX_DESC_EOR(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 30, 1)
+#define GET_RX_DESC_OWN(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 0, 31, 1)
+
+/* Dword 1 */
+#define GET_RX_DESC_IS_CMD(__pdesc)				\
+	(SHIFT_AND_MASK_LE(__pdesc, 1, 0, 9) == 0x1ff)
+#define GET_RX_DESC_MACID(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 0, 5)
+#define GET_RX_DESC_TID(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 5, 4)
+#define GET_RX_DESC_PAGGR(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 14, 1)
+#define GET_RX_DESC_FAGGR(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 15, 1)
+#define GET_RX_DESC_A1_FIT(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 16, 4)
+#define GET_RX_DESC_A2_FIT(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 20, 4)
+#define GET_RX_DESC_PAM(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 24, 1)
+#define GET_RX_DESC_PWR(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 25, 1)
+#define GET_RX_DESC_MORE_DATA(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 26, 1)
+#define GET_RX_DESC_MORE_FRAG(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 27, 1)
+#define GET_RX_DESC_TYPE(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 28, 2)
+#define GET_RX_DESC_MC(__pdesc)					\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 30, 1)
+#define GET_RX_DESC_BC(__pdesc)					\
+	SHIFT_AND_MASK_LE(__pdesc, 1, 31, 1)
+
+/* Dword 2 */
+#define GET_RX_DESC_SEQ(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 2, 0, 12)
+#define GET_RX_DESC_FRAG(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 2, 12, 4)
+#define GET_RX_DESC_PKTCNT(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 2, 16, 8)
+
+/* Dword 3 */
+#define GET_RX_DESC_RX_MCS(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 3, 0, 6)
+#define GET_RX_DESC_RX_HT(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 3, 6, 1)
+#define GET_RX_DESC_SPLCP(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 3, 8, 1)
+#define GET_RX_DESC_BW(__pdesc)					\
+	SHIFT_AND_MASK_LE(__pdesc, 3, 9, 1)
+#define GET_RX_DESC_TCP_CHK_RPT(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 3, 11, 1)
+#define GET_RX_DESC_IP_CHK_RPT(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 3, 12, 1)
+#define GET_RX_DESC_TCP_CHK_VALID(__pdesc)			\
+	SHIFT_AND_MASK_LE(__pdesc, 3, 13, 1)
+
+/* Dword 5 */
+#define GET_RX_DESC_TSFL(__pdesc)				\
+	SHIFT_AND_MASK_LE(__pdesc, 5, 0, 32)
 
 typedef __le32 rx_hdr[6];
 
