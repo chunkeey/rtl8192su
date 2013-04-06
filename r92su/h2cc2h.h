@@ -246,7 +246,7 @@ struct h2c_op_mode {
 } __packed;
 
 struct h2c_ssid {		/* ndis_802_11_ssid */
-	u32 length;
+	__le32 length;
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 } __packed;
 
