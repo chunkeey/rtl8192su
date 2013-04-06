@@ -248,15 +248,18 @@ static bool r92su_wmm_update(struct r92su *r92su, u8 **ie, u32 *ie_len_left)
 }
 
 static int r92su_connect_set_auth(struct r92su *r92su,
-				  struct cfg80211_connect_params *sme)
+				  struct cfg80211_bss *bss,
+				  enum nl80211_auth_type auth_type,
+				  struct cfg80211_crypto_settings *crypto)
 {
+	struct r92su_bss_priv *bss_priv = r92su_get_bss_priv(bss);
 	enum r92su_auth_mode auth_mode;
 	enum r92su_auth_1x _1x;
 
-	switch (sme->auth_type) {
+	switch (auth_type) {
 	case NL80211_AUTHTYPE_AUTOMATIC:
 	case NL80211_AUTHTYPE_OPEN_SYSTEM:
-		if (sme->crypto.wpa_versions > 0) {
+		if (crypto->wpa_versions > 0) {
 			auth_mode = R92SU_AUTH_8021X;
 			/* TODO: get the right 802.1x mode */
 			_1x = R92SU_WPA_PSK;
@@ -276,6 +279,10 @@ static int r92su_connect_set_auth(struct r92su *r92su,
 			  sme->auth_type);
 		return -EINVAL;
 	}
+
+	bss_priv->control_port = crypto->control_port;
+	bss_priv->control_port_ethertype = crypto->control_port_ethertype;
+	bss_priv->control_port_no_encrypt = crypto->control_port_no_encrypt;
 
 	return r92su_h2c_set_auth(r92su, auth_mode, _1x);
 }
@@ -361,17 +368,13 @@ static int r92su_connect(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	bss_priv = r92su_get_bss_priv(bss);
-	err = r92su_connect_set_auth(r92su, sme);
+	err = r92su_connect_set_auth(r92su, bss, sme->auth_type, &sme->crypto);
 	if (err)
 		goto out;
 
 	err = r92su_connect_set_shared_key(r92su, sme);
 	if (err)
 		goto out;
-
-	bss_priv->control_port = sme->crypto.control_port;
-	bss_priv->control_port_ethertype = sme->crypto.control_port_ethertype;
-	bss_priv->control_port_no_encrypt = sme->crypto.control_port_no_encrypt;
 
 	WARN(!r92su_add_ies(r92su, &ie, &ie_len_left, sme->ie, sme->ie_len),
 	     "no space left for cfg80211's ies");
@@ -1054,7 +1057,7 @@ static int r92su_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 	u8 ie_buf[256];
 	u8 *ie = ie_buf;
 	u32 ie_len_left = sizeof(ie_buf);
-	bool create = false;
+	bool join;
 
 	err = r92su_internal_scan(r92su, params->ssid, params->ssid_len);
 	if (err)
@@ -1102,13 +1105,15 @@ static int r92su_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 		err = r92su_bss_build_fw_bss(r92su, bss, ie_buf, ie - ie_buf);
 		if (err)
 			goto out;
-	} else {
-		create = true;
 
+		join = false;
+
+	} else {
 		bss_priv = r92su_get_bss_priv(bss);
 		WARN(!r92su_add_ies(r92su, &ie, &ie_len_left, params->ie,
 		     params->ie_len), "no space left for cfg80211's ies");
 
+		join = true;
 	}
 
 	bss_priv->assoc_ie_len = ie - ie_buf;
