@@ -108,6 +108,11 @@ static int r92su_prepare_firmware(struct r92su *r92su)
 	dmem->vcs_type = 2; /* 0: off, 1: on, 2: auto */
 	dmem->vcs_mode = 1; /* 0: off(presumably), 1:RTS/CTS, 2:CTS-Self */
 
+	/* F/W will issue two probe request. One is with ssid ( if exists ),
+	 * another is with the wildcard ssid.
+	 */
+	dmem->rsvd024 = 1;
+
 	dmem->turbo_mode = 0;
 	dmem->low_power_mode = 0;
 	dmem->chip_version = r92su->chip_rev; /* not necessarily correct ?! */
