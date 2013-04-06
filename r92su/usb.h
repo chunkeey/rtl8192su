@@ -46,8 +46,14 @@
 #define RTL92SU_SIZE_MAX_RX_BUFFER		32768
 
 #define RTL8712_EP_RX				3
+#define RTL8712_EP_RX9				9
 #define RTL8712_EP_TX4				4
+#define RTL8712_EP_TX5				5
 #define RTL8712_EP_TX6				6
+#define RTL8712_EP_TX7				7
+#define RTL8712_EP_TX10				10
+#define RTL8712_EP_TX11				11
+#define RTL8712_EP_TX12				12
 #define RTL8712_EP_TX13				13
 #define RTL8712_EP_CTRL				0
 

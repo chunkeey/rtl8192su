@@ -122,37 +122,41 @@ static const int ieee802_1d_to_ac[8] = {
 	IEEE80211_AC_VO
 };
 
+typedef unsigned int ep_map[__RTL8712_LAST];
+
 struct r92su {
+	/* usb */
 	struct usb_interface *intf;
 	struct usb_device *udev;
 	struct usb_anchor rx_submitted;
 	struct usb_anchor tx_wait;
 	struct usb_anchor tx_submitted;
 	atomic_t tx_pending_urbs;
+	unsigned int ep_num;
+	const ep_map *ep_map;
 
+	/* general */
 	struct mutex lock;
 	struct workqueue_struct *wq;
-
 	enum r92su_state_t state;
-
 	struct wireless_dev wdev;
-
 	struct ieee80211_channel *current_channel;
-
-	unsigned int ampdu_reference;
-
-	/* fw */
-	const struct firmware *fw;
-	const struct fw_hdr *fw_header;
-	const void *fw_imem;
-	const void *fw_sram;
-	u32 fw_imem_len;
-	u32 fw_sram_len;
-	u16 fw_version;
-	struct fw_priv fw_dmem;
-	bool fw_loaded;
-
 	struct delayed_work service_work;
+
+	/* cmd */
+	unsigned int h2c_seq:7;
+	unsigned int c2h_seq:7;
+	spinlock_t tx_cmd_lock;
+
+	/* rx */
+	spinlock_t rx_path;
+	unsigned int ampdu_reference;
+	struct sk_buff_head rx_queue;
+	struct tasklet_struct rx_tasklet;
+	unsigned int rx_alignment;
+
+	/* sta + keys */
+	struct r92su_sta __rcu *sta_table[32];
 
 	/* cfg80211 info */
 	struct ieee80211_supported_band band_2GHZ;
@@ -165,38 +169,34 @@ struct r92su {
 	struct work_struct connect_bss_work;
 	struct delayed_work survey_done_work;
 	struct completion scan_done;
+	struct llist_head add_bss_list;
+	struct work_struct add_bss_work;
 	bool scanned;
 
-	/* cmd */
-	unsigned int h2c_seq:7;
-	unsigned int c2h_seq:7;
-	spinlock_t tx_cmd_lock;
-
-	/* eeprom / hw_info*/
+	/* eeprom / hw_info */
 	struct r92su_eeprom eeprom;
 	enum r92su_eeprom_type eeprom_type;
 	enum r92su_chip_revision_t chip_rev;
 	enum r92su_rf_type_t rf_type;
 
-	/* debug */
-	struct dentry *dfs;
-	struct r92su_debug debug;
-
-	/* scan */
-	struct llist_head add_bss_list;
-	struct work_struct add_bss_work;
-
-	/* sta + keys */
-	struct r92su_sta __rcu *sta_table[32];
-
-	spinlock_t rx_path;
-	struct sk_buff_head rx_queue;
-	struct tasklet_struct rx_tasklet;
-	unsigned int rx_alignment;
+	/* fw */
+	const struct firmware *fw;
+	const struct fw_hdr *fw_header;
+	const void *fw_imem;
+	const void *fw_sram;
+	u32 fw_imem_len;
+	u32 fw_sram_len;
+	u16 fw_version;
+	struct fw_priv fw_dmem;
+	bool fw_loaded;
 
 	/* wps pbc button */
 	struct input_dev *wps_pbc;
 	bool wps_pbc_state;
+
+	/* debug */
+	struct dentry *dfs;
+	struct r92su_debug debug;
 };
 
 struct r92su_add_bss {

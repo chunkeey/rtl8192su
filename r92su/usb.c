@@ -280,7 +280,7 @@ err_nomem:
 	return ERR_PTR(-ENOMEM);
 }
 
-static const unsigned int ep4_map[__RTL8712_LAST] = {
+static const ep_map ep4_map = {
 	[RTL8712_BKQ] = RTL8712_EP_TX6,
 	[RTL8712_BEQ] = RTL8712_EP_TX6,
 	[RTL8712_VIQ] = RTL8712_EP_TX4,
@@ -293,12 +293,45 @@ static const unsigned int ep4_map[__RTL8712_LAST] = {
 	[RTL8712_C2HCMD] = RTL8712_EP_RX,
 };
 
+static const ep_map ep6_map = {
+	[RTL8712_BKQ] = RTL8712_EP_TX7,
+	[RTL8712_BEQ] = RTL8712_EP_TX6,
+	[RTL8712_VIQ] = RTL8712_EP_TX5,
+	[RTL8712_VOQ] = RTL8712_EP_TX4,
+	[RTL8712_H2CCMD] = RTL8712_EP_TX13,
+	[RTL8712_BCNQ] = RTL8712_EP_TX13,
+	[RTL8712_BMCQ] = RTL8712_EP_TX13,
+	[RTL8712_MGTQ] = RTL8712_EP_TX13,
+	[RTL8712_RX0FF] = RTL8712_EP_RX,
+	[RTL8712_C2HCMD] = RTL8712_EP_RX,
+};
+
+static const ep_map ep11_map = {
+	[RTL8712_BKQ] = RTL8712_EP_TX7,
+	[RTL8712_BEQ] = RTL8712_EP_TX6,
+	[RTL8712_VIQ] = RTL8712_EP_TX5,
+	[RTL8712_VOQ] = RTL8712_EP_TX4,
+	[RTL8712_H2CCMD] = RTL8712_EP_TX13,
+	[RTL8712_BCNQ] = RTL8712_EP_TX10,
+	[RTL8712_BMCQ] = RTL8712_EP_TX11,
+	[RTL8712_MGTQ] = RTL8712_EP_TX12,
+	[RTL8712_RX0FF] = RTL8712_EP_RX,
+	[RTL8712_C2HCMD] = RTL8712_EP_RX9,
+};
+
+static const ep_map *ep_maps[16] = {
+	[4] = &ep4_map,
+	[6] = &ep6_map,
+	[11] = &ep11_map,
+};
+
 static unsigned int r92su_usb_get_pipe(struct r92su *r92su,
 				       enum rtl8712_queues_t queue)
 {
 	BUILD_BUG_ON(ARRAY_SIZE(ep4_map) != __RTL8712_LAST);
-
-	return ep4_map[queue];
+	BUILD_BUG_ON(ARRAY_SIZE(ep6_map) != __RTL8712_LAST);
+	BUILD_BUG_ON(ARRAY_SIZE(ep11_map) != __RTL8712_LAST);
+	return (*r92su->ep_map)[queue];
 }
 
 int r92su_usb_tx(struct r92su *r92su, struct sk_buff *skb,
@@ -366,11 +399,11 @@ static int r92su_usb_init(struct r92su *r92su)
 static struct usb_device_id r92su_usb_product_ids[] = {
 	/* RTL8188SU */
 	/* Realtek */
-	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8171)},
-	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8173)},
-	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8712)},
-	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8713)},
-	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0xC512)},
+	{USB_DEVICE(0x0bda, 0x8171)},
+	{USB_DEVICE(0x0bda, 0x8173)},
+	{USB_DEVICE(0x0bda, 0x8712)},
+	{USB_DEVICE(0x0bda, 0x8713)},
+	{USB_DEVICE(0x0bda, 0xC512)},
 	/* Abocom */
 	{USB_DEVICE(0x07B8, 0x8188)},
 	/* ASUS */
@@ -495,10 +528,16 @@ static int r92su_usb_probe(struct usb_interface *intf,
 	if (IS_ERR(r92su))
 		return PTR_ERR(r92su);
 
+	r92su->ep_num = intf->cur_altsetting->desc.bNumEndpoints;
+	r92su->ep_map = ep_maps[r92su->ep_num];
+	if (!r92su->ep_map) {
+		err = - EINVAL;
+		goto err_out;
+	}
+
 	r92su_set_state(r92su, R92SU_PROBE);
 
 	r92su->udev = interface_to_usbdev(intf);
-
 	usb_set_intfdata(intf, r92su);
 
 	init_usb_anchor(&r92su->rx_submitted);
@@ -552,7 +591,7 @@ void r92su_usb_prepare_firmware(struct r92su *r92su)
 	struct fw_priv *dmem = &r92su->fw_dmem;
 
 	dmem->hci_sel = RTL8712_HCI_TYPE_72USB;
-	dmem->usb_ep_num = 4;
+	dmem->usb_ep_num = r92su->ep_num;
 }
 
 static int r92su_usb_resume(struct usb_interface *pusb_intf)
