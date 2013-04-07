@@ -233,7 +233,6 @@ static void r92su_rx_deliver(struct r92su *r92su, struct sk_buff *skb)
 {
 	skb_reset_mac_header(skb);
 	skb->dev = r92su->wdev.netdev;
-	/* TODO: we can check the TCP checksum in the header */
 	skb->ip_summed = CHECKSUM_NONE;
 	skb->protocol = eth_type_trans(skb, skb->dev);
 	__r92su_rx_deliver(r92su, skb);
@@ -617,6 +616,15 @@ r92su_rx_hw_header_check(struct r92su *r92su, struct sk_buff *skb,
 		wiphy_err(r92su->wdev.wiphy, "hw didn't decipher frame.\n");
 		return RX_DROP;
 	}
+
+	/* TCP/IP checksum offloading needs to be tested and verified first.
+	 * If you enable this code, don't forget to edit r92su_rx_deliver!
+	 *
+	 * if (GET_RX_DESC_TCP_CHK_VALID(&rx->hdr) &&
+	 *     GET_RX_DESC_TCP_CHK_RPT(&rx->hdr) &&
+	 *     GET_RX_DESC_IP_CHK_RPT(&rx->hdr))
+	 *	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	 */
 
 	/* report icv error
 	 * The vendor driver ignores the flag, probably because someone
