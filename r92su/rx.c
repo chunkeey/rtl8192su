@@ -258,11 +258,6 @@ static struct r92su_rx_info *r92su_get_rx_info(struct sk_buff *skb)
 	return (struct r92su_rx_info *) skb->cb;
 }
 
-static inline u16 get_seq_h(struct ieee80211_hdr *hdr)
-{
-	return le16_to_cpu(hdr->seq_ctrl) >> 4;
-}
-
 static inline u16 get_tid_h(struct ieee80211_hdr *hdr)
 {
 	return (ieee80211_get_qos_ctl(hdr))[0] & IEEE80211_QOS_CTL_TID_MASK;
@@ -356,7 +351,7 @@ r92su_rx_port_check(struct r92su *r92su, struct sk_buff *skb,
 }
 
 static enum r92su_rx_control_t
-r92su_rx_handle_iv(struct r92su *r92su, struct sk_buff *skb,
+r92su_rx_iv_handle(struct r92su *r92su, struct sk_buff *skb,
 		   struct r92su_bss_priv *bss_priv)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
@@ -433,7 +428,7 @@ r92su_rx_handle_iv(struct r92su *r92su, struct sk_buff *skb,
 }
 
 static enum r92su_rx_control_t
-r92su_rx_check_iv(struct r92su *r92su, struct sk_buff *skb,
+r92su_rx_iv_check(struct r92su *r92su, struct sk_buff *skb,
 		  struct r92su_bss_priv *bss_priv)
 {
 	struct r92su_rx_info *rx_info = r92su_get_rx_info(skb);
@@ -465,7 +460,7 @@ r92su_rx_check_iv(struct r92su *r92su, struct sk_buff *skb,
 }
 
 static enum r92su_rx_control_t
-r92su_rx_handle_icv_mic(struct r92su *r92su, struct sk_buff *skb,
+r92su_rx_icv_mic_handle(struct r92su *r92su, struct sk_buff *skb,
 			struct r92su_bss_priv *bss_priv)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
@@ -683,7 +678,7 @@ static bool r92su_check_if_match(struct r92su *r92su,
 	return true;
 }
 
-static void r92su_drop_defrag(struct r92su *r92su,
+static void r92su_defrag_drop(struct r92su *r92su,
 			      struct r92su_defrag_entry *defrag)
 {
 	r92su_rx_dropped(r92su, skb_queue_len(&defrag->queue));
@@ -691,9 +686,9 @@ static void r92su_drop_defrag(struct r92su *r92su,
 	defrag->size = 0;
 }
 
-static void r92su_add_to_defrag(struct r92su *r92su,
-				struct r92su_defrag_entry *defrag,
-				struct sk_buff *skb)
+static void r92su_defrag_add(struct r92su *r92su,
+			     struct r92su_defrag_entry *defrag,
+			     struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	int hdrlen = ieee80211_hdrlen(hdr->frame_control);
@@ -728,7 +723,7 @@ r92su_rx_defrag(struct r92su *r92su, struct sk_buff *skb,
 		struct sk_buff *tmp;
 
 		if (likely(cur_frag == 0)) {
-			r92su_drop_defrag(r92su, defrag);
+			r92su_defrag_drop(r92su, defrag);
 			return RX_CONTINUE;
 		}
 
@@ -754,18 +749,18 @@ r92su_rx_defrag(struct r92su *r92su, struct sk_buff *skb,
 	}
 
 new_queued:
-	r92su_drop_defrag(r92su, defrag);
+	r92su_defrag_drop(r92su, defrag);
 queued:
-	r92su_add_to_defrag(r92su, defrag, skb);
+	r92su_defrag_add(r92su, defrag, skb);
 	return RX_QUEUE;
 
 dropped:
-	r92su_drop_defrag(r92su, defrag);
+	r92su_defrag_drop(r92su, defrag);
 	return RX_DROP;
 }
 
 static void
-r92su_release_reorder_frame(struct r92su *r92su, struct r92su_rx_tid *tid,
+r92su_reorder_release_frame(struct r92su *r92su, struct r92su_rx_tid *tid,
 			    int index, struct sk_buff_head *queue)
 {
 	struct sk_buff *skb = tid->reorder_buf[index];
@@ -782,21 +777,21 @@ no_frame:
 }
 
 static void
-r92su_release_reorder_frames(struct r92su *r92su, struct r92su_rx_tid *tid,
+r92su_reorder_release_frames(struct r92su *r92su, struct r92su_rx_tid *tid,
 			     u16 new_head_seq, struct sk_buff_head *queue)
 {
 	int index;
 
 	while (ieee80211_sn_less(tid->head_seq, new_head_seq)) {
 		index = ieee80211_sn_sub(tid->head_seq, tid->ssn) % tid->size;
-		r92su_release_reorder_frame(r92su, tid, index, queue);
+		r92su_reorder_release_frame(r92su, tid, index, queue);
 	}
 }
 
 #define HT_RX_REORDER_BUF_TIMEOUT (HZ / 10)
 
 static void
-r92su_sta_reorder_release(struct r92su *r92su, struct r92su_rx_tid *tid,
+r92su_reorder_sta_release(struct r92su *r92su, struct r92su_rx_tid *tid,
 			  struct sk_buff_head *queue)
 {
 	int index, j;
@@ -817,12 +812,12 @@ r92su_sta_reorder_release(struct r92su *r92su, struct r92su_rx_tid *tid,
 
 			tid->head_seq = ieee80211_sn_add(tid->head_seq,
 							 skipped);
-			r92su_release_reorder_frame(r92su, tid, j, queue);
+			r92su_reorder_release_frame(r92su, tid, j, queue);
 			skipped = 0;
 		}
 	} else {
 		while (tid->reorder_buf[index]) {
-			r92su_release_reorder_frame(r92su, tid, index, queue);
+			r92su_reorder_release_frame(r92su, tid, index, queue);
 			index = ieee80211_sn_sub(tid->head_seq, tid->ssn) %
 				tid->size;
 		}
@@ -844,7 +839,7 @@ set_release_timer:
 }
 
 static enum r92su_rx_control_t
-r92su_rx_ampdu_reorder(struct r92su *r92su, struct sk_buff *skb,
+r92su_rx_reorder_ampdu(struct r92su *r92su, struct sk_buff *skb,
 		       struct r92su_bss_priv *bss_priv,
 		       struct sk_buff **_skb,
 		       struct sk_buff_head *queue)
@@ -886,7 +881,7 @@ r92su_rx_ampdu_reorder(struct r92su *r92su, struct sk_buff *skb,
 			ieee80211_sn_sub(mpdu_seq, tid->size));
 
 
-		r92su_release_reorder_frames(r92su, tid, head_seq, queue);
+		r92su_reorder_release_frames(r92su, tid, head_seq, queue);
 	}
 
 	index = ieee80211_sn_sub(mpdu_seq, tid->ssn) % tid->size;
@@ -901,7 +896,7 @@ r92su_rx_ampdu_reorder(struct r92su *r92su, struct sk_buff *skb,
 		tid->reorder_buf[index] = skb;
 		tid->reorder_time[index] = jiffies + HT_RX_REORDER_BUF_TIMEOUT;
 		tid->len++;
-		r92su_sta_reorder_release(r92su, tid, queue);
+		r92su_reorder_sta_release(r92su, tid, queue);
 	}
 	spin_unlock(&tid->lock);
 
@@ -948,10 +943,10 @@ static void r92su_rx_handler(struct r92su *r92su,
 
 	while ((skb = __skb_dequeue(queue))) {
 		RX_HANDLER_PREP(r92su_rx_find_key);
-		RX_HANDLER_PREP(r92su_rx_handle_iv);
-		RX_HANDLER_PREP(r92su_rx_handle_icv_mic);
+		RX_HANDLER_PREP(r92su_rx_iv_handle);
+		RX_HANDLER_PREP(r92su_rx_icv_mic_handle);
 		RX_HANDLER_PREP(r92su_rx_defrag);
-		RX_HANDLER_PREP(r92su_rx_check_iv);
+		RX_HANDLER_PREP(r92su_rx_iv_check);
 		RX_HANDLER_PREP(r92su_rx_data_to_8023, &skb, &frames);
 out:
 		continue;
@@ -976,7 +971,7 @@ rx_drop_main:
 #undef RX_HANDLER_MAIN
 }
 
-static void r92su_rx_sta_adhoc_data(struct r92su *r92su,
+static void r92su_rx_data(struct r92su *r92su,
 	const struct rx_packet *rx, struct ieee80211_hdr *hdr,
 	struct sk_buff *skb)
 {
@@ -1003,7 +998,7 @@ static void r92su_rx_sta_adhoc_data(struct r92su *r92su,
 	RX_HANDLER(r92su_rx_deduplicate);
 
 	/* this moves the frame onto the in_frames queue */
-	RX_HANDLER(r92su_rx_ampdu_reorder, &skb, &frames);
+	RX_HANDLER(r92su_rx_reorder_ampdu, &skb, &frames);
 
 	r92su_rx_handler(r92su, bss_priv, &frames);
 out:
@@ -1019,7 +1014,7 @@ rx_drop:
 #undef RX_HANDLER
 }
 
-void r92su_rx_tid_reorder_timer(unsigned long arg)
+void r92su_reorder_tid_timer(unsigned long arg)
 {
 	struct sk_buff_head frames;
 	struct r92su_rx_tid *tid;
@@ -1045,7 +1040,7 @@ void r92su_rx_tid_reorder_timer(unsigned long arg)
 	bss_priv = r92su_get_bss_priv(bss);
 
 	spin_lock(&tid->lock);
-	r92su_sta_reorder_release(r92su, tid, &frames);
+	r92su_reorder_sta_release(r92su, tid, &frames);
 	spin_unlock(&tid->lock);
 
 	r92su_rx_handler(r92su, bss_priv, &frames);
@@ -1102,7 +1097,7 @@ static void r92su_rx_tasklet(unsigned long arg0)
 			r92su_rx_monitor(r92su, rx, hdr, skb);
 			break;
 		default:
-			r92su_rx_sta_adhoc_data(r92su, rx, hdr, skb);
+			r92su_rx_data(r92su, rx, hdr, skb);
 			break;
 		}
 	}

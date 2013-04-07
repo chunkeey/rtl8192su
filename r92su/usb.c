@@ -532,7 +532,7 @@ static int r92su_usb_probe(struct usb_interface *intf,
 	r92su->ep_num = intf->cur_altsetting->desc.bNumEndpoints;
 	r92su->ep_map = ep_maps[r92su->ep_num];
 	if (!r92su->ep_map) {
-		err = - EINVAL;
+		err = -EINVAL;
 		goto err_out;
 	}
 

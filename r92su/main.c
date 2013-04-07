@@ -460,10 +460,11 @@ static int r92su_disconnect(struct wiphy *wiphy, struct net_device *ndev,
 	if (err)
 		goto out;
 
-	old_bss = rcu_dereference_protected(r92su->connect_bss,
-					    lockdep_is_held(&r92su->lock));
+	rcu_read_lock();
+	old_bss = rcu_dereference(r92su->connect_bss);
 	rcu_assign_pointer(r92su->connect_bss, NULL);
 	r92su_bss_free(r92su, old_bss);
+	rcu_read_unlock();
 
 	synchronize_rcu();
 out:
@@ -506,7 +507,7 @@ static void r92su_bss_init(struct r92su *r92su, struct cfg80211_bss *bss,
 		skb_queue_head_init(&cfg_priv->tx_tid[i].agg_queue);
 }
 
-static void r92su_add_bss_work(struct work_struct *work)
+static void r92su_bss_add_work(struct work_struct *work)
 {
 	struct r92su *r92su;
 	struct llist_node *node;
@@ -561,7 +562,7 @@ static bool r92su_parse_wmm_cap_ie(struct r92su *r92su, u8 *ies, const u32 len)
 	return r92su_find_wmm_ie(ies, len) != NULL;
 }
 
-static void r92su_connect_bss_work(struct work_struct *work)
+static void r92su_bss_connect_work(struct work_struct *work)
 {
 	struct r92su *r92su;
 	struct c2h_join_bss_event *join_bss = NULL;
@@ -796,13 +797,11 @@ static int r92su_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		rcu_read_lock();
 		sta = r92su_sta_get(r92su, mac_addr);
 		if (!sta) {
-			rcu_read_unlock();
 			err = -EINVAL;
-			goto out_unlock;
+			goto out_rcu_unlock;
 		}
 		old_key = rcu_dereference(sta->sta_key);
 		rcu_assign_pointer(sta->sta_key, new_key);
-		rcu_read_unlock();
 	} else {
 		struct cfg80211_bss *bss;
 		struct r92su_bss_priv *bss_priv;
@@ -813,14 +812,19 @@ static int r92su_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		if (err)
 			goto out_unlock;
 
+		rcu_read_lock();
 		bss = rcu_dereference(r92su->connect_bss);
-		bss_priv = r92su_get_bss_priv(bss);
-		old_key = rcu_dereference(bss_priv->group_key[idx]);
-		rcu_assign_pointer(bss_priv->group_key[idx],
-				   new_key);
+		if (bss) {
+			bss_priv = r92su_get_bss_priv(bss);
+			old_key = rcu_dereference(bss_priv->group_key[idx]);
+			rcu_assign_pointer(bss_priv->group_key[idx],
+					   new_key);
+		}
 	}
 
 	r92su_key_free(old_key);
+out_rcu_unlock:
+	rcu_read_unlock();
 
 out_unlock:
 	mutex_unlock(&r92su->lock);
@@ -1465,8 +1469,8 @@ struct r92su *r92su_alloc(struct device *main_dev)
 
 	init_completion(&r92su->scan_done);
 	init_llist_head(&r92su->add_bss_list);
-	INIT_WORK(&r92su->add_bss_work, r92su_add_bss_work);
-	INIT_WORK(&r92su->connect_bss_work, r92su_connect_bss_work);
+	INIT_WORK(&r92su->add_bss_work, r92su_bss_add_work);
+	INIT_WORK(&r92su->connect_bss_work, r92su_bss_connect_work);
 	INIT_DELAYED_WORK(&r92su->survey_done_work, r92su_survey_done_work);
 	r92su_hw_init(r92su);
 

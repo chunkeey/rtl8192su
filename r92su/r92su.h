@@ -122,7 +122,7 @@ static const int ieee802_1d_to_ac[8] = {
 	IEEE80211_AC_VO
 };
 
-typedef unsigned int ep_map[__RTL8712_LAST];
+typedef u32 ep_map[__RTL8712_LAST];
 
 struct r92su {
 	/* usb */

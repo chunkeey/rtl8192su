@@ -109,7 +109,7 @@ void r92su_sta_alloc_tid(struct r92su *r92su,
 		new_tid->tid = tid;
 
 		setup_timer(&new_tid->reorder_timer,
-			    r92su_rx_tid_reorder_timer,
+			    r92su_reorder_tid_timer,
 		    (unsigned long) new_tid);
 		new_tid->r92su = r92su;
 		new_tid->sta = sta;
