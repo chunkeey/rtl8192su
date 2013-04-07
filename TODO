@@ -27,12 +27,8 @@ TESTS:
    cycle... Does the driver survive a cycle when the device was
    briefly disconnected or has been removed)
 
- - USB 1.1 test
-   (Does it work with an USB 1.1 HCD? e.g.: ohci/uhci and
-   some weird embedded hcds)
-
 KNOWN LIMITATIONS:
  - No AP/P2P mode (firmware limitation)
  - No accurate tx feedback (fw-host protocol limitation)
- - (More to come)
  - In ibss mode, the device sends out frames with HT rates.
+ - (More to come)
