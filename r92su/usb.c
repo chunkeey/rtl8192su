@@ -395,7 +395,8 @@ static int r92su_usb_init(struct r92su *r92su)
 	return err;
 }
 
-#define USB_VENDER_ID_REALTEK		0x0bda
+#define DISABLE_HT	BIT(0)
+
 static struct usb_device_id r92su_usb_product_ids[] = {
 	/* RTL8188SU */
 	/* Realtek */
@@ -408,14 +409,14 @@ static struct usb_device_id r92su_usb_product_ids[] = {
 	{USB_DEVICE(0x07B8, 0x8188)},
 	/* ASUS */
 	{USB_DEVICE(0x0B05, 0x1786)},
-	{USB_DEVICE(0x0B05, 0x1791)}, /* 11n mode disable */
+	{USB_DEVICE(0x0B05, 0x1791), .driver_info = DISABLE_HT },
 	/* Belkin */
 	{USB_DEVICE(0x050D, 0x945A)},
 	/* Corega */
 	{USB_DEVICE(0x07AA, 0x0047)},
 	/* D-Link */
 	{USB_DEVICE(0x2001, 0x3306)},
-	{USB_DEVICE(0x07D1, 0x3306)}, /* 11n mode disable */
+	{USB_DEVICE(0x07D1, 0x3306), .driver_info = DISABLE_HT },
 	/* Edimax */
 	{USB_DEVICE(0x7392, 0x7611)},
 	/* EnGenius */
@@ -433,7 +434,7 @@ static struct usb_device_id r92su_usb_product_ids[] = {
 	/* Sitecom */
 	{USB_DEVICE(0x0DF6, 0x0057)},
 	{USB_DEVICE(0x0DF6, 0x0045)},
-	{USB_DEVICE(0x0DF6, 0x0059)}, /* 11n mode disable */
+	{USB_DEVICE(0x0DF6, 0x0059), .driver_info = DISABLE_HT },
 	{USB_DEVICE(0x0DF6, 0x004B)},
 	{USB_DEVICE(0x0DF6, 0x005B)},
 	{USB_DEVICE(0x0DF6, 0x005D)},
@@ -456,13 +457,13 @@ static struct usb_device_id r92su_usb_product_ids[] = {
 	{USB_DEVICE(0x0EB0, 0x9061)},
 	/* ASUS/EKB */
 	{USB_DEVICE(0x13D3, 0x3323)},
-	{USB_DEVICE(0x13D3, 0x3311)}, /* 11n mode disable */
+	{USB_DEVICE(0x13D3, 0x3311), .driver_info = DISABLE_HT },
 	{USB_DEVICE(0x13D3, 0x3342)},
 	/* ASUS/EKBLenovo */
 	{USB_DEVICE(0x13D3, 0x3333)},
 	{USB_DEVICE(0x13D3, 0x3334)},
-	{USB_DEVICE(0x13D3, 0x3335)}, /* 11n mode disable */
-	{USB_DEVICE(0x13D3, 0x3336)}, /* 11n mode disable */
+	{USB_DEVICE(0x13D3, 0x3335), .driver_info = DISABLE_HT },
+	{USB_DEVICE(0x13D3, 0x3336), .driver_info = DISABLE_HT },
 	/* ASUS/Media BOX */
 	{USB_DEVICE(0x13D3, 0x3309)},
 	/* Belkin */
@@ -498,8 +499,8 @@ static struct usb_device_id r92su_usb_product_ids[] = {
 	{USB_DEVICE(0x04F2, 0xAFF5)},
 	{USB_DEVICE(0x04F2, 0xAFF6)},
 	{USB_DEVICE(0x13D3, 0x3339)},
-	{USB_DEVICE(0x13D3, 0x3340)}, /* 11n mode disable */
-	{USB_DEVICE(0x13D3, 0x3341)}, /* 11n mode disable */
+	{USB_DEVICE(0x13D3, 0x3340), .driver_info = DISABLE_HT },
+	{USB_DEVICE(0x13D3, 0x3341), .driver_info = DISABLE_HT },
 	{USB_DEVICE(0x13D3, 0x3310)},
 	{USB_DEVICE(0x13D3, 0x3325)},
 
@@ -534,6 +535,9 @@ static int r92su_usb_probe(struct usb_interface *intf,
 		err = - EINVAL;
 		goto err_out;
 	}
+
+	if (id->driver_info & DISABLE_HT)
+		r92su->disable_ht = true;
 
 	r92su_set_state(r92su, R92SU_PROBE);
 
@@ -617,4 +621,3 @@ MODULE_DEVICE_TABLE(usb, r92su_usb_product_ids);
 MODULE_FIRMWARE(RTL8192SU_FIRMWARE);
 MODULE_AUTHOR("Christian Lamparter <chunkeey@googlemail.com>");
 MODULE_LICENSE("GPL");
-

@@ -382,7 +382,8 @@ r92su_tx_add_80211(struct r92su *r92su, struct sk_buff *skb,
 		qos_ctl[0] = tid;
 
 		if (tx_info->ht_possible && !tx_info->low_rate &&
-		    skb_get_queue_mapping(skb) != IEEE80211_AC_VO) {
+		    skb_get_queue_mapping(skb) != IEEE80211_AC_VO &&
+		    !r92su->disable_ht) {
 			if (!bss_priv->tx_tid[tid].addba_issued) {
 				r92su_h2c_start_ba(r92su, tid);
 				bss_priv->tx_tid[tid].addba_issued = true;

@@ -189,6 +189,7 @@ struct r92su {
 	u16 fw_version;
 	struct fw_priv fw_dmem;
 	bool fw_loaded;
+	bool disable_ht;
 
 	/* wps pbc button */
 	struct input_dev *wps_pbc;

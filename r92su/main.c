@@ -216,6 +216,9 @@ static bool r92su_ht_update(struct r92su *r92su, u8 **ie, u32 *ie_len_left)
 	struct ieee80211_ht_cap ht_cap = { };
 	struct ieee80211_sta_ht_cap *me_ht;
 
+	if (r92su->disable_ht)
+		return true;
+
 	me_ht = &r92su->band_2GHZ.ht_cap;
 
 	ht_cap.cap_info = cpu_to_le16(me_ht->cap);
@@ -1408,6 +1411,8 @@ static int r92su_init_band(struct r92su *r92su)
 	band->n_bitrates = ARRAY_SIZE(r92su_ratetable);
 
 	memcpy(&band->ht_cap, &r92su_ht_info, sizeof(r92su_ht_info));
+	band->ht_cap.ht_supported = !r92su->disable_ht;
+
 	switch (r92su->rf_type) {
 	case R92SU_1T1R:
 		/* nothing needs to be done. The default ht_cap

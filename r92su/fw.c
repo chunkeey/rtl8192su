@@ -97,26 +97,19 @@ static int r92su_prepare_firmware(struct r92su *r92su)
 	 */
 	r92su_usb_prepare_firmware(r92su);
 
-	dmem->bw_40mhz_en = 1;
-
 	dmem->mp_mode = 0; /* what's mp mode? multi-peer? mesh portal? */
 	dmem->qos_en = 1;
-	dmem->ampdu_en = 1;
+	dmem->bw_40mhz_en = !r92su->disable_ht;
+	dmem->ampdu_en = !r92su->disable_ht;
+	dmem->aggregation_offload = !r92su->disable_ht;
 	dmem->rate_control_offload = 1;
-	dmem->aggregation_offload = 1;
 	dmem->mlme_offload = 1;
 	dmem->vcs_type = 2; /* 0: off, 1: on, 2: auto */
 	dmem->vcs_mode = 1; /* 0: off(presumably), 1:RTS/CTS, 2:CTS-Self */
 
-	/* F/W will issue two probe request. One is with ssid ( if exists ),
-	 * another is with the wildcard ssid.
-	 */
-	dmem->rsvd024 = 1;
-
 	dmem->turbo_mode = 0;
 	dmem->low_power_mode = 0;
 	dmem->chip_version = r92su->chip_rev; /* not necessarily correct ?! */
-	dmem->usb_ep_num = 0x4;	/* 4 eps */
 	dmem->rf_config = r92su->rf_type;
 
 	/* When scanning, send out two probe requests.
