@@ -112,7 +112,8 @@ struct r92su_sta {
 
 	u8 mac_addr[ETH_ALEN];
 	unsigned int mac_id;
-	unsigned int tx_seq[16];
+	unsigned int tx_seq;
+	unsigned int tx_seq_tid[IEEE80211_NUM_TIDS];
 	unsigned int aid;
 
 	bool qos_sta;
