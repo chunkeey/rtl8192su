@@ -937,8 +937,8 @@ static int r92su_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 		 * fragmentation bug get fixed, this can be removed altogether
 		 + and "everything should just work (tm)".
 		 */
-		r92su->wdev.wiphy->frag_threshold =
-			IEEE80211_MAX_FRAG_THRESHOLD;
+	//	r92su->wdev.wiphy->frag_threshold =
+	//		IEEE80211_MAX_FRAG_THRESHOLD;
 		return 0;
 	} else
 		return -EOPNOTSUPP;
@@ -1278,6 +1278,9 @@ static int r92su_open(struct net_device *ndev)
 	err = r92su_upload_firmware(r92su);
 	if (err)
 		goto out;
+
+	/* uploading the firmware resets the c2h and h2c command counters */
+	r92su_cmd_init(r92su);
 
 	err = r92su_hw_late_mac_setup(r92su);
 	if (err)
