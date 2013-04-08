@@ -1173,7 +1173,8 @@ void r92su_rx(struct r92su *r92su, void *buf, const unsigned int len)
 		}
 		buf += ALIGN(hdr_len + pkt_len, r92su->rx_alignment);
 	}
-	tasklet_schedule(&r92su->rx_tasklet);
+	if (r92su_is_connected(r92su))
+		tasklet_schedule(&r92su->rx_tasklet);
 	return;
 
 err_garbage:
