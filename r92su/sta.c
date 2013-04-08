@@ -189,7 +189,9 @@ void r92su_sta_del(struct r92su *r92su, int mac_id)
 
 void r92su_sta_add(struct r92su *r92su, struct r92su_sta *new_sta)
 {
+	rcu_read_lock();
 	r92su_free_sta(r92su_sta_xchg(r92su, new_sta));
+	rcu_read_unlock();
 }
 
 static u32 get_random_wep_seq(void)

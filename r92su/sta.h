@@ -147,9 +147,10 @@ struct r92su_key *r92su_key_alloc(const u32 cipher, const u8 idx,
 
 void r92su_key_free(struct r92su_key *key);
 
+void r92su_sta_add(struct r92su *r92su, struct r92su_sta *new_sta);
+
 /* the following functions need rcu_read_lock! */
 struct r92su_sta *r92su_sta_get(struct r92su *r92su, const u8 *mac_addr);
 void r92su_sta_del(struct r92su *r92su, int mac_id);
-void r92su_sta_add(struct r92su *r92su, struct r92su_sta *new_sta);
 
 #endif /* __R92SU_STA_H__ */
