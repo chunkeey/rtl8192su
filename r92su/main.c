@@ -127,13 +127,22 @@ static int r92su_get_station(struct wiphy *wiphy, struct net_device *ndev,
 			     u8 *mac, struct station_info *sinfo)
 {
 	struct r92su *r92su = wiphy_priv(wiphy);
-	int err = -EAGAIN;
+	struct r92su_sta *sta;
+	int err = -ENOENT;
 
 	mutex_lock(&r92su->lock);
-	if (!r92su_is_connected(r92su))
+	if (!r92su_is_connected(r92su)) {
+		err = -ENODEV;
 		goto out;
+	}
 
-	err = -EOPNOTSUPP;
+	rcu_read_lock();
+	sta = r92su_sta_get(r92su, mac);
+	if (sta) {
+		r92su_sta_set_sinfo(r92su, sta, sinfo);
+		err = 0;
+	}
+	rcu_read_unlock();
 
 out:
 	mutex_unlock(&r92su->lock);
@@ -596,14 +605,13 @@ static void r92su_bss_connect_work(struct work_struct *work)
 
 		sta = r92su_sta_alloc(r92su, join_bss->bss.bssid,
 			5 /* seems like the FW has this hardcoded */,
-			GFP_KERNEL);
+			le32_to_cpu(join_bss->aid), GFP_KERNEL);
 		if (!sta)
 			goto report_cfg80211;
 
 		resp_ie = join_bss->bss.ies.ie;
 		resp_ie_len = le32_to_cpu(join_bss->bss.ie_length) - 12;
 
-		sta->aid = le32_to_cpu(join_bss->aid);
 		sta->enc_sta = le32_to_cpu(join_bss->bss.privacy) ?
 			       true : false;
 		sta->qos_sta = r92su_parse_wmm_cap_ie(r92su, resp_ie,

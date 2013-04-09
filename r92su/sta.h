@@ -120,6 +120,10 @@ struct r92su_sta {
 	bool ht_sta;
 	bool enc_sta;
 
+	long last_connected;
+
+	int signal;
+
 	/* deduplication */
 	__le16 rx_seq;
 	__le16 rx_seq_tid[IEEE80211_NUM_TIDS];
@@ -134,7 +138,9 @@ struct r92su_sta {
 };
 
 struct r92su_sta *r92su_sta_alloc(struct r92su *r92su, const u8 *mac_addr,
-				  const unsigned int mac_id, const gfp_t flag);
+				  const unsigned int mac_id,
+				  const unsigned int aid,
+				  const gfp_t flag);
 
 void r92su_sta_replace(struct r92su *r92su, struct r92su_sta *new_sta);
 
@@ -148,6 +154,9 @@ struct r92su_key *r92su_key_alloc(const u32 cipher, const u8 idx,
 void r92su_key_free(struct r92su_key *key);
 
 void r92su_sta_add(struct r92su *r92su, struct r92su_sta *new_sta);
+
+void r92su_sta_set_sinfo(struct r92su *r92su, struct r92su_sta *sta,
+			 struct station_info *sinfo);
 
 /* the following functions need rcu_read_lock! */
 struct r92su_sta *r92su_sta_get(struct r92su *r92su, const u8 *mac_addr);

@@ -485,8 +485,17 @@ static void r92su_query_fw_rx_phy_status(struct r92su *r92su)
 
 		rcu_read_lock();
 		bss = rcu_dereference(r92su->connect_bss);
-		if (bss)
+		if (bss) {
+			struct r92su_bss_priv *bss_priv;
+			struct r92su_sta *sta;
+
 			bss->signal = qual;
+
+			bss_priv = r92su_get_bss_priv(bss);
+			sta = rcu_dereference(bss_priv->sta);
+			if (sta)
+				sta->signal = qual;
+		}
 		rcu_read_unlock();
 	}
 }

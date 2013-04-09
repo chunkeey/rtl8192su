@@ -127,19 +127,25 @@ void r92su_sta_alloc_tid(struct r92su *r92su,
 
 struct r92su_sta *r92su_sta_alloc(struct r92su *r92su, const u8 *mac_addr,
 				  const unsigned int mac_id,
-				  const gfp_t flag)
+				  const unsigned int aid, const gfp_t flag)
 {
 	struct r92su_sta *sta;
 
 	sta = kzalloc(sizeof(*sta), flag);
 	if (sta) {
+		struct timespec uptime;
 		int i;
+
 		for (i = 0; i < ARRAY_SIZE(sta->defrag); i++)
 			skb_queue_head_init(&sta->defrag[i].queue);
 
 		if (mac_addr)
 			memcpy(sta->mac_addr, mac_addr, ETH_ALEN);
 		sta->mac_id = mac_id;
+		sta->aid = aid;
+
+		do_posix_clock_monotonic_gettime(&uptime);
+	        sta->last_connected = uptime.tv_sec;
 	}
 	return sta;
 }
@@ -262,4 +268,16 @@ void r92su_key_free(struct r92su_key *key)
 {
 	if (key)
 		kfree_rcu(key, rcu_head);
+}
+
+void r92su_sta_set_sinfo(struct r92su *r92su, struct r92su_sta *sta,
+			 struct station_info *sinfo)
+{
+	struct timespec uptime;
+	sinfo->filled = STATION_INFO_CONNECTED_TIME |
+			STATION_INFO_SIGNAL;
+
+        do_posix_clock_monotonic_gettime(&uptime);
+        sinfo->connected_time = uptime.tv_sec - sta->last_connected;
+	sinfo->signal = sta->signal;
 }

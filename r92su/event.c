@@ -108,11 +108,11 @@ static void c2h_add_sta_event(struct r92su *r92su, const struct h2cc2h *c2h)
 	struct r92su_sta *new_sta;
 	unsigned int id = le32_to_cpu(addsta->aid);
 
-	new_sta = r92su_sta_alloc(r92su, addsta->mac_addr, id, GFP_ATOMIC);
-	if (new_sta) {
-		new_sta->aid = le32_to_cpu(addsta->aid);
+	new_sta = r92su_sta_alloc(r92su, addsta->mac_addr, id,
+				  le32_to_cpu(addsta->aid),
+				  GFP_ATOMIC);
+	if (new_sta)
 		r92su_sta_replace(r92su, new_sta);
-	}
 }
 
 static void c2h_del_sta_event(struct r92su *r92su, const struct h2cc2h *c2h)
