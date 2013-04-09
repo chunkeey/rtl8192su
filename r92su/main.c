@@ -923,25 +923,25 @@ out:
 
 static int r92su_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 {
-	struct r92su *r92su = wiphy_priv(wiphy);
-
-	if (changed & WIPHY_PARAM_FRAG_THRESHOLD) {
-		/* For some reason, the firmware increases the sequence
-		 * counter for fragments. This breaks the defragmentation
-		 * on the receiver because all fragments have to have the
-		 * same sequence couter.
-		 */
-		WARN_ONCE(1, "fragmentation is not supported");
-
-		/* for now, reset fragmentation threshold. However, once the
-		 * fragmentation bug get fixed, this can be removed altogether
-		 + and "everything should just work (tm)".
-		 */
-	//	r92su->wdev.wiphy->frag_threshold =
-	//		IEEE80211_MAX_FRAG_THRESHOLD;
-		return 0;
-	} else
-		return -EOPNOTSUPP;
+	/* WIPHY_PARAM_FRAG_THRESHOLD
+	 *	For some reason, the firmware increases the sequence
+	 *	counter for fragments. This breaks the defragmentation
+	 *	on the receiver because all fragments have to have the
+	 *	same sequence couter.
+	 *
+	 *	for now, reset fragmentation threshold. However, once the
+	 *	fragmentation bug get fixed, this can be removed altogether
+	 *	and "everything should just work (tm)".
+	 *
+	 * WIPHY_PARAM_RTS_THRESHOLD
+	 *	Not implemented in the vendor driver. Apparently, the
+	 *	firmware will automatically enable RTS "when needed (tm)".
+	 *
+	 * WIPHY_PARAMS_RETRY_SHORT
+	 * WIPHY_PARAMS_RETRY_LONG
+	 *	Controlled by the firmware.
+	 */
+	return -EOPNOTSUPP;
 }
 
 static int r92su_ibss_build_ie(struct r92su *r92su, u8 **ie, u32 *ie_len_left,
@@ -1280,6 +1280,8 @@ static int r92su_open(struct net_device *ndev)
 		goto out;
 
 	/* uploading the firmware resets the c2h and h2c command counters */
+	r92su_cmd_init(r92su);
+
 	r92su_cmd_init(r92su);
 
 	err = r92su_hw_late_mac_setup(r92su);
