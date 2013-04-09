@@ -262,7 +262,11 @@ static inline void r92su_set_state(struct r92su *r92su,
 
 static inline void r92su_mark_dead(struct r92su *r92su)
 {
+	struct net_device *ndev = r92su->wdev.netdev;
 	r92su_set_state(r92su, R92SU_DEAD);
+
+	if (ndev)
+		netif_carrier_off(ndev);
 }
 
 static inline
