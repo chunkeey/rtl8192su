@@ -193,7 +193,7 @@ struct fw_hdr {
 	/* define the size of DMEM variable */
 	__le32 fw_priv_size;
 	__le16 efuse_addr;
-	__le16 h2ccnd_resp_addr;
+	__le16 h2ccmd_resp_addr;
 
 	__le32 svn_evision;
 	__le32 release_time;

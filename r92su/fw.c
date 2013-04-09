@@ -287,7 +287,6 @@ int r92su_upload_firmware(struct r92su *r92su)
 		return err;
 
 	r92su->fw_loaded = true;
-
 	return err;
 }
 
