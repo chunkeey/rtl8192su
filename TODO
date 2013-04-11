@@ -2,12 +2,19 @@ TODO:
  - rx statistics (Signal/Quality)
    rtl8192su provides a wide range of noise and signal levels,
    but they need to be read, processed and passed to cfg80211.
+   - That said, the firmware does not provide any counters?!
+     So the statistics might be off and unuseable.
 
  - figure out which firmware commands are really implemented
    in the firmware. Some just seem to be NOPs.
    (Note: The same is true for firmware response. This will
    be harder to figure out, as we need to trigger the condition
    in the firmware somehow - and this is difficult)  
+
+ - fix memory leaks
+
+ - validate locking (especially RCU)
+   spinlocks and mutex should be fine (tm).
 
 TESTS:
  - stability test
@@ -20,8 +27,6 @@ TESTS:
    (Can the driver/device connect to standard APs from different
    vendors and how does it behave in a noisy environment)
 
- - firmware test (see firmwares/README.firmware)
-
  - suspend/resume cycle test
    (Does a device automatically reconnect after a suspend/resume
    cycle... Does the driver survive a cycle when the device was
@@ -32,3 +37,6 @@ KNOWN LIMITATIONS:
  - No accurate tx feedback (fw-host protocol limitation)
  - In ibss mode, the device sends out frames with HT rates.
  - (More to come)
+ - Fragmentation does not work
+ - RTS/CTS is controlled by Firmware
+
