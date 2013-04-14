@@ -28,12 +28,40 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  *****************************************************************************/
-#ifndef __R92SU_EVENT_H__
-#define __R92SU_EVENT_H__
+#include <linux/kernel.h>
+#include <net/cfg80211.h>
+#include <linux/export.h>
+#include "r92su.h"
+#include "debug.h"
+#include "trace.h"
 
-#include "h2cc2h.h"
+#define __r92su_fn(fn)						\
+void __r92su_ ##fn(struct r92su *r92su, const char *fmt, ...)	\
+{								\
+        struct va_format vaf = {				\
+                .fmt = fmt,					\
+        };							\
+        va_list args;						\
+								\
+        va_start(args, fmt);					\
+        vaf.va = &args;						\
+        wiphy_ ##fn(r92su->wdev.wiphy, "%pV", &vaf);		\
+        trace_r92su_ ##fn(wiphy_dev(r92su->wdev.wiphy), &vaf);	\
+        va_end(args);						\
+}
 
-void r92su_c2h_event(struct r92su *r92su, const struct h2cc2h *c2h);
+__r92su_fn(err)
+__r92su_fn(info)
 
-#endif /* __R92SU_EVENT_H__ */
+void __r92su_dbg(struct r92su *r92su, const char *fmt, ...)
+{
+        struct va_format vaf = {
+                .fmt = fmt,
+        };
+        va_list args;
 
+        va_start(args, fmt);
+        vaf.va = &args;
+        trace_r92su_dbg(wiphy_dev(r92su->wdev.wiphy), &vaf);
+        va_end(args);
+}

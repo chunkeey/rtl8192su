@@ -28,12 +28,18 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  *****************************************************************************/
-#ifndef __R92SU_EVENT_H__
-#define __R92SU_EVENT_H__
+#ifndef __R92SU_DEBUG_H__
+#define __R92SU_DEBUG_H__
 
-#include "h2cc2h.h"
+#include "r92su.h"
 
-void r92su_c2h_event(struct r92su *r92su, const struct h2cc2h *c2h);
+void __r92su_err(struct r92su *r92su, const char *fmt, ...) __printf(2, 3);
+void __r92su_info(struct r92su *r92su, const char *fmt, ...) __printf(2, 3);
+void __r92su_dbg(struct r92su *r92su, const char *fmt, ...) __printf(2, 3);
 
-#endif /* __R92SU_EVENT_H__ */
+#define R92SU_ERR(r, f, a...) __r92su_err((r), (f), ## a)
+#define R92SU_INFO(r, f, a...) __r92su_err((r), (f), ## a)
+#define R92SU_DBG(r, f, a...) __r92su_dbg((r), (f), ## a)
+
+#endif /* __R92SU_DEBUG_H__ */
 

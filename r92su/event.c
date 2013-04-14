@@ -35,6 +35,8 @@
 #include "r92su.h"
 #include "event.h"
 #include "h2cc2h.h"
+#include "trace.h"
+#include "debug.h"
 
 typedef void (*c2h_handler)(struct r92su *, const struct h2cc2h *);
 
@@ -42,8 +44,8 @@ static void c2h_fwdbg_event(struct r92su *r92su, const struct h2cc2h *c2h)
 {
 	u16 c2h_len = le16_to_cpu(c2h->len);
 
-	wiphy_notice(r92su->wdev.wiphy, "fwdbg: %.*s%s", c2h_len, c2h->data,
-		    c2h->data[c2h_len - 2] == '\n' ? "" : "\n");
+	R92SU_DBG(r92su, "fwdbg: %.*s%s", c2h_len, c2h->data,
+		  c2h->data[c2h_len - 2] == '\n' ? "" : "\n");
 }
 
 static void c2h_survey_event(struct r92su *r92su, const struct h2cc2h *c2h)
@@ -61,7 +63,7 @@ static void c2h_survey_event(struct r92su *r92su, const struct h2cc2h *c2h)
 
 	if (len < sizeof(*c2h_bss) || len != bss_len ||
 	    le32_to_cpu(c2h_bss->ie_length) <= 12) {
-		wiphy_err(r92su->wdev.wiphy, "received survey event with bad length.");
+		R92SU_ERR(r92su, "received survey event with bad length.");
 		r92su_mark_dead(r92su);
 		return;
 	}
@@ -171,16 +173,18 @@ void r92su_c2h_event(struct r92su *r92su, const struct h2cc2h *c2h)
 {
 	unsigned int sequence = r92su->c2h_seq++;
 
+	trace_r92su_c2h(wiphy_dev(r92su->wdev.wiphy), c2h);
+
 	if (sequence != c2h->cmd_seq) {
-		wiphy_err(r92su->wdev.wiphy, "received an c2h event out of sequence.\n");
-		wiphy_err(r92su->wdev.wiphy, "expected: %d, got %d\n", sequence,
+		R92SU_ERR(r92su, "received an c2h event out of sequence.\n");
+		R92SU_ERR(r92su, "expected: %d, got %d\n", sequence,
 			  c2h->cmd_seq);
 
 		r92su->c2h_seq = c2h->cmd_seq + 1;
 	}
 
-	wiphy_notice(r92su->wdev.wiphy, "c2h event:%x len:%d\n",
-		     c2h->event, le16_to_cpu(c2h->len));
+	R92SU_DBG(r92su, "c2h event:%x len:%d\n",
+		  c2h->event, le16_to_cpu(c2h->len));
 
 	switch (c2h->event) {
 	case C2H_FWDBG_EVENT:
@@ -215,8 +219,7 @@ void r92su_c2h_event(struct r92su *r92su, const struct h2cc2h *c2h)
 		break;
 
 	default:
-		wiphy_err(r92su->wdev.wiphy, "received invalid c2h event:%x\n",
-			  c2h->event);
+		R92SU_ERR(r92su, "received invalid c2h event:%x\n", c2h->event);
 		print_hex_dump_bytes("C2H:", DUMP_PREFIX_OFFSET, c2h,
 				     le16_to_cpu(c2h->len) + sizeof(*c2h));
 		r92su_mark_dead(r92su);

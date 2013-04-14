@@ -23,6 +23,21 @@ config R92SU_DEBUGFS
 
 	 Say N, unless you have a good reason.
 
+config R92SU_TRACING
+	bool "R92SU device access tracing"
+        depends on R92SU
+        depends on EVENT_TRACING
+	default n
+	help
+	 Say Y here to trace all commands, including TX frames and IO
+         accesses, sent to the device. 
+
+	 When tracing is not enabled, this option still has some
+	 (though rather small) overhead.
+
+	 If unsure, say Y so we can help you better when problems
+	 occur.
+
 config R92SU_WPC
 	bool
 	depends on R92SU && (INPUT = y || INPUT = R92SU)

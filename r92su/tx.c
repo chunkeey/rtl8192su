@@ -42,6 +42,7 @@
 #include "usb.h"
 #include "cmd.h"
 #include "michael.h"
+#include "trace.h"
 
 static const enum rtl8712_queues_t r92su_802_1d_to_ac[] = {
 	[IEEE80211_AC_BK] = RTL8712_BKQ,
@@ -592,6 +593,7 @@ tx_drop:
 		r92su->wdev.netdev->stats.tx_packets++;
 		r92su->wdev.netdev->stats.tx_bytes += skb->len;
 
+		trace_r92su_tx_data(wiphy_dev(r92su->wdev.wiphy), skb);
 		r92su_usb_tx(r92su, skb, GET_TX_DESC_QUEUE_SEL(tx_hdr));
 	}
 	rcu_read_unlock();

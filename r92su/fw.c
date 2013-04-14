@@ -36,6 +36,7 @@
 #include "fw.h"
 #include "def.h"
 #include "reg.h"
+#include "debug.h"
 
 static int r92su_parse_firmware(struct r92su *r92su)
 {
@@ -45,7 +46,7 @@ static int r92su_parse_firmware(struct r92su *r92su)
 	unsigned int dmem_size;
 
 	if (r92su->fw->size > RTL8192_MAX_RAW_FIRMWARE_CODE_SIZE) {
-		wiphy_err(r92su->wdev.wiphy, "firmware is too big.\n");
+		R92SU_ERR(r92su, "firmware is too big.\n");
 		return -EINVAL;
 	}
 
@@ -53,13 +54,12 @@ static int r92su_parse_firmware(struct r92su *r92su)
 
 	if ((hdr->signature != cpu_to_le16(R8192SU_FW_SIGNATURE)) &&
 	    (hdr->signature != cpu_to_le16(R8712SU_FW_SIGNATURE))) {
-		wiphy_err(r92su->wdev.wiphy, "firmware signature check has failed.\n");
+		R92SU_ERR(r92su, "firmware signature check has failed.\n");
 		return -EINVAL;
 	}
 
 	r92su->fw_version = le16_to_cpu(hdr->version);
-	wiphy_info(r92su->wdev.wiphy, "firmware version: 0x%x\n",
-		 r92su->fw_version);
+	R92SU_INFO(r92su, "firmware version: 0x%x\n", r92su->fw_version);
 
 	r92su->fw_imem_len = imem_size = le32_to_cpu(hdr->img_imem_size);
 	r92su->fw_sram_len = sram_size = le32_to_cpu(hdr->img_sram_size);
@@ -69,17 +69,17 @@ static int r92su_parse_firmware(struct r92su *r92su)
 	r92su->fw_sram = r92su->fw_imem + imem_size;
 
 	if (imem_size == 0 || imem_size >= RTL8192_MAX_FIRMWARE_CODE_SIZE) {
-		wiphy_err(r92su->wdev.wiphy, "firmware's imem size is out of range\n");
+		R92SU_ERR(r92su, "firmware's imem size is out of range\n");
 		return -EINVAL;
 	}
 
 	if (sram_size == 0 || sram_size >= RTL8192_MAX_FIRMWARE_CODE_SIZE) {
-		wiphy_err(r92su->wdev.wiphy, "firmware's sram size is out of range\n");
+		R92SU_ERR(r92su, "firmware's sram size is out of range\n");
 		return -EINVAL;
 	}
 
 	if (dmem_size != sizeof(struct fw_priv)) {
-		wiphy_err(r92su->wdev.wiphy, "firmware's dmem size is out of range\n");
+		R92SU_ERR(r92su, "firmware's dmem size is out of range\n");
 		return -EINVAL;
 	}
 
@@ -174,7 +174,7 @@ static int r92su_upload_mem_wait(struct r92su *r92su, const u8 done_flag,
 	} while (--tries);
 
 	if (!(cpu_status & done2_flag) || (tries == 0)) {
-		wiphy_err(r92su->wdev.wiphy, "firmware's %s upload %s cpu_status=0x%x\n",
+		R92SU_ERR(r92su, "firmware's %s upload %s cpu_status=0x%x\n",
 			mem, (tries == 0) ? "timedout" : "failed", cpu_status);
 		return -EAGAIN;
 	}
@@ -301,7 +301,7 @@ int r92su_load_firmware(struct r92su *r92su)
 	err = request_firmware(&r92su->fw, RTL8192SU_FIRMWARE,
 			       &r92su->udev->dev);
 	if (err) {
-		wiphy_err(r92su->wdev.wiphy, "firmware '%s' not found.\n",
+		R92SU_ERR(r92su, "firmware '%s' not found.\n",
 			  RTL8192SU_FIRMWARE);
 		return err;
 	}

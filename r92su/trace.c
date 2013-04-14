@@ -28,12 +28,26 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  *****************************************************************************/
-#ifndef __R92SU_EVENT_H__
-#define __R92SU_EVENT_H__
+#include <linux/module.h>
 
-#include "h2cc2h.h"
+/* sparse doesn't like tracepoint macros */
+#ifndef __CHECKER__
 
-void r92su_c2h_event(struct r92su *r92su, const struct h2cc2h *c2h);
+#define CREATE_TRACE_POINTS
+#include "trace.h"
 
-#endif /* __R92SU_EVENT_H__ */
+EXPORT_TRACEPOINT_SYMBOL(r92su_h2c);
+EXPORT_TRACEPOINT_SYMBOL(r92su_c2h);
+EXPORT_TRACEPOINT_SYMBOL(r92su_ioread32);
+EXPORT_TRACEPOINT_SYMBOL(r92su_ioread16);
+EXPORT_TRACEPOINT_SYMBOL(r92su_ioread8);
+EXPORT_TRACEPOINT_SYMBOL(r92su_iowrite32);
+EXPORT_TRACEPOINT_SYMBOL(r92su_iowrite16);
+EXPORT_TRACEPOINT_SYMBOL(r92su_iowrite8);
+EXPORT_TRACEPOINT_SYMBOL(r92su_tx_data);
+EXPORT_TRACEPOINT_SYMBOL(r92su_rx_data);
+EXPORT_TRACEPOINT_SYMBOL(r92su_err);
+EXPORT_TRACEPOINT_SYMBOL(r92su_info);
+EXPORT_TRACEPOINT_SYMBOL(r92su_dbg);
+#endif
 

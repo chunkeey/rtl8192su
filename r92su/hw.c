@@ -35,6 +35,7 @@
 #include "reg.h"
 
 #include "usb.h"
+#include "debug.h"
 
 static u8 r92su_halset_sysclk(struct r92su *r92su, u16 clk_set)
 {
@@ -59,8 +60,7 @@ static u8 r92su_halset_sysclk(struct r92su *r92su, u16 clk_set)
 			if ((clk & SYS_SWHW_SEL))
 				return true;
 
-			wiphy_err(r92su->wdev.wiphy,
-				"wait for SYS_SWHW_SEL in %x\n", clk);
+			R92SU_ERR(r92su, "wait for SYS_SWHW_SEL in %x\n", clk);
 		} while (--tries);
 		return false;
 	}
@@ -217,7 +217,7 @@ static int r92su_usb_init_b_and_c_cut(struct r92su *r92su)
 	} while (--tries);
 
 	if (tries == 0) {
-		wiphy_err(r92su->wdev.wiphy,
+		R92SU_ERR(r92su,
 			 "Polling TXDMA_INIT_VALUE timed out! Current TCR(%#x)\n",
 			 tmpu1b);
 		tmpu1b = r92su_read8(r92su, REG_CR);

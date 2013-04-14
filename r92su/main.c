@@ -44,6 +44,7 @@
 #include "rx.h"
 #include "fw.h"
 #include "hw.h"
+#include "debug.h"
 #include "debugfs.h"
 
 #define CHAN2G(_hw_value, _freq, _flags) {	\
@@ -287,8 +288,7 @@ static int r92su_connect_set_auth(struct r92su *r92su,
 		break;
 
 	default:
-		wiphy_err(r92su->wdev.wiphy, "Invalid auth type %d\n",
-			  auth_type);
+		R92SU_ERR(r92su, "Invalid auth type %d\n", auth_type);
 		return -EINVAL;
 	}
 
@@ -316,7 +316,7 @@ static int r92su_connect_set_shared_key(struct r92su *r92su,
 		break;
 
 	default:
-		wiphy_err(r92su->wdev.wiphy, "Invalid shared key\n");
+		R92SU_ERR(r92su, "Invalid shared key\n");
 		return -EINVAL;
 	}
 
@@ -535,7 +535,7 @@ static void r92su_bss_add_work(struct work_struct *work)
 
 		chan_idx = le32_to_cpu(c2h_bss->config.frequency) - 1;
 		if (chan_idx < 0 || chan_idx >= r92su->band_2GHZ.n_channels) {
-			wiphy_err(r92su->wdev.wiphy, "received survey event on bad channel.");
+			R92SU_ERR(r92su, "received survey event on bad channel.");
 			goto next;
 		}
 

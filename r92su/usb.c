@@ -37,6 +37,7 @@
 #include "usb.h"
 #include "rx.h"
 #include "tx.h"
+#include "trace.h"
 
 static bool modparam_noht;
 module_param_named(noht, modparam_noht, bool, S_IRUGO);
@@ -108,21 +109,30 @@ u8 r92su_read8(struct r92su *r92su, const u32 address)
 {
 	u8 data;
 	r92su_read_helper(r92su, address, &data, sizeof(data));
+	trace_r92su_ioread8(wiphy_dev(r92su->wdev.wiphy), address, data);
 	return data;
 }
 
 u16 r92su_read16(struct r92su *r92su, const u32 address)
 {
-	__le16 data;
-	r92su_read_helper(r92su, address, &data, sizeof(data));
-	return le16_to_cpu(data);
+	__le16 raw_data;
+	u16 data;
+
+	r92su_read_helper(r92su, address, &raw_data, sizeof(raw_data));
+	data = le16_to_cpu(raw_data);
+	trace_r92su_ioread16(wiphy_dev(r92su->wdev.wiphy), address, data);
+	return data;
 }
 
 u32 r92su_read32(struct r92su *r92su, const u32 address)
 {
-	__le32 data;
-	r92su_read_helper(r92su, address, &data, sizeof(data));
-	return le32_to_cpu(data);
+	__le32 raw_data;
+	u32 data;
+
+	r92su_read_helper(r92su, address, &raw_data, sizeof(raw_data));
+	data = le32_to_cpu(raw_data);
+	trace_r92su_ioread32(wiphy_dev(r92su->wdev.wiphy), address, data);
+	return data;
 }
 
 static void r92su_write_helper(struct r92su *r92su, const u32 address,
@@ -140,18 +150,21 @@ static void r92su_write_helper(struct r92su *r92su, const u32 address,
 void r92su_write8(struct r92su *r92su, const u32 address, const u8 data)
 {
 	u8 tmp = data;
+	trace_r92su_iowrite8(wiphy_dev(r92su->wdev.wiphy), address, data);
 	r92su_write_helper(r92su, address, &tmp, sizeof(tmp));
 }
 
 void r92su_write16(struct r92su *r92su, const u32 address, const u16 data)
 {
 	__le16 tmp = cpu_to_le16(data);
+	trace_r92su_iowrite16(wiphy_dev(r92su->wdev.wiphy), address, data);
 	r92su_write_helper(r92su, address, &tmp, sizeof(tmp));
 }
 
 void r92su_write32(struct r92su *r92su, const u32 address, const u32 data)
 {
 	__le32 tmp = cpu_to_le32(data);
+	trace_r92su_iowrite32(wiphy_dev(r92su->wdev.wiphy), address, data);
 	r92su_write_helper(r92su, address, &tmp, sizeof(tmp));
 }
 

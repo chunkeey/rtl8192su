@@ -36,6 +36,7 @@
 #include "reg.h"
 #include "eeprom.h"
 #include "def.h"
+#include "trace.h"
 
 void r92su_cmd_init(struct r92su *r92su)
 {
@@ -101,6 +102,8 @@ int r92su_h2c_submit(struct r92su *r92su, struct sk_buff *skb,
 
 	spin_lock_irqsave(&r92su->tx_cmd_lock, flags);
 	r92su_h2c_fill_header(r92su, skb, skb->len, cmd, true);
+	trace_r92su_h2c(wiphy_dev(r92su->wdev.wiphy),
+			(struct h2cc2h *) skb->data);
 	r92su_tx_fill_header(skb, skb->len, true, true);
 	err = r92su_usb_tx(r92su, skb, RTL8712_H2CCMD);
 	spin_unlock_irqrestore(&r92su->tx_cmd_lock, flags);

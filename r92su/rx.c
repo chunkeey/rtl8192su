@@ -40,6 +40,8 @@
 #include "def.h"
 #include "event.h"
 #include "michael.h"
+#include "debug.h"
+#include "trace.h"
 
 static void r92su_rx_add_radiotap(struct r92su *r92su,
 				  rx_hdr *rx_hdr,
@@ -604,7 +606,7 @@ r92su_rx_hw_header_check(struct r92su *r92su, struct sk_buff *skb,
 	has_protect = ieee80211_has_protected(hdr->frame_control);
 
 	if (has_protect && GET_RX_DESC_SWDEC(&rx->hdr)) {
-		wiphy_err(r92su->wdev.wiphy, "hw didn't decipher frame.\n");
+		R92SU_ERR(r92su, "hw didn't decipher frame.\n");
 		return RX_DROP;
 	}
 
@@ -1087,6 +1089,8 @@ static void r92su_rx_tasklet(unsigned long arg0)
 		struct ieee80211_hdr *hdr;
 		unsigned int drvinfo_size;
 
+		trace_r92su_rx_data(wiphy_dev(r92su->wdev.wiphy), skb);
+
 		rx = (struct rx_packet *) skb->data;
 		drvinfo_size = GET_RX_DESC_DRVINFO_SIZE(&rx->hdr);
 		hdr = (struct ieee80211_hdr *) skb_pull(skb,
@@ -1144,7 +1148,7 @@ void r92su_rx(struct r92su *r92su, void *buf, const unsigned int len)
 		if (GET_RX_DESC_IS_CMD(&rx->hdr)) {
 			if (len - sizeof(rx->hdr) <
 			    le16_to_cpu(rx->c2h.len) + sizeof(rx->c2h)) {
-				wiphy_err(r92su->wdev.wiphy, "received clipped c2h command.");
+				R92SU_ERR(r92su, "received clipped c2h command.");
 				r92su_mark_dead(r92su);
 			} else
 				r92su_c2h_event(r92su, &rx->c2h);
@@ -1169,7 +1173,7 @@ void r92su_rx(struct r92su *r92su, void *buf, const unsigned int len)
 	return;
 
 err_garbage:
-	wiphy_err(r92su->wdev.wiphy, "received clipped frame.");
+	R92SU_ERR(r92su, "received clipped frame.");
 	return;
 }
 
