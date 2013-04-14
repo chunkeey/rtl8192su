@@ -1010,6 +1010,7 @@ rx_drop:
 	rcu_read_unlock();
 	r92su_rx_dropped(r92su, 1);
 	__skb_queue_purge(&frames);
+	dev_kfree_skb_any(skb);
 
 #undef __RX_HANDLER
 #undef RX_HANDLER
