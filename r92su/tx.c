@@ -287,7 +287,7 @@ r92su_tx_prepare_tx_info_and_find_sta(struct r92su *r92su, struct sk_buff *skb,
 	}
 
 	/* clean up tx info */
-	memset(tx_info, 0, sizeof(tx_info));
+	memset(tx_info, 0, sizeof(*tx_info));
 
 	sta = r92su_sta_get(r92su, hdr->h_dest);
 	if (!sta) {
