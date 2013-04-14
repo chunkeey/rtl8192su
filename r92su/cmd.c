@@ -205,7 +205,7 @@ int r92su_h2c_connect(struct r92su *r92su, const struct h2cc2h_bss *orig_bss,
 		return -ENOMEM;
 
 	bss = (struct h2cc2h_bss *)skb_put(skb, sizeof(*bss));
-	memcpy(bss, orig_bss, sizeof(*bss));
+	*bss = *orig_bss;
 
 	/* the ie_length also contains the fixed 12-byte ies (tsf/...) */
 	bss->ie_length = cpu_to_le32(12 + ie_len);

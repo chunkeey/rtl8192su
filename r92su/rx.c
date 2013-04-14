@@ -537,12 +537,8 @@ r92su_rx_data_to_8023(struct r92su *r92su, struct sk_buff *skb,
 	}
 
 	if (is_amsdu) {
-		struct r92su_rx_info tmp_rx_info;
+		struct r92su_rx_info tmp_rx_info = *r92su_get_rx_info(skb);
 
-		memcpy(&tmp_rx_info, r92su_get_rx_info(skb),
-		       sizeof(tmp_rx_info));
-
-		/* we can use the skb queue without spinlocks */
 		ieee80211_amsdu_to_8023s(skb, queue,
 					 wdev_address(&r92su->wdev),
 					 r92su->wdev.iftype, 0, true);
@@ -553,13 +549,8 @@ r92su_rx_data_to_8023(struct r92su *r92su, struct sk_buff *skb,
 			return RX_DROP;
 		}
 
-		skb_queue_walk(queue, skb) {
-			struct r92su_rx_info *new_info;
-
-			new_info = r92su_get_rx_info(skb);
-			memcpy(new_info, &tmp_rx_info, sizeof(*new_info));
-		}
-
+		skb_queue_walk(queue, skb)
+			*r92su_get_rx_info(skb) = tmp_rx_info;
 	} else {
 		int err;
 
