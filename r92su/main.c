@@ -352,6 +352,23 @@ static int r92su_internal_scan(struct r92su *r92su, const u8 *ssid,
 	return 0;
 }
 
+static int r92su_internal_connect(struct r92su *r92su,
+				  struct cfg80211_bss *bss,
+				  bool join, u8 *ies,
+				  unsigned int ies_len)
+{
+	struct r92su_bss_priv *bss_priv = r92su_get_bss_priv(bss);
+
+	bss_priv->assoc_ie_len = ies_len;
+	bss_priv->assoc_ie = kmemdup(ies, ies_len, GFP_KERNEL);
+	if (!bss_priv->assoc_ie)
+		return -ENOMEM;
+
+	r92su->want_connect_bss = bss;
+	return r92su_h2c_connect(r92su, &bss_priv->fw_bss, join,
+				 ies, ies_len);
+}
+
 static int r92su_connect(struct wiphy *wiphy, struct net_device *ndev,
 			 struct cfg80211_connect_params *sme)
 {
@@ -399,21 +416,7 @@ static int r92su_connect(struct wiphy *wiphy, struct net_device *ndev,
 	WARN(!r92su_wmm_update(r92su, &ie, &ie_len_left),
 	     "no space left for wmm ie");
 
-	bss_priv->assoc_ie_len = ie - ie_buf;
-	bss_priv->assoc_ie = kmemdup(ie_buf, bss_priv->assoc_ie_len,
-				     GFP_KERNEL);
-	if (!bss_priv->assoc_ie) {
-		err = -ENOMEM;
-		goto out;
-	}
-
-	r92su->want_connect_bss = bss;
-	err = r92su_h2c_connect(r92su, &bss_priv->fw_bss, true,
-				ie_buf, ie - ie_buf);
-	if (err)
-		goto out;
-
-	synchronize_rcu();
+	err = r92su_internal_connect(r92su, bss, true, ie_buf, ie - ie_buf);
 out:
 	if (err) {
 		if (bss_priv)
@@ -1144,21 +1147,7 @@ static int r92su_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 		join = true;
 	}
 
-	bss_priv->assoc_ie_len = ie - ie_buf;
-	bss_priv->assoc_ie = kmemdup(ie_buf, bss_priv->assoc_ie_len,
-			     GFP_KERNEL);
-	if (!bss_priv->assoc_ie) {
-		err = -ENOMEM;
-		goto out;
-	}
-
-	r92su->want_connect_bss = bss;
-	err = r92su_h2c_connect(r92su, &bss_priv->fw_bss, join,
-				ie_buf, ie - ie_buf);
-	if (err)
-		goto out;
-
-	synchronize_rcu();
+	err = r92su_internal_connect(r92su, bss, join, ie_buf, ie - ie_buf);
 out:
 	if (err) {
 		if (bss_priv)
