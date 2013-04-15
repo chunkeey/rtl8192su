@@ -492,7 +492,7 @@ static void r92su_query_fw_rx_phy_status(struct r92su *r92su)
 			bss->signal = qual;
 
 			bss_priv = r92su_get_bss_priv(bss);
-			sta = rcu_dereference(bss_priv->sta);
+			sta = bss_priv->sta;
 			if (sta)
 				sta->signal = qual;
 		}
