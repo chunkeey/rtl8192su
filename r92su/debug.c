@@ -35,33 +35,22 @@
 #include "debug.h"
 #include "trace.h"
 
-#define __r92su_fn(fn)						\
-void __r92su_ ##fn(struct r92su *r92su, const char *fmt, ...)	\
+#define __r92su_fn(fn, print)					\
+void __r92su_ ##fn(struct r92su *r92su,	const char *fmt, ...)	\
 {								\
-        struct va_format vaf = {				\
-                .fmt = fmt,					\
-        };							\
-        va_list args;						\
+	struct va_format vaf = {				\
+		.fmt = fmt,					\
+	};							\
+	va_list args;						\
 								\
-        va_start(args, fmt);					\
-        vaf.va = &args;						\
-        wiphy_ ##fn(r92su->wdev.wiphy, "%pV", &vaf);		\
-        trace_r92su_ ##fn(wiphy_dev(r92su->wdev.wiphy), &vaf);	\
-        va_end(args);						\
+	va_start(args, fmt);					\
+	vaf.va = &args;						\
+	if (print)						\
+		wiphy_ ##fn(r92su->wdev.wiphy, "%pV", &vaf);	\
+	trace_r92su_ ##fn(wiphy_dev(r92su->wdev.wiphy), &vaf);	\
+	va_end(args);						\
 }
 
-__r92su_fn(err)
-__r92su_fn(info)
-
-void __r92su_dbg(struct r92su *r92su, const char *fmt, ...)
-{
-        struct va_format vaf = {
-                .fmt = fmt,
-        };
-        va_list args;
-
-        va_start(args, fmt);
-        vaf.va = &args;
-        trace_r92su_dbg(wiphy_dev(r92su->wdev.wiphy), &vaf);
-        va_end(args);
-}
+__r92su_fn(err, true)
+__r92su_fn(info, true)
+__r92su_fn(dbg, false)

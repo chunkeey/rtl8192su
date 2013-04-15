@@ -38,7 +38,7 @@ TRACE_EVENT(r92su_h2c,
 		DEV_ENTRY
 		__field(unsigned int, event)
 		__field(unsigned int, cmd_seq)
- 		__field(size_t, len)
+		__field(size_t, len)
 		__dynamic_array(u8, h2c, le16_to_cpu(h2c->len))
 	),
 
@@ -47,8 +47,8 @@ TRACE_EVENT(r92su_h2c,
 		__entry->event = h2c->event;
 		__entry->cmd_seq = h2c->cmd_seq;
 		__entry->len = le16_to_cpu(h2c->len);
-                memcpy(__get_dynamic_array(h2c), h2c, __entry->len);
-        ),
+		memcpy(__get_dynamic_array(h2c), h2c, __entry->len);
+	),
 
 	TP_printk(
 		"[%s] send cmd 0x%x, seq:%d, len %zd",
@@ -65,7 +65,7 @@ TRACE_EVENT(r92su_c2h,
 		DEV_ENTRY
 		__field(unsigned int, event)
 		__field(unsigned int, cmd_seq)
- 		__field(size_t, len)
+		__field(size_t, len)
 		__dynamic_array(u8, c2h, le16_to_cpu(c2h->len))
 	),
 
@@ -74,8 +74,8 @@ TRACE_EVENT(r92su_c2h,
 		__entry->event = c2h->event;
 		__entry->cmd_seq = c2h->cmd_seq;
 		__entry->len = le16_to_cpu(c2h->len);
-                memcpy(__get_dynamic_array(c2h), c2h, __entry->len);
-        ),
+		memcpy(__get_dynamic_array(c2h), c2h, __entry->len);
+	),
 
 	TP_printk(
 		"[%s] received event 0x%x, seq:%d, len %zd",
@@ -220,7 +220,7 @@ TRACE_EVENT(r92su_rx_data,
 		DEV_ASSIGN;
 		memcpy(__get_dynamic_array(data), skb->data, skb->len);
 	),
-        TP_printk("[%s] RX frame data", __get_str(dev))
+	TP_printk("[%s] RX frame data", __get_str(dev))
 );
 
 #undef TRACE_SYSTEM

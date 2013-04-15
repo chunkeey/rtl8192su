@@ -59,8 +59,6 @@ struct r92su_rx_tid {
 	struct r92su *r92su;
 	struct r92su_sta *sta;
 	struct timer_list reorder_timer;
-
-	unsigned long last_rx;
 };
 
 struct r92su_key {

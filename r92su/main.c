@@ -547,7 +547,8 @@ static void r92su_bss_add_work(struct work_struct *work)
 
 		chan_idx = le32_to_cpu(c2h_bss->config.frequency) - 1;
 		if (chan_idx < 0 || chan_idx >= r92su->band_2GHZ.n_channels) {
-			R92SU_ERR(r92su, "received survey event on bad channel.");
+			R92SU_ERR(r92su,
+				  "received survey event on bad channel.");
 			goto next;
 		}
 
@@ -1358,7 +1359,6 @@ out:
 static int r92su_stop(struct net_device *ndev)
 {
 	struct r92su *r92su = ndev->ml_priv;
-	struct r92su_add_bss *bss_priv;
 	struct llist_node *node;
 	int err = -EINVAL, i;
 
@@ -1396,7 +1396,8 @@ static int r92su_stop(struct net_device *ndev)
 
 	node = llist_del_all(&r92su->add_bss_list);
 	while (node) {
-                bss_priv = llist_entry(node, struct r92su_add_bss, head);
+		struct r92su_add_bss *bss_priv =
+			llist_entry(node, struct r92su_add_bss, head);
 		node = ACCESS_ONCE(node->next);
 		kfree(bss_priv);
 	}

@@ -113,7 +113,6 @@ void r92su_sta_alloc_tid(struct r92su *r92su,
 		    (unsigned long) new_tid);
 		new_tid->r92su = r92su;
 		new_tid->sta = sta;
-		new_tid->last_rx = jiffies;
 		new_tid->head_seq = new_tid->ssn = ssn >> 4;
 		new_tid->size = 32;	 /* taken from a monitor */
 
@@ -145,7 +144,7 @@ struct r92su_sta *r92su_sta_alloc(struct r92su *r92su, const u8 *mac_addr,
 		sta->aid = aid;
 
 		do_posix_clock_monotonic_gettime(&uptime);
-	        sta->last_connected = uptime.tv_sec;
+		sta->last_connected = uptime.tv_sec;
 	}
 	return sta;
 }
@@ -277,7 +276,7 @@ void r92su_sta_set_sinfo(struct r92su *r92su, struct r92su_sta *sta,
 	sinfo->filled = STATION_INFO_CONNECTED_TIME |
 			STATION_INFO_SIGNAL;
 
-        do_posix_clock_monotonic_gettime(&uptime);
-        sinfo->connected_time = uptime.tv_sec - sta->last_connected;
+	do_posix_clock_monotonic_gettime(&uptime);
+	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
 	sinfo->signal = sta->signal;
 }

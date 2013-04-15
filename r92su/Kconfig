@@ -30,7 +30,7 @@ config R92SU_TRACING
 	default n
 	help
 	 Say Y here to trace all commands, including TX frames and IO
-         accesses, sent to the device. 
+         accesses, sent to the device.
 
 	 When tracing is not enabled, this option still has some
 	 (though rather small) overhead.

@@ -413,7 +413,7 @@ r92su_tx_fragment(struct r92su *r92su, struct sk_buff *skb,
 	limit = IEEE80211_MAX_FRAG_THRESHOLD;
 	/* once the firmware supports fragmentation...
 	 * enable this:
-	 * 	limit = r92su->wdev.wiphy->frag_threshold;
+	 *   limit = r92su->wdev.wiphy->frag_threshold;
 	 */
 
 	if ((skb->len + FCS_LEN) < limit) {

@@ -1149,7 +1149,8 @@ void r92su_rx(struct r92su *r92su, void *buf, const unsigned int len)
 		if (GET_RX_DESC_IS_CMD(&rx->hdr)) {
 			if (len - sizeof(rx->hdr) <
 			    le16_to_cpu(rx->c2h.len) + sizeof(rx->c2h)) {
-				R92SU_ERR(r92su, "received clipped c2h command.");
+				R92SU_ERR(r92su,
+					"received clipped c2h command.");
 				r92su_mark_dead(r92su);
 			} else
 				r92su_c2h_event(r92su, &rx->c2h);
