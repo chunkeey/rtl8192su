@@ -429,6 +429,9 @@ out:
 	return err;
 }
 
+/* seems like the FW has this hardcoded */
+#define BSS_MACID	5
+
 static void r92su_bss_free(struct r92su *r92su, struct cfg80211_bss *bss)
 {
 	struct r92su_bss_priv *bss_priv;
@@ -451,32 +454,54 @@ static void r92su_bss_free(struct r92su *r92su, struct cfg80211_bss *bss)
 		rcu_assign_pointer(bss_priv->group_key[i], NULL);
 		r92su_key_free(key);
 	}
+
+	r92su_sta_del(r92su, BSS_MACID);
 	rcu_read_unlock();
+}
+
+static void r92su_bss_free_connected(struct r92su *r92su)
+{
+	struct cfg80211_bss *old_bss;
+
+	if (r92su_is_connected(r92su))
+		r92su_set_state(r92su, R92SU_OPEN);
+
+	rcu_read_lock();
+	old_bss = rcu_dereference(r92su->connect_bss);
+	rcu_assign_pointer(r92su->connect_bss, NULL);
+	if (old_bss) {
+		/* cfg80211 doesn't like it when cfg80211_disconnected
+		 * is called without reason. So check if we were really
+		 * connected.
+		 */
+		cfg80211_disconnected(r92su->wdev.netdev,
+			      WLAN_STATUS_UNSPECIFIED_FAILURE, NULL, 0,
+			      GFP_ATOMIC);
+
+		r92su_bss_free(r92su, old_bss);
+	}
+	rcu_read_unlock();
+}
+
+static int __r92su_disconnect(struct r92su *r92su)
+{
+	int err = 0;
+	if (r92su_is_connected(r92su))
+		err = r92su_h2c_disconnect(r92su);
+
+	/* always free the connected bss */
+	r92su_bss_free_connected(r92su);
+	return err;
 }
 
 static int r92su_disconnect(struct wiphy *wiphy, struct net_device *ndev,
 			    u16 reason_code)
 {
 	struct r92su *r92su = wiphy_priv(wiphy);
-	struct cfg80211_bss *old_bss;
-	int err = -EAGAIN;
+	int err;
 
 	mutex_lock(&r92su->lock);
-	if (!r92su_is_connected(r92su))
-		goto out;
-
-	err = r92su_h2c_disconnect(r92su);
-	if (err)
-		goto out;
-
-	rcu_read_lock();
-	old_bss = rcu_dereference(r92su->connect_bss);
-	rcu_assign_pointer(r92su->connect_bss, NULL);
-	r92su_bss_free(r92su, old_bss);
-	rcu_read_unlock();
-
-	synchronize_rcu();
-out:
+	err = __r92su_disconnect(r92su);
 	mutex_unlock(&r92su->lock);
 	return err;
 }
@@ -484,20 +509,7 @@ out:
 /* called from irq-context */
 void r92su_disconnect_bss_event(struct r92su *r92su)
 {
-	struct cfg80211_bss *bss;
-
-	cfg80211_disconnected(r92su->wdev.netdev,
-			      WLAN_STATUS_UNSPECIFIED_FAILURE, NULL, 0,
-			      GFP_ATOMIC);
-
-	if (r92su_is_connected(r92su))
-		r92su_set_state(r92su, R92SU_OPEN);
-
-	rcu_read_lock();
-	bss = rcu_dereference(r92su->connect_bss);
-	rcu_assign_pointer(r92su->connect_bss, NULL);
-	r92su_bss_free(r92su, bss);
-	rcu_read_unlock();
+	r92su_bss_free_connected(r92su);
 
 	netif_tx_stop_all_queues(r92su->wdev.netdev);
 	netif_carrier_off(r92su->wdev.netdev);
@@ -604,7 +616,7 @@ static void r92su_bss_connect_work(struct work_struct *work)
 		struct r92su_sta *sta;
 
 		sta = r92su_sta_alloc(r92su, join_bss->bss.bssid,
-			5 /* seems like the FW has this hardcoded */,
+			BSS_MACID,
 			le32_to_cpu(join_bss->aid), GFP_KERNEL);
 		if (!sta)
 			goto report_cfg80211;
@@ -1346,13 +1358,20 @@ out:
 static int r92su_stop(struct net_device *ndev)
 {
 	struct r92su *r92su = ndev->ml_priv;
+	struct r92su_add_bss *bss_priv;
+	struct llist_node *node;
 	int err = -EINVAL, i;
 
 	mutex_lock(&r92su->lock);
+
+	if (r92su_is_connected(r92su)) {
+		err = __r92su_disconnect(r92su);
+		WARN_ONCE(err, "disconnect failed");
+	}
+
 	if (r92su_is_initializing(r92su)) {
 		err = r92su_hw_mac_deinit(r92su);
-		if (err)
-			goto out;
+		WARN_ONCE(err, "failed to deinitilize MAC");
 	}
 
 	if (r92su_is_initializing(r92su))
@@ -1367,13 +1386,20 @@ static int r92su_stop(struct net_device *ndev)
 
 	for (i = 0; i < ARRAY_SIZE(r92su->sta_table); i++)
 		r92su_sta_del(r92su, i);
-out:
+
 	mutex_unlock(&r92su->lock);
 
 	cancel_delayed_work_sync(&r92su->survey_done_work);
 	cancel_delayed_work_sync(&r92su->service_work);
 	cancel_work_sync(&r92su->add_bss_work);
 	cancel_work_sync(&r92su->connect_bss_work);
+
+	node = llist_del_all(&r92su->add_bss_list);
+	while (node) {
+                bss_priv = llist_entry(node, struct r92su_add_bss, head);
+		node = ACCESS_ONCE(node->next);
+		kfree(bss_priv);
+	}
 
 	/* wait for keys and stas to be freed */
 	synchronize_rcu();
@@ -1661,30 +1687,29 @@ int r92su_register(struct r92su *r92su)
 
 void r92su_unalloc(struct r92su *r92su)
 {
-	if (r92su) {
-		mutex_lock(&r92su->lock);
-		r92su_set_state(r92su, R92SU_UNLOAD);
-		mutex_unlock(&r92su->lock);
+	if (!r92su)
+		return;
 
-		if (r92su->wps_pbc) {
-			input_unregister_device(r92su->wps_pbc);
-			r92su->wps_pbc = NULL;
-		}
-
-		r92su_unregister_debugfs(r92su);
-
-		if (r92su->wdev.netdev)
-			unregister_netdev(r92su->wdev.netdev);
-
-		if (r92su->wdev.wiphy->registered)
-			wiphy_unregister(r92su->wdev.wiphy);
-
-		synchronize_rcu();
-
-		destroy_workqueue(r92su->wq);
-		mutex_destroy(&r92su->lock);
-		r92su_release_firmware(r92su);
-		r92su_rx_deinit(r92su);
-		wiphy_free(r92su->wdev.wiphy);
+	if (r92su->wps_pbc) {
+		input_unregister_device(r92su->wps_pbc);
+		r92su->wps_pbc = NULL;
 	}
+
+	r92su_unregister_debugfs(r92su);
+
+	if (r92su->wdev.netdev)
+		unregister_netdev(r92su->wdev.netdev);
+
+	r92su_set_state(r92su, R92SU_UNLOAD);
+
+	if (r92su->wdev.wiphy->registered)
+		wiphy_unregister(r92su->wdev.wiphy);
+
+	synchronize_rcu();
+
+	destroy_workqueue(r92su->wq);
+	mutex_destroy(&r92su->lock);
+	r92su_release_firmware(r92su);
+	r92su_rx_deinit(r92su);
+	wiphy_free(r92su->wdev.wiphy);
 }

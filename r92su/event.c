@@ -120,22 +120,22 @@ static void c2h_add_sta_event(struct r92su *r92su, const struct h2cc2h *c2h)
 static void c2h_del_sta_event(struct r92su *r92su, const struct h2cc2h *c2h)
 {
 	const struct c2h_del_sta_event *delsta = (const void *) c2h->data;
-	struct r92su_sta *sta;
-
-	rcu_read_lock();
-	sta = r92su_sta_get(r92su, delsta->mac_addr);
-	if (sta)
-		r92su_sta_del(r92su, sta->mac_id);
 
 	switch (r92su->wdev.iftype) {
 	case NL80211_IFTYPE_STATION:
 		r92su_disconnect_bss_event(r92su);
 		break;
-	default:
+	default: {
+		struct r92su_sta *sta;
+
+		rcu_read_lock();
+		sta = r92su_sta_get(r92su, delsta->mac_addr);
+		if (sta)
+			r92su_sta_del(r92su, sta->mac_id);
+		rcu_read_unlock();
 		break;
 	}
-
-	rcu_read_unlock();
+	}
 }
 
 static void c2h_atim_done_event(struct r92su *r92su, const struct h2cc2h *c2h)
