@@ -1696,6 +1696,7 @@ void r92su_unalloc(struct r92su *r92su)
 		wiphy_unregister(r92su->wdev.wiphy);
 
 	synchronize_rcu();
+	rcu_barrier();
 
 	destroy_workqueue(r92su->wq);
 	mutex_destroy(&r92su->lock);
