@@ -450,12 +450,12 @@ out:
 			kfree(bss_priv->assoc_ie);
 
 		r92su->want_connect_bss = NULL;
+
+		if (bss)
+			cfg80211_put_bss(wiphy, bss);
 	}
 
 	mutex_unlock(&r92su->lock);
-
-	if (bss)
-		cfg80211_put_bss(wiphy, bss);
 	return err;
 }
 
@@ -487,6 +487,8 @@ static void r92su_bss_free(struct r92su *r92su, struct cfg80211_bss *bss)
 
 	r92su_sta_del(r92su, BSS_MACID);
 	rcu_read_unlock();
+
+	cfg80211_put_bss(r92su->wdev.wiphy, bss);
 }
 
 static void r92su_bss_free_connected(struct r92su *r92su)
@@ -500,14 +502,26 @@ static void r92su_bss_free_connected(struct r92su *r92su)
 	old_bss = rcu_dereference(r92su->connect_bss);
 	rcu_assign_pointer(r92su->connect_bss, NULL);
 	if (old_bss) {
-		/* cfg80211 doesn't like it when cfg80211_disconnected
-		 * is called without reason. So check if we were really
-		 * connected.
-		 */
-		cfg80211_disconnected(r92su->wdev.netdev,
-			      WLAN_STATUS_UNSPECIFIED_FAILURE, NULL, 0,
-			      GFP_ATOMIC);
+		switch (r92su->wdev.iftype) {
+		case NL80211_IFTYPE_STATION:
+			/* cfg80211 doesn't like it when cfg80211_disconnected
+			 * is called without reason. So check if we were really
+			 * connected.
+			 */
+			cfg80211_disconnected(r92su->wdev.netdev,
+				      WLAN_STATUS_UNSPECIFIED_FAILURE, NULL, 0,
+				      GFP_ATOMIC);
+			break;
 
+		case NL80211_IFTYPE_ADHOC:
+			cfg80211_unlink_bss(r92su->wdev.wiphy, old_bss);
+			break;
+
+		default:
+			WARN(1, "unsupported network type %d\n",
+			     r92su->wdev.iftype);
+			break;
+		}
 		r92su_bss_free(r92su, old_bss);
 	}
 	rcu_read_unlock();
@@ -618,7 +632,7 @@ static void r92su_bss_connect_work(struct work_struct *work)
 {
 	struct r92su *r92su;
 	struct c2h_join_bss_event *join_bss = NULL;
-	struct cfg80211_bss *cfg_bss;
+	struct cfg80211_bss *cfg_bss = NULL;
 	struct r92su_bss_priv *bss_priv;
 	u8 *resp_ie = NULL;
 	unsigned int resp_ie_len = 0;
@@ -687,8 +701,10 @@ report_cfg80211:
 			status, GFP_KERNEL);
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		cfg80211_ibss_joined(r92su->wdev.netdev, join_bss->bss.bssid,
-				     GFP_KERNEL);
+		if (status == WLAN_STATUS_SUCCESS) {
+			cfg80211_ibss_joined(r92su->wdev.netdev,
+					     join_bss->bss.bssid, GFP_KERNEL);
+		}
 		break;
 
 	default:
@@ -706,6 +722,8 @@ out:
 	if (status == WLAN_STATUS_SUCCESS) {
 		netif_tx_start_all_queues(r92su->wdev.netdev);
 		netif_carrier_on(r92su->wdev.netdev);
+	} else {
+		r92su_bss_free(r92su, cfg_bss);
 	}
 }
 
@@ -1179,12 +1197,13 @@ out:
 			kfree(bss_priv->assoc_ie);
 
 		r92su->want_connect_bss = NULL;
+
+		if (bss)
+			cfg80211_put_bss(wiphy, bss);
 	}
 
 	mutex_unlock(&r92su->lock);
 
-	if (bss)
-		cfg80211_put_bss(wiphy, bss);
 	return err;
 }
 
@@ -1374,6 +1393,7 @@ out:
 static int r92su_stop(struct net_device *ndev)
 {
 	struct r92su *r92su = ndev->ml_priv;
+	struct cfg80211_bss *tmp_bss;
 	struct llist_node *node;
 	int err = -EINVAL, i;
 
@@ -1395,9 +1415,11 @@ static int r92su_stop(struct net_device *ndev)
 	if (r92su->scan_request)
 		cfg80211_scan_done(r92su->scan_request, true);
 
-	r92su_bss_free(r92su, r92su->want_connect_bss);
-	r92su->scan_request = NULL;
+	tmp_bss = r92su->want_connect_bss;
 	r92su->want_connect_bss = NULL;
+	r92su_bss_free(r92su, tmp_bss);
+
+	r92su->scan_request = NULL;
 
 	for (i = 0; i < MAX_STA; i++)
 		r92su_sta_del(r92su, i);

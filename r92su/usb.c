@@ -590,16 +590,19 @@ static void r92su_usb_disconnect(struct usb_interface *intf)
 	struct r92su *r92su = usb_get_intfdata(intf);
 	struct urb *urb;
 
-	r92su_mark_dead(r92su);
+	r92su_unalloc(r92su);
 
+	/* give the disconnect command some time to finish... */
+	usb_wait_anchor_empty_timeout(&r92su->tx_submitted,
+				      USB_CTRL_SET_TIMEOUT);
+
+	/* ... before everything is forcefully terminated */
 	usb_poison_anchored_urbs(&r92su->tx_submitted);
 	usb_poison_anchored_urbs(&r92su->rx_submitted);
 	while ((urb = usb_get_from_anchor(&r92su->tx_wait))) {
 		kfree_skb(urb->context);
 		usb_free_urb(urb);
 	}
-
-	r92su_unalloc(r92su);
 }
 
 static int r92su_usb_suspend(struct usb_interface *pusb_intf,
