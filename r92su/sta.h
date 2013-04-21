@@ -42,6 +42,11 @@ struct r92su;
 struct r92su_key;
 struct r92su_sta;
 
+/* The MACID field in the tx and rx headers are 5 bits long.
+ * Therefore, the driver can manage 2^5 = 32 stations.
+ */
+#define MAX_STA	32
+
 struct r92su_rx_tid {
 	struct rcu_head rcu_head;
 	spinlock_t lock;

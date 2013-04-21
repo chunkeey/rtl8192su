@@ -157,7 +157,7 @@ struct r92su {
 
 	/* sta + keys */
 	struct list_head sta_list;
-	struct r92su_sta __rcu *sta_table[32];
+	spinlock_t sta_lock;
 
 	/* cfg80211 info */
 	struct ieee80211_supported_band band_2GHZ;

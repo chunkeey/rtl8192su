@@ -257,7 +257,7 @@ static char *r92su_debugfs_sta_table_read(struct r92su *r92su,
 {
 	int i;
 	rcu_read_lock();
-	for (i = 0; i < ARRAY_SIZE(r92su->sta_table); i++) {
+	for (i = 0; i < MAX_STA; i++) {
 		struct r92su_sta *sta = r92su_sta_get_by_macid(r92su, i);
 		struct r92su_key *key;
 

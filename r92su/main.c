@@ -1399,7 +1399,7 @@ static int r92su_stop(struct net_device *ndev)
 	r92su->scan_request = NULL;
 	r92su->want_connect_bss = NULL;
 
-	for (i = 0; i < ARRAY_SIZE(r92su->sta_table); i++)
+	for (i = 0; i < MAX_STA; i++)
 		r92su_sta_del(r92su, i);
 
 	mutex_unlock(&r92su->lock);
@@ -1508,6 +1508,13 @@ struct r92su *r92su_alloc(struct device *main_dev)
 	mutex_init(&r92su->lock);
 	spin_lock_init(&r92su->rx_path);
 
+	INIT_LIST_HEAD(&r92su->sta_list);
+	/* Note: The sta_lock is only needed, if an entry in the
+	 * station list is updated. The station data itself is
+	 * protected by RCU.
+	 */
+	spin_lock_init(&r92su->sta_lock);
+
 	set_wiphy_dev(r92su->wdev.wiphy, main_dev);
 	r92su->wdev.iftype = NL80211_IFTYPE_STATION;
 
@@ -1527,7 +1534,6 @@ struct r92su *r92su_alloc(struct device *main_dev)
 	INIT_WORK(&r92su->add_bss_work, r92su_bss_add_work);
 	INIT_WORK(&r92su->connect_bss_work, r92su_bss_connect_work);
 	INIT_DELAYED_WORK(&r92su->survey_done_work, r92su_survey_done_work);
-	INIT_LIST_HEAD(&r92su->sta_list);
 	r92su_hw_init(r92su);
 
 	r92su->wq = create_singlethread_workqueue(R92SU_DRVNAME);
