@@ -40,10 +40,6 @@
 #include "trace.h"
 #include "debug.h"
 
-static bool modparam_noht;
-module_param_named(noht, modparam_noht, bool, S_IRUGO);
-MODULE_PARM_DESC(noht, "Disable MPDU aggregation.");
-
 static bool r92su_deal_with_usb_errors(struct r92su *r92su, int err)
 {
 	switch (err) {
@@ -569,8 +565,7 @@ static int r92su_usb_probe(struct usb_interface *intf,
 		goto err_out;
 	}
 
-	if (id->driver_info & DISABLE_HT ||
-	    modparam_noht)
+	if (id->driver_info & DISABLE_HT)
 		r92su->disable_ht = true;
 
 	r92su_set_state(r92su, R92SU_PROBE);

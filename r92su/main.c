@@ -29,6 +29,7 @@
  *
  *****************************************************************************/
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/ieee80211.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
@@ -46,6 +47,10 @@
 #include "hw.h"
 #include "debug.h"
 #include "debugfs.h"
+
+static bool modparam_noht;
+module_param_named(noht, modparam_noht, bool, S_IRUGO);
+MODULE_PARM_DESC(noht, "Disable MPDU aggregation.");
 
 #define CHAN2G(_hw_value, _freq, _flags) {	\
 	.band		= IEEE80211_BAND_2GHZ,	\
@@ -1529,6 +1534,9 @@ struct r92su *r92su_alloc(struct device *main_dev)
 	r92su->wdev.wiphy = wiphy;
 	mutex_init(&r92su->lock);
 	spin_lock_init(&r92su->rx_path);
+
+	if (modparam_noht)
+		r92su->disable_ht = true;
 
 	INIT_LIST_HEAD(&r92su->sta_list);
 	/* Note: The sta_lock is only needed, if an entry in the
