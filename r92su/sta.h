@@ -128,6 +128,9 @@ struct r92su_sta {
 
 	int signal;
 
+	u32 last_rx_rate;
+	u32 last_rx_rate_flag;
+
 	/* deduplication */
 	__le16 rx_seq;
 	__le16 rx_seq_tid[IEEE80211_NUM_TIDS];

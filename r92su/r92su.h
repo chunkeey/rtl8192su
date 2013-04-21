@@ -156,6 +156,8 @@ struct r92su {
 	unsigned int rx_alignment;
 
 	/* sta + keys */
+	unsigned int sta_generation;
+	unsigned int sta_num;
 	struct list_head sta_list;
 	spinlock_t sta_lock;
 

@@ -146,6 +146,8 @@ struct r92su_sta *r92su_sta_alloc(struct r92su *r92su, const u8 *mac_addr,
 
 		spin_lock_irqsave(&r92su->sta_lock, flags);
 		list_add_rcu(&sta->list, &r92su->sta_list);
+		r92su->sta_generation++;
+		r92su->sta_num++;
 		spin_unlock_irqrestore(&r92su->sta_lock, flags);
 	}
 	return sta;
@@ -173,6 +175,8 @@ void r92su_sta_del(struct r92su *r92su, int mac_id)
 	if (sta) {
 		spin_lock_irqsave(&r92su->sta_lock, flags);
 		list_del_rcu(&sta->list);
+		r92su->sta_generation++;
+		r92su->sta_num--;
 		spin_unlock_irqrestore(&r92su->sta_lock, flags);
 
 		call_rcu(&sta->rcu_head, r92su_free_sta_rcu);
@@ -254,12 +258,30 @@ void r92su_sta_set_sinfo(struct r92su *r92su, struct r92su_sta *sta,
 			 struct station_info *sinfo)
 {
 	struct timespec uptime;
+
+	sinfo->generation = r92su->sta_generation;
 	sinfo->filled = STATION_INFO_CONNECTED_TIME |
-			STATION_INFO_SIGNAL;
+			STATION_INFO_RX_BITRATE |
+			STATION_INFO_STA_FLAGS;
 
 	do_posix_clock_monotonic_gettime(&uptime);
 	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
-	sinfo->signal = sta->signal;
+
+	sinfo->rxrate.flags = sta->last_rx_rate_flag;
+	if (sta->last_rx_rate_flag & RATE_INFO_FLAGS_MCS)
+		sinfo->rxrate.mcs = sta->last_rx_rate;
+	else
+		sinfo->rxrate.legacy = sta->last_rx_rate;
+
+	sinfo->sta_flags.mask = BIT(NL80211_STA_FLAG_ASSOCIATED) |
+				BIT(NL80211_STA_FLAG_AUTHENTICATED) |
+				BIT(NL80211_STA_FLAG_WME);
+
+	sinfo->sta_flags.set = BIT(NL80211_STA_FLAG_ASSOCIATED) |
+			       BIT(NL80211_STA_FLAG_AUTHENTICATED);
+
+	if (sta->qos_sta)
+		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_WME);
 }
 
 struct r92su_sta *r92su_sta_get_by_idx(struct r92su *r92su, int idx)

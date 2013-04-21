@@ -645,6 +645,29 @@ r92su_rx_hw_header_check(struct r92su *r92su, struct sk_buff *skb,
 	return RX_CONTINUE;
 }
 
+static enum r92su_rx_control_t
+r92su_rx_sta_stats(struct r92su *r92su, struct sk_buff *skb,
+		   struct r92su_bss_priv *bss_priv,
+		   const struct rx_packet *rx)
+{
+	struct r92su_rx_info *rx_info = r92su_get_rx_info(skb);
+	unsigned int rate = GET_RX_DESC_RX_MCS(&rx->hdr);
+	unsigned int flag = 0;
+
+	if (GET_RX_DESC_RX_HT(&rx->hdr)) {
+		flag |= RATE_INFO_FLAGS_MCS;
+
+		if (GET_RX_DESC_BW(&rx->hdr))
+			flag |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+	} else {
+		rate = r92su->band_2GHZ.bitrates[rate].bitrate / 5;
+	}
+
+	rx_info->sta->last_rx_rate_flag = flag;
+	rx_info->sta->last_rx_rate = rate;
+	return RX_CONTINUE;
+}
+
 static bool r92su_check_if_match(struct r92su *r92su,
 				 struct sk_buff *new_skb,
 				 struct sk_buff_head *defrag,
@@ -997,6 +1020,7 @@ static void r92su_rx_data(struct r92su *r92su,
 	RX_HANDLER(r92su_rx_hw_header_check, rx);
 	RX_HANDLER(r92su_rx_find_sta);
 	RX_HANDLER(r92su_rx_deduplicate);
+	RX_HANDLER(r92su_rx_sta_stats, rx);
 
 	/* this moves the frame onto the in_frames queue */
 	RX_HANDLER(r92su_rx_reorder_ampdu, &skb, &frames);
