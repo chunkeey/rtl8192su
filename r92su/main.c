@@ -1575,7 +1575,8 @@ struct r92su *r92su_alloc(struct device *main_dev)
 	return r92su;
 
 err_out:
-	r92su_unalloc(r92su);
+	r92su_unregister(r92su);
+	r92su_free(r92su);
 	return ERR_PTR(err);
 }
 
@@ -1738,7 +1739,7 @@ int r92su_register(struct r92su *r92su)
 	return 0;
 }
 
-void r92su_unalloc(struct r92su *r92su)
+void r92su_unregister(struct r92su *r92su)
 {
 	if (!r92su)
 		return;
@@ -1765,5 +1766,12 @@ void r92su_unalloc(struct r92su *r92su)
 	mutex_destroy(&r92su->lock);
 	r92su_release_firmware(r92su);
 	r92su_rx_deinit(r92su);
+}
+
+void r92su_free(struct r92su *r92su)
+{
+	if (!r92su)
+		return;
+
 	wiphy_free(r92su->wdev.wiphy);
 }

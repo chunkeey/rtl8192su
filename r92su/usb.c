@@ -592,7 +592,8 @@ static int r92su_usb_probe(struct usb_interface *intf,
 	return 0;
 
 err_out:
-	r92su_unalloc(r92su);
+	r92su_unregister(r92su);
+	r92su_free(r92su);
 	return err;
 }
 
@@ -601,7 +602,7 @@ static void r92su_usb_disconnect(struct usb_interface *intf)
 	struct r92su *r92su = usb_get_intfdata(intf);
 	struct urb *urb;
 
-	r92su_unalloc(r92su);
+	r92su_unregister(r92su);
 
 	/* give the disconnect command some time to finish... */
 	usb_wait_anchor_empty_timeout(&r92su->tx_submitted,
@@ -614,6 +615,8 @@ static void r92su_usb_disconnect(struct usb_interface *intf)
 		kfree_skb(urb->context);
 		usb_free_urb(urb);
 	}
+
+	r92su_free(r92su);
 }
 
 static int r92su_usb_suspend(struct usb_interface *pusb_intf,

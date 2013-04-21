@@ -300,7 +300,8 @@ static inline unsigned int r92su_get_iv_len(struct r92su_key *key)
 struct r92su *r92su_alloc(struct device *main_dev);
 int r92su_setup(struct r92su *r92su);
 int r92su_register(struct r92su *r92su);
-void r92su_unalloc(struct r92su *r92su);
+void r92su_unregister(struct r92su *r92su);
+void r92su_free(struct r92su *r92su);
 
 void r92su_disconnect_bss_event(struct r92su *r92su);
 
