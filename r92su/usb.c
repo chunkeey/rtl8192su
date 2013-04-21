@@ -38,10 +38,43 @@
 #include "rx.h"
 #include "tx.h"
 #include "trace.h"
+#include "debug.h"
 
 static bool modparam_noht;
 module_param_named(noht, modparam_noht, bool, S_IRUGO);
 MODULE_PARM_DESC(noht, "Disable MPDU aggregation.");
+
+static bool r92su_deal_with_usb_errors(struct r92su *r92su, int err)
+{
+	switch (err) {
+	case 0:
+		return false;
+
+	case -ENOENT:
+	case -ECONNRESET:
+	case -ENODEV:
+	case -ESHUTDOWN:
+		R92SU_DBG(r92su, "device was removed");
+		r92su_mark_dead(r92su);
+		return false;
+
+	case -EPROTO:
+		R92SU_DBG(r92su, "usb protocol error");
+		r92su_mark_dead(r92su);
+		return false;
+
+	case -EMSGSIZE:
+		R92SU_DBG(r92su, "message size mismatch");
+		r92su_mark_dead(r92su);
+		return true;
+
+	default:
+		R92SU_DBG(r92su, "unhandled status %d", err);
+		WARN_ONCE(err, "unhandled status %d", err);
+		r92su_mark_dead(r92su);
+		return true;
+	}
+}
 
 static int r92su_sync_write(struct r92su *r92su, u16 address,
 			    const void *data, u16 size)
@@ -98,11 +131,9 @@ static void r92su_read_helper(struct r92su *r92su, const u32 address,
 {
 	int ret;
 	ret = r92su_sync_read(r92su, address, data, size);
-	WARN_ONCE(ret, "unable to read %d bytes from address:0x%x (%d).",
-		      size, address, ret);
-
-	if (ret)
-		r92su_mark_dead(r92su);
+	WARN_ONCE(r92su_deal_with_usb_errors(r92su, ret),
+		  "unable to read %d bytes from address:0x%x (%d).",
+		  size, address, ret);
 }
 
 u8 r92su_read8(struct r92su *r92su, const u32 address)
@@ -140,11 +171,9 @@ static void r92su_write_helper(struct r92su *r92su, const u32 address,
 {
 	int ret;
 	ret = r92su_sync_write(r92su, address, data, size);
-	WARN_ONCE(ret, "unable to write %d bytes to address:0x%x (%d).",
-		size, address, ret);
-
-	if (ret)
-		r92su_mark_dead(r92su);
+	WARN_ONCE(r92su_deal_with_usb_errors(r92su, ret),
+		  "unable to write %d bytes to address:0x%x (%d).",
+		   size, address, ret);
 }
 
 void r92su_write8(struct r92su *r92su, const u32 address, const u8 data)
@@ -211,21 +240,8 @@ static void r92su_tx_usb_cb(struct urb *urb)
 
 	dev_kfree_skb_any(skb);
 
-	switch (urb->status) {
-	case 0:
-		break;
-
-	case -ENOENT:
-	case -ECONNRESET:
-	case -ENODEV:
-	case -ESHUTDOWN:
-		break;
-
-	default:
-		WARN_ONCE(urb->status, "unhandled urb status %d", urb->status);
-		r92su_mark_dead(r92su);
-		break;
-	}
+	WARN_ONCE(r92su_deal_with_usb_errors(r92su, urb->status),
+		  "failed to send data to the device");
 
 	r92su_tx_schedule(r92su);
 }
