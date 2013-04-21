@@ -177,8 +177,8 @@ void r92su_c2h_event(struct r92su *r92su, const struct h2cc2h *c2h)
 	trace_r92su_c2h(wiphy_dev(r92su->wdev.wiphy), c2h);
 
 	if (sequence != c2h->cmd_seq) {
-		R92SU_ERR(r92su, "received an c2h event out of sequence.\n");
-		R92SU_ERR(r92su, "expected: %d, got %d\n", sequence,
+		R92SU_DBG(r92su, "received an c2h event out of sequence.\n");
+		R92SU_DBG(r92su, "expected: %d, got %d\n", sequence,
 			  c2h->cmd_seq);
 
 		r92su->c2h_seq = c2h->cmd_seq + 1;
