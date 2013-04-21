@@ -151,6 +151,33 @@ out:
 
 }
 
+static int r92su_dump_station(struct wiphy *wiphy, struct net_device *ndev,
+			      int idx, u8 *mac, struct station_info *sinfo)
+{
+	struct r92su *r92su = wiphy_priv(wiphy);
+	struct r92su_sta *sta;
+	int err = -ENOENT;
+
+	mutex_lock(&r92su->lock);
+	if (!r92su_is_connected(r92su)) {
+		err = -ENODEV;
+		goto out;
+	}
+
+	rcu_read_lock();
+	sta = r92su_sta_get_by_idx(r92su, idx);
+	if (sta) {
+		memcpy(mac, sta->mac_addr, ETH_ALEN);
+		r92su_sta_set_sinfo(r92su, sta, sinfo);
+		err = 0;
+	}
+	rcu_read_unlock();
+
+out:
+	mutex_unlock(&r92su->lock);
+	return err;
+}
+
 static bool r92su_parse_ht_cap_ie(struct r92su *r92su, u8 *ies, const u32 len)
 {
 	u8 *ht_cap_ie;
@@ -643,8 +670,6 @@ static void r92su_bss_connect_work(struct work_struct *work)
 		if (sta->qos_sta)
 			sta->ht_sta = r92su_parse_ht_cap_ie(r92su, resp_ie,
 							    resp_ie_len);
-
-		r92su_sta_add(r92su, sta);
 		status = WLAN_STATUS_SUCCESS;
 
 		bss_priv->sta = sta;
@@ -1173,6 +1198,7 @@ static const struct cfg80211_ops r92su_cfg80211_ops = {
 	.set_monitor_channel = r92su_set_monitor_channel,
 
 	.get_station = r92su_get_station,
+	.dump_station = r92su_dump_station,
 
 	.add_key = r92su_add_key,
 	.del_key = r92su_del_key,
@@ -1501,6 +1527,7 @@ struct r92su *r92su_alloc(struct device *main_dev)
 	INIT_WORK(&r92su->add_bss_work, r92su_bss_add_work);
 	INIT_WORK(&r92su->connect_bss_work, r92su_bss_connect_work);
 	INIT_DELAYED_WORK(&r92su->survey_done_work, r92su_survey_done_work);
+	INIT_LIST_HEAD(&r92su->sta_list);
 	r92su_hw_init(r92su);
 
 	r92su->wq = create_singlethread_workqueue(R92SU_DRVNAME);

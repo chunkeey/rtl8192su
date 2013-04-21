@@ -107,6 +107,7 @@ struct r92su_defrag_entry {
 
 struct r92su_sta {
 	struct rcu_head rcu_head;
+	struct list_head list;
 
 	u8 mac_addr[ETH_ALEN];
 	unsigned int mac_id;
@@ -140,8 +141,6 @@ struct r92su_sta *r92su_sta_alloc(struct r92su *r92su, const u8 *mac_addr,
 				  const unsigned int aid,
 				  const gfp_t flag);
 
-void r92su_sta_replace(struct r92su *r92su, struct r92su_sta *new_sta);
-
 void r92su_sta_alloc_tid(struct r92su *r92su, struct r92su_sta *sta,
 			 const u8 tid, u16 size);
 
@@ -151,13 +150,14 @@ struct r92su_key *r92su_key_alloc(const u32 cipher, const u8 idx,
 
 void r92su_key_free(struct r92su_key *key);
 
-void r92su_sta_add(struct r92su *r92su, struct r92su_sta *new_sta);
-
 void r92su_sta_set_sinfo(struct r92su *r92su, struct r92su_sta *sta,
 			 struct station_info *sinfo);
 
 /* the following functions need rcu_read_lock! */
 struct r92su_sta *r92su_sta_get(struct r92su *r92su, const u8 *mac_addr);
+struct r92su_sta *r92su_sta_get_by_macid(struct r92su *r92su, int macid);
+struct r92su_sta *r92su_sta_get_by_idx(struct r92su *r92su, int idx);
+
 void r92su_sta_del(struct r92su *r92su, int mac_id);
 
 #endif /* __R92SU_STA_H__ */

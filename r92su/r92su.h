@@ -156,6 +156,7 @@ struct r92su {
 	unsigned int rx_alignment;
 
 	/* sta + keys */
+	struct list_head sta_list;
 	struct r92su_sta __rcu *sta_table[32];
 
 	/* cfg80211 info */

@@ -258,7 +258,7 @@ static char *r92su_debugfs_sta_table_read(struct r92su *r92su,
 	int i;
 	rcu_read_lock();
 	for (i = 0; i < ARRAY_SIZE(r92su->sta_table); i++) {
-		struct r92su_sta *sta = rcu_dereference(r92su->sta_table[i]);
+		struct r92su_sta *sta = r92su_sta_get_by_macid(r92su, i);
 		struct r92su_key *key;
 
 		ADD(buf, *len, buf_size, "mac_id: %2d ", i);

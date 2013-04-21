@@ -87,10 +87,25 @@ static void r92su_free_sta_rcu(struct rcu_head *rch)
 	kfree(sta);
 }
 
+/* need to be called under rcu lock */
 static void r92su_free_sta(struct r92su_sta *sta)
 {
-	if (sta)
+	if (sta) {
+		list_del_rcu(&sta->list);
 		call_rcu(&sta->rcu_head, r92su_free_sta_rcu);
+	}
+}
+
+/* need to be called under rcu lock */
+static void r92su_sta_xchg(struct r92su *r92su,
+			   struct r92su_sta *new_sta)
+{
+	struct r92su_sta *old_sta;
+	unsigned int mac_id = new_sta->mac_id % ARRAY_SIZE(r92su->sta_table);
+
+	old_sta = rcu_dereference(r92su->sta_table[mac_id]);
+	rcu_assign_pointer(r92su->sta_table[mac_id], new_sta);
+	r92su_free_sta(old_sta);
 }
 
 void r92su_sta_alloc_tid(struct r92su *r92su,
@@ -143,8 +158,23 @@ struct r92su_sta *r92su_sta_alloc(struct r92su *r92su, const u8 *mac_addr,
 		sta->mac_id = mac_id;
 		sta->aid = aid;
 
+		INIT_LIST_HEAD(&sta->list);
 		do_posix_clock_monotonic_gettime(&uptime);
 		sta->last_connected = uptime.tv_sec;
+
+		rcu_read_lock();
+		/* Replace (and free) the previous station with the new one. */
+		r92su_sta_xchg(r92su, sta);
+
+		/* in station mode, there is only one entry in the
+		 * station table/station list. no locking is required.
+		 *
+		 * in ibss mode, additional sta_alloc and remove calls
+		 * from participating stations come from an irq-context.
+		 * Luckily they are already serialized.
+		 */
+		list_add_rcu(&sta->list, &r92su->sta_list);
+		rcu_read_unlock();
 	}
 	return sta;
 }
@@ -162,24 +192,6 @@ struct r92su_sta *r92su_sta_get(struct r92su *r92su, const u8 *mac_addr)
 	return NULL;
 }
 
-static struct r92su_sta *r92su_sta_xchg(struct r92su *r92su,
-					struct r92su_sta *new_sta)
-{
-	struct r92su_sta *old_sta;
-	unsigned int mac_id = new_sta->mac_id % ARRAY_SIZE(r92su->sta_table);
-
-	old_sta = rcu_dereference(r92su->sta_table[mac_id]);
-	rcu_assign_pointer(r92su->sta_table[mac_id], new_sta);
-	return old_sta;
-}
-
-void r92su_sta_replace(struct r92su *r92su, struct r92su_sta *new_sta)
-{
-	rcu_read_lock();
-	r92su_free_sta(r92su_sta_xchg(r92su, new_sta));
-	rcu_read_unlock();
-}
-
 void r92su_sta_del(struct r92su *r92su, int mac_id)
 {
 	struct r92su_sta *old_sta;
@@ -189,13 +201,6 @@ void r92su_sta_del(struct r92su *r92su, int mac_id)
 	old_sta = rcu_dereference(r92su->sta_table[mac_id]);
 	rcu_assign_pointer(r92su->sta_table[mac_id], NULL);
 	r92su_free_sta(old_sta);
-	rcu_read_unlock();
-}
-
-void r92su_sta_add(struct r92su *r92su, struct r92su_sta *new_sta)
-{
-	rcu_read_lock();
-	r92su_free_sta(r92su_sta_xchg(r92su, new_sta));
 	rcu_read_unlock();
 }
 
@@ -279,4 +284,29 @@ void r92su_sta_set_sinfo(struct r92su *r92su, struct r92su_sta *sta,
 	do_posix_clock_monotonic_gettime(&uptime);
 	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
 	sinfo->signal = sta->signal;
+}
+
+struct r92su_sta *r92su_sta_get_by_idx(struct r92su *r92su, int idx)
+{
+	struct r92su_sta *sta;
+	int i = 0;
+
+	list_for_each_entry_rcu(sta, &r92su->sta_list, list) {
+		if (i < idx) {
+			i++;
+			continue;
+		}
+		return sta;
+	}
+
+	return NULL;
+}
+
+struct r92su_sta *r92su_sta_get_by_macid(struct r92su *r92su, int macid)
+{
+	if (macid < ARRAY_SIZE(r92su->sta_table)) {
+		return rcu_dereference(r92su->sta_table[macid]);
+	}
+
+	return NULL;
 }
