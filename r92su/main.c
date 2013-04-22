@@ -817,7 +817,7 @@ static int r92su_set_monitor_channel(struct wiphy *wiphy,
 	struct r92su *r92su = wiphy_priv(wiphy);
 	int err = -EAGAIN;
 
-	if (cfg80211_get_chandef_type(chandef) != NL80211_CHAN_NO_HT)
+	if (chandef->width != NL80211_CHAN_WIDTH_20_NOHT)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&r92su->lock);
