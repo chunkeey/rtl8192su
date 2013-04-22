@@ -214,8 +214,6 @@ static u8 *r92su_find_wmm_ie(u8 *ies, const u32 len)
 
 			wmm_ie = wmm_ie + 2 + wmm_ie[1];
 		}
-
-		return NULL;
 	}
 
 	return NULL;
@@ -650,12 +648,12 @@ static void r92su_bss_connect_work(struct work_struct *work)
 		goto out;
 
 	cfg_bss = r92su->want_connect_bss;
-	bss_priv = r92su_get_bss_priv(cfg_bss);
 	join_bss = r92su->connect_result;
 
 	if (!cfg_bss || !join_bss)
 		goto out;
 
+	bss_priv = r92su_get_bss_priv(cfg_bss);
 	r92su->connect_result = NULL;
 
 	if (le32_to_cpu(join_bss->bss.ie_length) < 12)
@@ -1103,7 +1101,7 @@ static int r92su_bss_build_fw_bss(struct r92su *r92su, struct cfg80211_bss *bss,
 	}
 
 	tmp = r92su_find_ie(ies_data, ies_len, WLAN_EID_DS_PARAMS);
-	if (!tmp && tmp[1] < 1)
+	if (!tmp || tmp[1] < 1)
 		return -EINVAL;
 	fw_bss->config.frequency = cpu_to_le32(tmp[2]);
 
