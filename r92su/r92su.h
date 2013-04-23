@@ -232,6 +232,11 @@ struct r92su_bss_priv {
 	bool control_port;
 };
 
+static inline bool r92su_is_dead(struct r92su *r92su)
+{
+	return r92su->state == R92SU_DEAD;
+}
+
 static inline bool r92su_is_probing(struct r92su *r92su)
 {
 	return r92su->state >= R92SU_PROBE;

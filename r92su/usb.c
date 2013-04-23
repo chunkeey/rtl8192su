@@ -42,10 +42,16 @@
 
 static bool r92su_deal_with_usb_errors(struct r92su *r92su, int err)
 {
-	switch (err) {
-	case 0:
+	if (likely(err == 0))
 		return false;
 
+	if (r92su_is_dead(r92su))
+		return false;
+
+	if (r92su->intf->condition == USB_INTERFACE_UNBINDING)
+		return false;
+
+	switch (err) {
 	case -ENOENT:
 	case -ECONNRESET:
 	case -ENODEV:
@@ -558,6 +564,7 @@ static int r92su_usb_probe(struct usb_interface *intf,
 
 	r92su_set_state(r92su, R92SU_PROBE);
 
+	r92su->intf = intf;
 	r92su->udev = interface_to_usbdev(intf);
 	usb_set_intfdata(intf, r92su);
 
