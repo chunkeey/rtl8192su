@@ -248,37 +248,25 @@ static void r92su_rx_usb_cb(struct urb *urb)
 	void *buf = urb->context;
 	int err;
 
-	switch (urb->status) {
-	case 0:
-		break;
-
-	case -ENOENT:
-	case -ECONNRESET:
-	case -ENODEV:
-	case -ESHUTDOWN:
+	if (WARN_ONCE(r92su_deal_with_usb_errors(r92su, urb->status),
+		      "unhandled urb status %d", urb->status))
 		goto err_out;
 
-	default:
-		WARN_ONCE(urb->status, "unhandled urb status %d", urb->status);
-		r92su_mark_dead(r92su);
-		goto err_dead;
-	}
-
 	if (!r92su_is_probing(r92su))
-		goto err_dead;
+		goto err_out;
 
 	r92su_rx(r92su, buf, urb->actual_length);
 	usb_anchor_urb(urb, &r92su->rx_submitted);
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err) {
-		WARN_ONCE(err, "can't handle urb submit error %d", err);
+		WARN_ONCE(r92su_deal_with_usb_errors(r92su, err),
+			  "can't handle rx urb submit error %d", err);
 		usb_unanchor_urb(urb);
-		goto err_dead;
+		r92su_mark_dead(r92su);
+		goto err_out;
 	}
 	return;
 
-err_dead:
-	r92su_mark_dead(r92su);
 err_out:
 	kfree(buf);
 	return;
