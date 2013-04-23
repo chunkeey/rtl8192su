@@ -565,6 +565,7 @@ static int r92su_usb_probe(struct usb_interface *intf,
 	r92su_set_state(r92su, R92SU_PROBE);
 
 	r92su->intf = intf;
+	intf->needs_binding = 1;
 	r92su->udev = interface_to_usbdev(intf);
 	usb_set_intfdata(intf, r92su);
 
@@ -614,12 +615,6 @@ static void r92su_usb_disconnect(struct usb_interface *intf)
 	r92su_free(r92su);
 }
 
-static int r92su_usb_suspend(struct usb_interface *pusb_intf,
-			     pm_message_t message)
-{
-	return 0;
-}
-
 void r92su_usb_prepare_firmware(struct r92su *r92su)
 {
 	struct fw_priv *dmem = &r92su->fw_dmem;
@@ -628,18 +623,29 @@ void r92su_usb_prepare_firmware(struct r92su *r92su)
 	dmem->usb_ep_num = r92su->ep_num;
 }
 
-static int r92su_usb_resume(struct usb_interface *pusb_intf)
+#ifdef CONFIG_PM
+static int r92su_usb_suspend(struct usb_interface *intf,
+			     pm_message_t message)
 {
 	return 0;
 }
+
+static int r92su_usb_resume(struct usb_interface *intf)
+{
+	return 0;
+}
+#endif /* CONFIG_PM */
 
 static struct usb_driver r92su_driver = {
 	.name		= R92SU_DRVNAME,
 	.id_table	= r92su_usb_product_ids,
 	.probe		= r92su_usb_probe,
 	.disconnect	= r92su_usb_disconnect,
+
+#ifdef CONFIG_PM
 	.suspend	= r92su_usb_suspend,
 	.resume		= r92su_usb_resume,
+#endif /* CONFIG_PM */
 
 	.soft_unbind = 1,
 	.disable_hub_initiated_lpm = 1,
