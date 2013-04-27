@@ -174,6 +174,7 @@ struct r92su {
 	struct completion scan_done;
 	struct llist_head add_bss_list;
 	struct work_struct add_bss_work;
+	struct work_struct disconnect_work;
 	bool scanned;
 
 	/* eeprom / hw_info */

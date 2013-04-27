@@ -556,10 +556,20 @@ static int r92su_disconnect(struct wiphy *wiphy, struct net_device *ndev,
 /* called from irq-context */
 void r92su_disconnect_bss_event(struct r92su *r92su)
 {
-	r92su_bss_free_connected(r92su);
-
 	netif_tx_stop_all_queues(r92su->wdev.netdev);
 	netif_carrier_off(r92su->wdev.netdev);
+
+	queue_work(r92su->wq, &r92su->disconnect_work);
+}
+
+static void r92su_disconnect_work(struct work_struct *work)
+{
+	struct r92su *r92su;
+	r92su = container_of(work, struct r92su, disconnect_work);
+
+	mutex_lock(&r92su->lock);
+	r92su_bss_free_connected(r92su);
+	mutex_unlock(&r92su->lock);
 }
 
 static void r92su_bss_init(struct r92su *r92su, struct cfg80211_bss *bss,
@@ -1436,6 +1446,7 @@ static int r92su_stop(struct net_device *ndev)
 	cancel_delayed_work_sync(&r92su->service_work);
 	cancel_work_sync(&r92su->add_bss_work);
 	cancel_work_sync(&r92su->connect_bss_work);
+	cancel_work_sync(&r92su->disconnect_work);
 
 	node = llist_del_all(&r92su->add_bss_list);
 	while (node) {
@@ -1564,6 +1575,7 @@ struct r92su *r92su_alloc(struct device *main_dev)
 	init_llist_head(&r92su->add_bss_list);
 	INIT_WORK(&r92su->add_bss_work, r92su_bss_add_work);
 	INIT_WORK(&r92su->connect_bss_work, r92su_bss_connect_work);
+	INIT_WORK(&r92su->disconnect_work, r92su_disconnect_work);
 	INIT_DELAYED_WORK(&r92su->survey_done_work, r92su_survey_done_work);
 	r92su_hw_init(r92su);
 
