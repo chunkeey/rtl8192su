@@ -5,32 +5,8 @@ TODO:
    - That said, the firmware does not provide any counters?!
      So the statistics might be off and unuseable.
 
- - figure out which firmware commands are really implemented
-   in the firmware. Some just seem to be NOPs.
-   (Note: The same is true for firmware response. This will
-   be harder to figure out, as we need to trigger the condition
-   in the firmware somehow - and this is difficult)  
-
- - fix memory leaks
-
  - validate locking (especially RCU)
    spinlocks and mutex should be fine (tm).
-
-TESTS:
- - stability test
-   (How long does a idle/loaded connection last?)
-
- - performance/throughput test
-   (How fast is it, what's the jitter and package drop?)
-
- - interop test
-   (Can the driver/device connect to standard APs from different
-   vendors and how does it behave in a noisy environment)
-
- - suspend/resume cycle test
-   (Does a device automatically reconnect after a suspend/resume
-   cycle... Does the driver survive a cycle when the device was
-   briefly disconnected or has been removed)
 
 KNOWN LIMITATIONS:
  - No AP/P2P mode (firmware limitation)
