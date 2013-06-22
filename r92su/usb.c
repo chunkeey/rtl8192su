@@ -423,13 +423,16 @@ static int r92su_usb_init(struct r92su *r92su)
 static struct usb_device_id r92su_usb_product_ids[] = {
 	/* RTL8188SU */
 	/* Realtek */
-	{USB_DEVICE(0x0bda, 0x8171)},
-	{USB_DEVICE(0x0bda, 0x8173)},
-	{USB_DEVICE(0x0bda, 0x8712)},
-	{USB_DEVICE(0x0bda, 0x8713)},
-	{USB_DEVICE(0x0bda, 0xC512)},
+	{USB_DEVICE(0x0BDA, 0x8171)},
+	{USB_DEVICE(0x0BDA, 0x8173)},
+	{USB_DEVICE(0x0BDA, 0x8712)},
+	{USB_DEVICE(0x0BDA, 0x8713)},
+	{USB_DEVICE(0x0BDA, 0xC047)},
+	{USB_DEVICE(0x0BDA, 0xC512)},
 	/* Abocom */
 	{USB_DEVICE(0x07B8, 0x8188)},
+	/* Airlive */
+	{USB_DEVICE(0x1B75, 0x8171)},
 	/* ASUS */
 	{USB_DEVICE(0x0B05, 0x1786)},
 	{USB_DEVICE(0x0B05, 0x1791), .driver_info = DISABLE_HT },
@@ -474,8 +477,11 @@ static struct usb_device_id r92su_usb_product_ids[] = {
 
 /* RTL8191SU */
 	/* Realtek */
+	{USB_DEVICE(0x0BDA, 0x8715)},
 	{USB_DEVICE(0x0BDA, 0x8172)},
 	{USB_DEVICE(0x0BDA, 0x8192)},
+	/* Airlive */
+	{USB_DEVICE(0x1b75, 0x8172)},
 	/* Amigo */
 	{USB_DEVICE(0x0EB0, 0x9061)},
 	/* ASUS/EKB */
@@ -514,9 +520,11 @@ static struct usb_device_id r92su_usb_product_ids[] = {
 	{USB_DEVICE(0x0DF6, 0x004C)},
 	{USB_DEVICE(0x0DF6, 0x0064)},
 	/* Skyworth */
-	{USB_DEVICE(0x14b2, 0x3300)},
-	{USB_DEVICE(0x14b2, 0x3301)},
+	{USB_DEVICE(0x14B2, 0x3300)},
+	{USB_DEVICE(0x14B2, 0x3301)},
 	{USB_DEVICE(0x14B2, 0x3302)},
+	/* Z-Com */
+	{USB_DEVICE(0x0CDE, 0x0030)},
 	/* - */
 	{USB_DEVICE(0x04F2, 0xAFF2)},
 	{USB_DEVICE(0x04F2, 0xAFF5)},
@@ -538,7 +546,14 @@ static struct usb_device_id r92su_usb_product_ids[] = {
 	{USB_DEVICE(0x7392, 0x7622)},
 	/* NEC */
 	{USB_DEVICE(0x0409, 0x02B6)},
+	/* Sitecom */
+	{USB_DEVICE(0x0DF6, 0x0061)},
 
+
+/* Unknown Chip */
+	{USB_DEVICE(0x0009, 0x21E8)},
+	{USB_DEVICE(0x0E0B, 0x9063)},
+	{USB_DEVICE(0x5A57, 0x0291)},
 	{ },
 };
 
