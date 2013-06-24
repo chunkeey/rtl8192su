@@ -421,7 +421,8 @@ static int r92su_usb_init(struct r92su *r92su)
 #define DISABLE_HT	BIT(0)
 
 static struct usb_device_id r92su_usb_product_ids[] = {
-	/* RTL8188SU */
+
+/* RTL8188SU */
 	/* Realtek */
 	{USB_DEVICE(0x0BDA, 0x8171)},
 	{USB_DEVICE(0x0BDA, 0x8173)},
@@ -431,6 +432,8 @@ static struct usb_device_id r92su_usb_product_ids[] = {
 	{USB_DEVICE(0x0BDA, 0xC512)},
 	/* Abocom */
 	{USB_DEVICE(0x07B8, 0x8188)},
+	/* Accton Technology */
+	{USB_DEVICE(0x083A, 0xC512)},
 	/* Airlive */
 	{USB_DEVICE(0x1B75, 0x8171)},
 	/* ASUS */
@@ -471,9 +474,8 @@ static struct usb_device_id r92su_usb_product_ids[] = {
 	{USB_DEVICE(0x0BDA, 0x5077)},
 	/* Toshiba */
 	{USB_DEVICE(0x1690, 0x0752)},
-	/* - */
+	/* ??? */
 	{USB_DEVICE(0x20F4, 0x646B)},
-	{USB_DEVICE(0x083A, 0xC512)},
 
 /* RTL8191SU */
 	/* Realtek */
@@ -525,7 +527,7 @@ static struct usb_device_id r92su_usb_product_ids[] = {
 	{USB_DEVICE(0x14B2, 0x3302)},
 	/* Z-Com */
 	{USB_DEVICE(0x0CDE, 0x0030)},
-	/* - */
+	/* ??? */
 	{USB_DEVICE(0x04F2, 0xAFF2)},
 	{USB_DEVICE(0x04F2, 0xAFF5)},
 	{USB_DEVICE(0x04F2, 0xAFF6)},
@@ -549,10 +551,12 @@ static struct usb_device_id r92su_usb_product_ids[] = {
 	/* Sitecom */
 	{USB_DEVICE(0x0DF6, 0x0061)},
 
-
-/* Unknown Chip */
+/* Unknown Chips */
+	/* Sagemcom */
 	{USB_DEVICE(0x0009, 0x21E7)},
+	/* Amigo */
 	{USB_DEVICE(0x0E0B, 0x9063)},
+	/* Zinwell */
 	{USB_DEVICE(0x5A57, 0x0291)},
 	{ },
 };
