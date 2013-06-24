@@ -477,7 +477,7 @@ static struct usb_device_id r92su_usb_product_ids[] = {
 
 /* RTL8191SU */
 	/* Realtek */
-	{USB_DEVICE(0x0BDA, 0x8715)},
+	{USB_DEVICE(0x0BDA, 0x8175)},
 	{USB_DEVICE(0x0BDA, 0x8172)},
 	{USB_DEVICE(0x0BDA, 0x8192)},
 	/* Airlive */
@@ -551,7 +551,7 @@ static struct usb_device_id r92su_usb_product_ids[] = {
 
 
 /* Unknown Chip */
-	{USB_DEVICE(0x0009, 0x21E8)},
+	{USB_DEVICE(0x0009, 0x21E7)},
 	{USB_DEVICE(0x0E0B, 0x9063)},
 	{USB_DEVICE(0x5A57, 0x0291)},
 	{ },
