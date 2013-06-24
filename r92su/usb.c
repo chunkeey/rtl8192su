@@ -441,6 +441,8 @@ static struct usb_device_id r92su_usb_product_ids[] = {
 	{USB_DEVICE(0x0B05, 0x1791), .driver_info = DISABLE_HT },
 	/* Belkin */
 	{USB_DEVICE(0x050D, 0x945A)},
+	/* ISY IWL - Belkin clone */
+	{USB_DEVICE(0x050D, 0x11F1)},
 	/* Corega */
 	{USB_DEVICE(0x07AA, 0x0047)},
 	/* D-Link */
@@ -476,6 +478,8 @@ static struct usb_device_id r92su_usb_product_ids[] = {
 	{USB_DEVICE(0x1690, 0x0752)},
 	/* ??? */
 	{USB_DEVICE(0x20F4, 0x646B)},
+	{USB_DEVICE(0x25D4, 0x4CA1)},
+	{USB_DEVICE(0x25D4, 0x4CAB)},
 
 /* RTL8191SU */
 	/* Realtek */
