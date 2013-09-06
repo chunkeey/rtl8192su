@@ -14,7 +14,7 @@ If you have any questions, reports or patches, you should write to <linux-wirele
 
 just use the Makefile:
 
-`make all`
+`make`
 
 and then
 
