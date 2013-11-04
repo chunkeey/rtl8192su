@@ -161,16 +161,16 @@ static int r92su_upload_firmware_part(struct r92su *r92su,
 }
 
 static int r92su_upload_mem_wait(struct r92su *r92su, const u8 done_flag,
-				 const u8 done2_flag, const char *mem)
+				 const u8 done2_flag, const char *mem,
+				 int tries, const int loop_wait)
 {
 	u8 cpu_status;
-	int tries = 1000;
 
 	do {
 		cpu_status = r92su_read8(r92su, REG_TCR);
 		if (cpu_status & done_flag)
 			break;
-		udelay(50);
+		msleep(loop_wait);
 	} while (--tries);
 
 	if (!(cpu_status & done2_flag) || (tries == 0)) {
@@ -219,7 +219,7 @@ static int r92su_upload_imem(struct r92su *r92su)
 		return err;
 
 	err = r92su_upload_mem_wait(r92su, IMEM_CODE_DONE,
-				     IMEM_CHK_RPT, "imem");
+				     IMEM_CHK_RPT, "imem", 3, 20);
 	if (err)
 		return err;
 	return 0;
@@ -235,7 +235,7 @@ static int r92su_upload_sram(struct r92su *r92su)
 		return err;
 
 	err = r92su_upload_mem_wait(r92su, EMEM_CODE_DONE,
-				    EMEM_CHK_RPT, "sram");
+				    EMEM_CHK_RPT, "sram", 3, 20);
 	if (err)
 		return err;
 
@@ -248,7 +248,7 @@ static int r92su_upload_sram(struct r92su *r92su)
 
 static int r92su_upload_dmem(struct r92su *r92su)
 {
-	int err = -EINVAL;
+	int err = -EINVAL, boot_loops;
 
 	err = r92su_upload_firmware_part(r92su, &r92su->fw_dmem,
 					 sizeof(r92su->fw_dmem));
@@ -256,14 +256,21 @@ static int r92su_upload_dmem(struct r92su *r92su)
 		return err;
 
 	err = r92su_upload_mem_wait(r92su, DMEM_CODE_DONE,
-				    DMEM_CODE_DONE, "dmem");
+				    DMEM_CODE_DONE, "dmem", 100, 20);
 	if (err)
 		return err;
 
-	/* give firmware some time to boot */
-	msleep(400);
+	if (r92su_read8(r92su, REG_EEPROM_CMD) & EEPROM_CMD_93C46) {
+		/* When booting from the eeprom, the firmware needs more
+		 * time to complete the boot procedure. */
+		boot_loops = 60;
+	} else {
+		/* Boot from eefuse is faster */
+		boot_loops = 30;
+	}
 
-	err = r92su_upload_mem_wait(r92su, FWRDY, LOAD_FW_READY, "boot");
+	err = r92su_upload_mem_wait(r92su, FWRDY, LOAD_FW_READY, "boot",
+				    boot_loops, 100);
 	if (err)
 		return err;
 
