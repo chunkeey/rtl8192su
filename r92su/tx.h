@@ -33,6 +33,8 @@
 struct r92su;
 struct sk_buff;
 
-void r92su_tx(struct r92su *r92su, struct sk_buff *skb);
+void r92su_tx(struct r92su *r92su, struct sk_buff *skb, bool inject);
 void r92su_tx_cb(struct r92su *r92su, struct sk_buff *skb);
+void r92su_tx_monitor(struct r92su *r92su, struct sk_buff *skb);
+
 #endif /* __R92SU_TX_H__ */

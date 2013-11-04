@@ -1228,6 +1228,28 @@ static int r92su_leave_ibss(struct wiphy *wiphy, struct net_device *ndev)
 	return r92su_disconnect(wiphy, ndev, WLAN_REASON_UNSPECIFIED);
 }
 
+static int r92su_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
+			  struct ieee80211_channel *chan, bool offchan,
+			  unsigned int wait, const u8 *buf, size_t len,
+			  bool no_cck, bool dont_wait_for_ack, u64 *cookie)
+{
+	struct r92su *r92su = wiphy_priv(wiphy);
+	struct sk_buff *skb;
+
+	if (len < sizeof(struct ieee80211_hdr))
+		return -EINVAL;
+
+	skb = dev_alloc_skb(r92su->wdev.netdev->needed_headroom + len +
+			    r92su->wdev.netdev->needed_tailroom);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_reserve(skb, r92su->wdev.netdev->needed_headroom);
+	memcpy(skb_put(skb, len), buf, len);
+	r92su_tx(r92su, skb, true);
+	return 0;
+}
+
 static const struct cfg80211_ops r92su_cfg80211_ops = {
 	.change_virtual_intf = r92su_change_virtual_intf,
 	.set_monitor_channel = r92su_set_monitor_channel,
@@ -1245,6 +1267,8 @@ static const struct cfg80211_ops r92su_cfg80211_ops = {
 
 	.join_ibss = r92su_join_ibss,
 	.leave_ibss = r92su_leave_ibss,
+
+	.mgmt_tx = r92su_mgmt_tx,
 
 	.set_wiphy_params = r92su_set_wiphy_params,
 };
@@ -1466,7 +1490,22 @@ static netdev_tx_t r92su_start_xmit(struct sk_buff *skb,
 				    struct net_device *ndev)
 {
 	struct r92su *r92su = ndev->ml_priv;
-	r92su_tx(r92su, skb);
+
+	switch (r92su->wdev.iftype) {
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
+		if (skb->len >= ETH_ALEN + ETH_ALEN + 2)
+			r92su_tx(r92su, skb, false);
+		break;
+
+	case NL80211_IFTYPE_MONITOR:
+		r92su_tx_monitor(r92su, skb);
+		break;
+
+	default:
+		dev_kfree_skb_any(skb);
+		break;
+	}
 	return NETDEV_TX_OK;
 }
 
@@ -1530,6 +1569,18 @@ static int r92su_init_band(struct r92su *r92su)
 	return 0;
 }
 
+static const struct ieee80211_txrx_stypes
+r92su_default_mgmt_stypes[NUM_NL80211_IFTYPES] = {
+	[NL80211_IFTYPE_ADHOC] = {
+		.tx = 0xffff,
+		.rx = 0,
+	},
+	[NL80211_IFTYPE_STATION] = {
+		.tx = 0xffff,
+		.rx = 0,
+	},
+};
+
 struct r92su *r92su_alloc(struct device *main_dev)
 {
 	struct r92su *r92su = NULL;
@@ -1561,6 +1612,7 @@ struct r92su *r92su_alloc(struct device *main_dev)
 	r92su->wdev.iftype = NL80211_IFTYPE_STATION;
 
 	wiphy->privid = r92su_priv_id;
+	wiphy->mgmt_stypes = r92su_default_mgmt_stypes;
 	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				 BIT(NL80211_IFTYPE_ADHOC) |
 				 BIT(NL80211_IFTYPE_MONITOR);

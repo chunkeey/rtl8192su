@@ -32,6 +32,7 @@
 #include <net/cfg80211.h>
 #include <linux/etherdevice.h>
 #include <linux/ieee80211.h>
+#include <net/ieee80211_radiotap.h>
 #include <linux/ip.h>
 #include <linux/udp.h>
 
@@ -89,10 +90,14 @@ r92su_tx_fill_desc(struct r92su *r92su, struct sk_buff *skb,
 	SET_TX_DESC_FIRST_SEG(hdr, 1);
 	SET_TX_DESC_OWN(hdr, 1);
 
-	if (ieee80211_is_data(i3e->frame_control))
+	if (ieee80211_is_data(i3e->frame_control) && tx_info->sta)
 		SET_TX_DESC_MACID(hdr, tx_info->sta->mac_id);
 	else if (ieee80211_is_mgmt(i3e->frame_control))
 		SET_TX_DESC_MACID(hdr, 5);
+	else {
+		/* No idea what we can do in this case ?! */
+		SET_TX_DESC_MACID(hdr, 5);
+	}
 
 	SET_TX_DESC_QUEUE_SEL(hdr, r92su_802_1d_to_ac[ieee802_1d_to_ac[prio]]);
 
@@ -265,12 +270,10 @@ r92su_tx_add_icv_mic(struct r92su *r92su, struct sk_buff *skb,
 }
 
 static enum r92su_tx_control_t
-r92su_tx_prepare_tx_info_and_find_sta(struct r92su *r92su, struct sk_buff *skb,
-				      struct r92su_bss_priv *bss_priv)
+r92su_tx_prepare_tx_info(struct r92su *r92su, struct sk_buff *skb,
+			 struct r92su_bss_priv *bss_priv)
 {
 	struct r92su_tx_info *tx_info = r92su_get_tx_info(skb);
-	struct r92su_sta *sta;
-	struct ethhdr *hdr = (void *) skb->data;
 	int needed_tailroom;
 
 	/* The network core does not guarantee that every frame has the
@@ -289,6 +292,16 @@ r92su_tx_prepare_tx_info_and_find_sta(struct r92su *r92su, struct sk_buff *skb,
 
 	/* clean up tx info */
 	memset(tx_info, 0, sizeof(*tx_info));
+	return TX_CONTINUE;
+}
+
+static enum r92su_tx_control_t
+r92su_tx_find_sta(struct r92su *r92su, struct sk_buff *skb,
+		  struct r92su_bss_priv *bss_priv)
+{
+	struct r92su_tx_info *tx_info = r92su_get_tx_info(skb);
+	struct r92su_sta *sta;
+	struct ethhdr *hdr = (void *) skb->data;
 
 	sta = r92su_sta_get(r92su, hdr->h_dest);
 	if (!sta) {
@@ -305,6 +318,17 @@ r92su_tx_prepare_tx_info_and_find_sta(struct r92su *r92su, struct sk_buff *skb,
 }
 
 static enum r92su_tx_control_t
+r92su_tx_find_sta_inject(struct r92su *r92su, struct sk_buff *skb,
+			 struct r92su_bss_priv *bss_priv)
+{
+	struct r92su_tx_info *tx_info = r92su_get_tx_info(skb);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+
+	tx_info->sta = r92su_sta_get(r92su, ieee80211_get_DA(hdr));
+	return TX_CONTINUE;
+}
+
+static enum r92su_tx_control_t
 r92su_tx_rate_control_hint(struct r92su *r92su, struct sk_buff *skb,
 			   struct r92su_bss_priv *bss_priv)
 {
@@ -317,7 +341,7 @@ r92su_tx_rate_control_hint(struct r92su *r92su, struct sk_buff *skb,
 	 * we force the firmware/hardware to use lower and
 	 * more robust rates.
 	 */
-	bool low_rate = false;
+	bool low_rate;
 
 	struct r92su_tx_info *tx_info = r92su_get_tx_info(skb);
 	switch (skb->protocol) {
@@ -353,6 +377,18 @@ r92su_tx_rate_control_hint(struct r92su *r92su, struct sk_buff *skb,
 		tx_info->low_rate = true;
 	}
 
+	return TX_CONTINUE;
+}
+
+static enum r92su_tx_control_t
+r92su_tx_rate_control_inject(struct r92su *r92su, struct sk_buff *skb,
+			     struct r92su_bss_priv *bss_priv)
+{
+	struct r92su_tx_info *tx_info = r92su_get_tx_info(skb);
+
+	/* just set the lowest possible rate for now */
+	tx_info->ht_possible = false;
+	tx_info->low_rate = true;
 	return TX_CONTINUE;
 }
 
@@ -486,6 +522,9 @@ r92su_tx_select_key(struct r92su *r92su, struct sk_buff *skb,
 	if (!bss_priv->sta->enc_sta)
 		return TX_CONTINUE;
 
+	if (!ieee80211_is_data_present(hdr->frame_control))
+		return TX_CONTINUE;
+
 	if (is_multicast_ether_addr(ieee80211_get_DA(hdr))) {
 		key = rcu_dereference(bss_priv->
 			group_key[bss_priv->def_multi_key_idx]);
@@ -526,10 +565,10 @@ r92su_tx_invalidate_rcu_data(struct r92su *r92su, struct sk_buff *skb,
 	return TX_CONTINUE;
 }
 
-void r92su_tx(struct r92su *r92su, struct sk_buff *skb)
+void r92su_tx(struct r92su *r92su, struct sk_buff *skb, bool inject)
 {
-	struct cfg80211_bss *bss;
-	struct r92su_bss_priv *bss_priv;
+	struct cfg80211_bss *bss = NULL;
+	struct r92su_bss_priv *bss_priv = NULL;
 
 	struct sk_buff_head in_queue;
 	struct sk_buff_head out_queue;
@@ -555,24 +594,27 @@ void r92su_tx(struct r92su *r92su, struct sk_buff *skb)
 	__skb_queue_head_init(&in_queue);
 	__skb_queue_head_init(&out_queue);
 
-	/* isn't this check sort of done by the caller already?! */
-	if (skb->len < ETH_ALEN + ETH_ALEN + 2)
-		goto err_out;
-
 	if (!r92su_is_connected(r92su))
 		goto err_out;
 
 	rcu_read_lock();
-	bss = rcu_dereference(r92su->connect_bss);
-	if (!bss)
-		goto err_unlock;
 
-	bss_priv = r92su_get_bss_priv(bss);
+	TX_HANDLER_PREP(r92su_tx_prepare_tx_info);
+	if (!inject) {
+		bss = rcu_dereference(r92su->connect_bss);
+		if (!bss)
+			goto err_unlock;
 
-	TX_HANDLER_PREP(r92su_tx_prepare_tx_info_and_find_sta);
-	TX_HANDLER_PREP(r92su_tx_rate_control_hint);
-	TX_HANDLER_PREP(r92su_tx_add_80211);
-	TX_HANDLER_PREP(r92su_tx_select_key);
+		bss_priv = r92su_get_bss_priv(bss);
+
+		TX_HANDLER_PREP(r92su_tx_find_sta);
+		TX_HANDLER_PREP(r92su_tx_rate_control_hint);
+		TX_HANDLER_PREP(r92su_tx_add_80211);
+		TX_HANDLER_PREP(r92su_tx_select_key);
+	} else {
+		TX_HANDLER_PREP(r92su_tx_find_sta_inject);
+		TX_HANDLER_PREP(r92su_tx_rate_control_inject);
+	}
 	TX_HANDLER_PREP(r92su_tx_fragment, &in_queue);
 
 	while ((skb = __skb_dequeue(&in_queue))) {
@@ -613,4 +655,118 @@ err_out:
 
 void r92su_tx_cb(struct r92su *r92su, struct sk_buff *skb)
 {
+}
+
+static bool ieee80211_parse_tx_radiotap(struct sk_buff *skb)
+{
+        struct ieee80211_radiotap_iterator iterator;
+        struct ieee80211_radiotap_header *rthdr =
+                (struct ieee80211_radiotap_header *) skb->data;
+	int ret = ieee80211_radiotap_iterator_init(&iterator, rthdr, skb->len,
+						   NULL);
+
+        /* for every radiotap entry that is present
+         * (ieee80211_radiotap_iterator_next returns -ENOENT when no more
+         * entries present, or -EINVAL on error)
+         */
+
+        while (!ret) {
+                ret = ieee80211_radiotap_iterator_next(&iterator);
+
+                if (ret)
+                        continue;
+
+		/* see if this argument is something we can use */
+		switch (iterator.this_arg_index) {
+		/* You must take care when dereferencing iterator.this_arg
+		 * for multibyte types... the pointer is not aligned.  Use
+		 * get_unaligned((type *)iterator.this_arg) to dereference
+		 * iterator.this_arg for type "type" safely on all arches.
+		 */
+		case IEEE80211_RADIOTAP_FLAGS:
+			break;
+
+		case IEEE80211_RADIOTAP_TX_FLAGS:
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (ret != -ENOENT) /* ie, if we didn't simply run out of fields */
+		return false;
+
+	/* remove the radiotap header
+	 * iterator->_max_length was sanity-checked against
+	 * skb->len by iterator init
+	 */
+	skb_pull(skb, iterator._max_length);
+	return true;
+}
+
+void r92su_tx_monitor(struct r92su *r92su, struct sk_buff *skb)
+{
+	struct ieee80211_radiotap_header *prthdr =
+		(struct ieee80211_radiotap_header *)skb->data;
+	struct ieee80211_hdr *hdr;
+	u16 len_rthdr;
+	int hdrlen;
+
+	/* check for not even having the fixed radiotap header part */
+	if (skb->len < sizeof(struct ieee80211_radiotap_header))
+		goto fail; /* too short to be possibly valid */
+
+	/* is it a header version we can trust to find length from? */
+	if (prthdr->it_version)
+		goto fail; /* only version 0 is supported */
+
+	/* then there must be a radiotap header with a length we can use */
+	len_rthdr = ieee80211_get_radiotap_len(skb->data);
+
+	/* does the skb contain enough to deliver on the alleged length? */
+	if (skb->len < len_rthdr)
+		goto fail; /* skb too short for claimed rt header extent */
+
+	/* fix up the pointers accounting for the radiotap
+	 * header still being in there.  We are being given
+	 * a precooked IEEE80211 header so no need for
+	 * normal processing
+	 */
+	skb_set_mac_header(skb, len_rthdr);
+	/* these are just fixed to the end of the rt area since we
+	 * don't have any better information and at this point, nobody cares
+	 */
+	skb_set_network_header(skb, len_rthdr);
+	skb_set_transport_header(skb, len_rthdr);
+
+	if (skb->len < len_rthdr + 2)
+		goto fail;
+
+	hdr = (struct ieee80211_hdr *)(skb->data + len_rthdr);
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
+
+	if (skb->len < len_rthdr + hdrlen)
+		goto fail;
+
+	/* Initialize skb->protocol if the injected frame is a data frame
+	 * carrying a rfc1042 header
+	 */
+	if (ieee80211_is_data(hdr->frame_control) &&
+		skb->len >= len_rthdr + hdrlen + sizeof(rfc1042_header) + 2) {
+		u8 *payload = (u8 *)hdr + hdrlen;
+
+		if (ether_addr_equal(payload, rfc1042_header))
+			skb->protocol = cpu_to_be16((payload[6] << 8) |
+						     payload[7]);
+	}
+
+        /* process and remove the injection radiotap header */
+        if (!ieee80211_parse_tx_radiotap(skb))
+                goto fail;
+
+	r92su_tx(r92su, skb, true);
+	return;
+
+fail:
+	dev_kfree_skb_any(skb);
 }

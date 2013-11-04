@@ -290,6 +290,22 @@ r92su_rx_deduplicate(struct r92su *r92su, struct sk_buff *skb,
 }
 
 static enum r92su_rx_control_t
+r92su_rx_handle_mgmt(struct r92su *r92su, struct sk_buff *skb,
+		     struct r92su_bss_priv *bss_priv)
+{
+	struct ieee80211_hdr *i3e = (void *)skb->data;
+
+	if (ieee80211_is_mgmt(i3e->frame_control)) {
+		cfg80211_rx_mgmt(&r92su->wdev,
+				 r92su->current_channel->center_freq, 0,
+				 skb->data, skb->len, 0, GFP_ATOMIC);
+		dev_kfree_skb_any(skb);
+		return RX_QUEUE;
+	}
+	return RX_CONTINUE;
+}
+
+static enum r92su_rx_control_t
 r92su_rx_find_sta(struct r92su *r92su, struct sk_buff *skb,
 		  struct r92su_bss_priv *bss_priv)
 {
@@ -628,7 +644,8 @@ r92su_rx_hw_header_check(struct r92su *r92su, struct sk_buff *skb,
 	 * }
 	 */
 
-	if (!ieee80211_is_data_present(hdr->frame_control))
+	if (!(ieee80211_is_data_present(hdr->frame_control) ||
+	     ieee80211_is_mgmt(hdr->frame_control)))
 		return RX_DROP;
 
 	/* just in case: clear out the whole skb->cb */
@@ -1021,6 +1038,7 @@ static void r92su_rx_data(struct r92su *r92su,
 	RX_HANDLER(r92su_rx_find_sta);
 	RX_HANDLER(r92su_rx_deduplicate);
 	RX_HANDLER(r92su_rx_sta_stats, rx);
+	RX_HANDLER(r92su_rx_handle_mgmt);
 
 	/* this moves the frame onto the in_frames queue */
 	RX_HANDLER(r92su_rx_reorder_ampdu, &skb, &frames);
