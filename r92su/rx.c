@@ -29,6 +29,7 @@
  *
  *****************************************************************************/
 #include <linux/kernel.h>
+#include <linux/version.h>
 #include <linux/etherdevice.h>
 
 #include <net/ieee80211_radiotap.h>
@@ -296,9 +297,11 @@ r92su_rx_handle_mgmt(struct r92su *r92su, struct sk_buff *skb,
 	struct ieee80211_hdr *i3e = (void *)skb->data;
 
 	if (ieee80211_is_mgmt(i3e->frame_control)) {
+#if 0
 		cfg80211_rx_mgmt(&r92su->wdev,
 				 r92su->current_channel->center_freq, 0,
 				 skb->data, skb->len, 0, GFP_ATOMIC);
+#endif
 		dev_kfree_skb_any(skb);
 		return RX_QUEUE;
 	}
