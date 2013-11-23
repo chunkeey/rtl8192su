@@ -29,7 +29,6 @@
  *
  *****************************************************************************/
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/etherdevice.h>
 
 #include <net/ieee80211_radiotap.h>
