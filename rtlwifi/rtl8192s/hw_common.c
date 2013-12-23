@@ -497,7 +497,7 @@ void rtl92s_enable_hw_security_config(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL_GPL(rtl92s_enable_hw_security_config);
 
-u8 rtl92s_halset_sysclk(struct ieee80211_hw *hw, u8 data)
+bool rtl92s_halset_sysclk(struct ieee80211_hw *hw, u8 data)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 waitcount = 100;
@@ -541,7 +541,7 @@ u8 rtl92s_halset_sysclk(struct ieee80211_hw *hw, u8 data)
 }
 EXPORT_SYMBOL_GPL(rtl92s_halset_sysclk);
 
-u8 rtl92s_rf_onoff_detect(struct ieee80211_hw *hw)
+bool rtl92s_rf_onoff_detect(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 u1tmp;

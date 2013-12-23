@@ -32,6 +32,18 @@ config RTL8192SE
 
 	If you choose to build it as a module, it will be called rtl8192se
 
+config RTL8192SU
+	tristate "Realtek RTL8192SU/RTL8188SU USB Wireless Network Adapter"
+	depends on USB
+	select RTLWIFI
+	select RTLWIFI_USB
+	select RTL8192S_COMMON
+	---help---
+	This is the driver for Realtek RTL8192SU/RTL8188SU 802.11n USB
+	wireless network adapters.
+
+	If you choose to build it as a module, it will be called rtl8192su
+
 config RTL8192DE
 	tristate "Realtek RTL8192DE/RTL8188DE PCIe Wireless Network Adapter"
 	depends on PCI
