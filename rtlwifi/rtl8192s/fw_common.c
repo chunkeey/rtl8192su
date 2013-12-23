@@ -37,11 +37,15 @@
 static void _rtl92s_fw_set_rqpn(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 
-	rtl_write_dword(rtlpriv, RQPN, 0xffffffff);
-	rtl_write_dword(rtlpriv, RQPN + 4, 0xffffffff);
-	rtl_write_byte(rtlpriv, RQPN + 8, 0xff);
-	rtl_write_byte(rtlpriv, RQPN + 0xB, 0x80);
+	/* For 92SE only */
+	if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
+		rtl_write_dword(rtlpriv, RQPN, 0xffffffff);
+		rtl_write_dword(rtlpriv, RQPN + 4, 0xffffffff);
+		rtl_write_byte(rtlpriv, RQPN + 8, 0xff);
+		rtl_write_byte(rtlpriv, RQPN + 0xB, 0x80);
+	}
 }
 
 static bool _rtl92s_firmware_enable_cpu(struct ieee80211_hw *hw)
