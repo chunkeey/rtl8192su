@@ -30,14 +30,13 @@
 #include "../wifi.h"
 #include "../pci.h"
 #include "../ps.h"
-#include "reg.h"
-#include "def.h"
-#include "phy.h"
-#include "rf.h"
-#include "dm.h"
-#include "fw.h"
-#include "hw.h"
-#include "table.h"
+#include "reg_common.h"
+#include "def_common.h"
+#include "dm_common.h"
+#include "fw_common.h"
+#include "rf_common.h"
+#include "table_common.h"
+#include "phy_common.h"
 
 static u32 _rtl92s_phy_calculate_bit_shift(u32 bitmask)
 {
@@ -69,6 +68,7 @@ u32 rtl92s_phy_query_bb_reg(struct ieee80211_hw *hw, u32 regaddr, u32 bitmask)
 	return returnvalue;
 
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_query_bb_reg);
 
 void rtl92s_phy_set_bb_reg(struct ieee80211_hw *hw, u32 regaddr, u32 bitmask,
 			   u32 data)
@@ -93,6 +93,7 @@ void rtl92s_phy_set_bb_reg(struct ieee80211_hw *hw, u32 regaddr, u32 bitmask,
 		 regaddr, bitmask, data);
 
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_set_bb_reg);
 
 static u32 _rtl92s_phy_rf_serial_read(struct ieee80211_hw *hw,
 				      enum radio_path rfpath, u32 offset)
@@ -201,6 +202,7 @@ u32 rtl92s_phy_query_rf_reg(struct ieee80211_hw *hw, enum radio_path rfpath,
 
 	return readback_value;
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_query_rf_reg);
 
 void rtl92s_phy_set_rf_reg(struct ieee80211_hw *hw, enum radio_path rfpath,
 			   u32 regaddr, u32 bitmask, u32 data)
@@ -232,8 +234,8 @@ void rtl92s_phy_set_rf_reg(struct ieee80211_hw *hw, enum radio_path rfpath,
 	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE,
 		 "regaddr(%#x), bitmask(%#x), data(%#x), rfpath(%#x)\n",
 		 regaddr, bitmask, data, rfpath);
-
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_set_rf_reg);
 
 void rtl92s_phy_scan_operation_backup(struct ieee80211_hw *hw,
 				      u8 operation)
@@ -256,6 +258,7 @@ void rtl92s_phy_scan_operation_backup(struct ieee80211_hw *hw,
 		}
 	}
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_scan_operation_backup);
 
 void rtl92s_phy_set_bw_mode(struct ieee80211_hw *hw,
 			    enum nl80211_channel_type ch_type)
@@ -325,6 +328,7 @@ void rtl92s_phy_set_bw_mode(struct ieee80211_hw *hw,
 	rtlphy->set_bwmode_inprogress = false;
 	RT_TRACE(rtlpriv, COMP_SCAN, DBG_TRACE, "<==\n");
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_set_bw_mode);
 
 static bool _rtl92s_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 		u32 cmdtableidx, u32 cmdtablesz, enum swchnlcmd_id cmdid,
@@ -500,6 +504,22 @@ u8 rtl92s_phy_sw_chnl(struct ieee80211_hw *hw)
 
 	return 1;
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_sw_chnl);
+
+void rtl92s_gpiobit3_cfg_inputmode(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	u8 u1tmp;
+
+	/* The following config GPIO function */
+	rtl_write_byte(rtlpriv, MAC_PINMUX_CFG, (GPIOMUX_EN | GPIOSEL_GPIO));
+	u1tmp = rtl_read_byte(rtlpriv, GPIO_IO_SEL);
+
+	/* config GPIO3 to input */
+	u1tmp &= HAL_8192S_HW_GPIO_OFF_MASK;
+	rtl_write_byte(rtlpriv, GPIO_IO_SEL, u1tmp);
+}
+EXPORT_SYMBOL_GPL(rtl92s_gpiobit3_cfg_inputmode);
 
 static void _rtl92se_phy_set_rf_sleep(struct ieee80211_hw *hw)
 {
@@ -529,14 +549,13 @@ static void _rtl92se_phy_set_rf_sleep(struct ieee80211_hw *hw)
 
 	/* we should chnge GPIO to input mode
 	 * this will drop away current about 25mA*/
-	rtl8192se_gpiobit3_cfg_inputmode(hw);
+	rtl92s_gpiobit3_cfg_inputmode(hw);
 }
 
 bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
 				   enum rf_pwrstate rfpwr_state)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	bool bresult = true;
@@ -605,6 +624,7 @@ bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
 
 			for (queue_id = 0, i = 0;
 			     queue_id < RTL_PCI_MAX_TX_QUEUE_COUNT;) {
+				struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 				ring = &pcipriv->dev.tx_ring[queue_id];
 				if (skb_queue_len(&ring->queue) == 0 ||
 					queue_id == BEACON_QUEUE) {
@@ -655,6 +675,7 @@ bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
 
 	return bresult;
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_set_rf_power_state);
 
 static bool _rtl92s_phy_config_rfpa_bias_current(struct ieee80211_hw *hw,
 						 enum radio_path rfpath)
@@ -816,7 +837,6 @@ static void _rtl92s_phy_init_register_definition(struct ieee80211_hw *hw)
 	rtlphy->phyreg_def[RF90_PATH_A].rf_rbpi = TRANSCEIVERA_HSPI_READBACK;
 	rtlphy->phyreg_def[RF90_PATH_B].rf_rbpi = TRANSCEIVERB_HSPI_READBACK;
 }
-
 
 static bool _rtl92s_phy_config_bb(struct ieee80211_hw *hw, u8 configtype)
 {
@@ -1099,7 +1119,7 @@ u8 rtl92s_phy_config_rf(struct ieee80211_hw *hw, enum radio_path rfpath)
 
 	return rtstatus;
 }
-
+EXPORT_SYMBOL_GPL(rtl92s_phy_config_rf);
 
 bool rtl92s_phy_mac_config(struct ieee80211_hw *hw)
 {
@@ -1116,7 +1136,7 @@ bool rtl92s_phy_mac_config(struct ieee80211_hw *hw)
 
 	return true;
 }
-
+EXPORT_SYMBOL_GPL(rtl92s_phy_mac_config);
 
 bool rtl92s_phy_bb_config(struct ieee80211_hw *hw)
 {
@@ -1159,6 +1179,7 @@ bool rtl92s_phy_bb_config(struct ieee80211_hw *hw)
 
 	return rtstatus;
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_bb_config);
 
 bool rtl92s_phy_rf_config(struct ieee80211_hw *hw)
 {
@@ -1174,6 +1195,7 @@ bool rtl92s_phy_rf_config(struct ieee80211_hw *hw)
 	/* Config BB and RF */
 	return rtl92s_phy_rf6052_config(hw);
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_rf_config);
 
 void rtl92s_phy_get_hw_reg_originalvalue(struct ieee80211_hw *hw)
 {
@@ -1203,8 +1225,8 @@ void rtl92s_phy_get_hw_reg_originalvalue(struct ieee80211_hw *hw)
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "Default framesync (0x%x) = 0x%x\n",
 		 ROFDM0_RXDETECTOR3, rtlphy->framesync);
-
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_get_hw_reg_originalvalue);
 
 static void _rtl92s_phy_get_txpower_index(struct ieee80211_hw *hw, u8 channel,
 					  u8 *cckpowerlevel, u8 *ofdmpowerLevel)
@@ -1274,8 +1296,8 @@ void rtl92s_phy_set_txpower(struct ieee80211_hw *hw, u8	channel)
 
 	rtl92s_phy_rf6052_set_ccktxpower(hw, cckpowerlevel[0]);
 	rtl92s_phy_rf6052_set_ofdmtxpower(hw, &ofdmpowerLevel[0], channel);
-
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_set_txpower);
 
 void rtl92s_phy_chk_fwcmd_iodone(struct ieee80211_hw *hw)
 {
@@ -1295,7 +1317,7 @@ void rtl92s_phy_chk_fwcmd_iodone(struct ieee80211_hw *hw)
 	if (pollingcnt == 0)
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Set FW Cmd fail!!\n");
 }
-
+EXPORT_SYMBOL_GPL(rtl92s_phy_chk_fwcmd_iodone);
 
 static void _rtl92s_phy_set_fwcmd_io(struct ieee80211_hw *hw)
 {
@@ -1660,6 +1682,7 @@ bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
 	_rtl92s_phy_set_fwcmd_io(hw);
 	return true;
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_set_fw_cmd);
 
 static	void _rtl92s_phy_check_ephy_switchready(struct ieee80211_hw *hw)
 {
@@ -1707,8 +1730,8 @@ void rtl92s_phy_switch_ephy_parameter(struct ieee80211_hw *hw)
 		rtl_write_byte(rtlpriv, 0x560, 0x40);
 	else
 		rtl_write_byte(rtlpriv, 0x560, 0x00);
-
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_switch_ephy_parameter);
 
 void rtl92s_phy_set_beacon_hwreg(struct ieee80211_hw *hw, u16 beaconinterval)
 {
@@ -1725,3 +1748,4 @@ void rtl92s_phy_set_beacon_hwreg(struct ieee80211_hw *hw, u16 beaconinterval)
 		rtl_write_dword(rtlpriv, WFM3, 0xB026007C);
 	}
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_set_beacon_hwreg);

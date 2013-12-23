@@ -28,7 +28,7 @@
  * Created on  2010/ 5/18,  1:41
  *****************************************************************************/
 
-#include "table.h"
+#include "table_common.h"
 
 u32 rtl8192sephy_reg_2t2rarray[PHY_REG_2T2RARRAYLENGTH] = {
 	0x01c, 0x07000000,

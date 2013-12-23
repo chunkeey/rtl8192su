@@ -29,19 +29,6 @@
 #ifndef __REALTEK_PCI92SE_HW_H__
 #define __REALTEK_PCI92SE_HW_H__
 
-#define MSR_LINK_MANAGED   2
-#define MSR_LINK_NONE      0
-#define MSR_LINK_SHIFT     0
-#define MSR_LINK_ADHOC     1
-#define MSR_LINK_MASTER    3
-
-enum WIRELESS_NETWORK_TYPE {
-	WIRELESS_11B = 1,
-	WIRELESS_11G = 2,
-	WIRELESS_11A = 4,
-	WIRELESS_11N = 8
-};
-
 void rtl92se_get_hw_reg(struct ieee80211_hw *hw,
 			u8 variable, u8 *val);
 void rtl92se_read_eeprom_info(struct ieee80211_hw *hw);

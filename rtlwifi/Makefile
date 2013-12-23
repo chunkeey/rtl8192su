@@ -19,6 +19,7 @@ obj-$(CONFIG_RTLWIFI_USB)	+= rtl_usb.o
 rtl_usb-objs	:=		usb.o
 
 obj-$(CONFIG_RTL8192C_COMMON)	+= rtl8192c/
+obj-$(CONFIG_RTL8192S_COMMON)	+= rtl8192s/
 obj-$(CONFIG_RTL8192CE)		+= rtl8192ce/
 obj-$(CONFIG_RTL8192CU)		+= rtl8192cu/
 obj-$(CONFIG_RTL8192SE)		+= rtl8192se/

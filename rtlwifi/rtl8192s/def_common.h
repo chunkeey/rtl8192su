@@ -26,8 +26,8 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  *****************************************************************************/
-#ifndef __REALTEK_92S_DEF_H__
-#define __REALTEK_92S_DEF_H__
+#ifndef __REALTEK_92S_DEF_COMMON_H__
+#define __REALTEK_92S_DEF_COMMON_H__
 
 #define RX_MPDU_QUEUE				0
 #define RX_CMD_QUEUE				1

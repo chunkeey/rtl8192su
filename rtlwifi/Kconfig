@@ -101,4 +101,8 @@ config RTL8192C_COMMON
 	depends on RTL8192CE || RTL8192CU
 	default y
 
+config RTL8192S_COMMON
+	tristate
+	depends on RTL8192SE || RTL8192SU
+	default y
 endif

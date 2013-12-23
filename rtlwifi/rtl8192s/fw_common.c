@@ -30,9 +30,9 @@
 #include "../wifi.h"
 #include "../pci.h"
 #include "../base.h"
-#include "reg.h"
-#include "def.h"
-#include "fw.h"
+#include "reg_common.h"
+#include "def_common.h"
+#include "fw_common.h"
 
 static void _rtl92s_fw_set_rqpn(struct ieee80211_hw *hw)
 {
@@ -134,32 +134,6 @@ static void _rtl92s_firmwareheader_priveupdate(struct ieee80211_hw *hw,
 	pfw_priv->rf_config = _rtl92s_firmware_header_map_rftype(hw);
 }
 
-
-
-static bool _rtl92s_cmd_send_packet(struct ieee80211_hw *hw,
-		struct sk_buff *skb, u8 last)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-	struct rtl8192_tx_ring *ring;
-	struct rtl_tx_desc *pdesc;
-	unsigned long flags;
-	u8 idx = 0;
-
-	ring = &rtlpci->tx_ring[TXCMD_QUEUE];
-
-	spin_lock_irqsave(&rtlpriv->locks.irq_th_lock, flags);
-
-	idx = (ring->idx + skb_queue_len(&ring->queue)) % ring->entries;
-	pdesc = &ring->desc[idx];
-	rtlpriv->cfg->ops->fill_tx_cmddesc(hw, (u8 *)pdesc, 1, 1, skb);
-	__skb_queue_tail(&ring->queue, skb);
-
-	spin_unlock_irqrestore(&rtlpriv->locks.irq_th_lock, flags);
-
-	return true;
-}
-
 static bool _rtl92s_firmware_downloadcode(struct ieee80211_hw *hw,
 		u8 *code_virtual_address, u32 buffer_len)
 {
@@ -208,7 +182,7 @@ static bool _rtl92s_firmware_downloadcode(struct ieee80211_hw *hw,
 		tcb_desc->cmd_or_init = DESC_PACKET_TYPE_INIT;
 		tcb_desc->last_inipkt = last_inipkt;
 
-		_rtl92s_cmd_send_packet(hw, skb, last_inipkt);
+		rtlpriv->cfg->ops->cmd_send_packet(hw, skb);
 
 		frag_offset += (frag_length - extra_descoffset);
 
@@ -464,6 +438,7 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 fail:
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rtl92s_download_fw);
 
 static u32 _rtl92s_fill_h2c_cmd(struct sk_buff *skb, u32 h2cbufferlen,
 				u32 cmd_num, u32 *pelement_id, u32 *pcmd_len,
@@ -584,9 +559,8 @@ static bool _rtl92s_firmware_set_h2c_cmd(struct ieee80211_hw *hw, u8 h2c_cmd,
 
 	_rtl92s_fill_h2c_cmd(skb, MAX_TRANSMIT_BUFFER_SIZE, 1, &element_id,
 			&cmd_len, &pcmd_buffer,	&rtlhal->h2c_txcmd_seq);
-	_rtl92s_cmd_send_packet(hw, skb, false);
+	rtlpriv->cfg->ops->cmd_send_packet(hw, skb);
 	rtlpriv->cfg->ops->tx_polling(hw, TXCMD_QUEUE);
-
 	return true;
 }
 
@@ -632,6 +606,7 @@ void rtl92s_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 Mode)
 	_rtl92s_firmware_set_h2c_cmd(hw, FW_H2C_SETPWRMODE, (u8 *)&pwrmode);
 
 }
+EXPORT_SYMBOL_GPL(rtl92s_set_fw_pwrmode_cmd);
 
 void rtl92s_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw,
 		u8 mstatus, u8 ps_qosinfo)
@@ -653,4 +628,4 @@ void rtl92s_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw,
 
 	_rtl92s_firmware_set_h2c_cmd(hw, FW_H2C_JOINBSSRPT, (u8 *)&joinbss_rpt);
 }
-
+EXPORT_SYMBOL_GPL(rtl92s_set_fw_joinbss_report_cmd);

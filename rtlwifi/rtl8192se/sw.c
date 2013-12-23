@@ -31,11 +31,12 @@
 #include "../core.h"
 #include "../base.h"
 #include "../pci.h"
-#include "reg.h"
-#include "def.h"
-#include "phy.h"
-#include "dm.h"
-#include "fw.h"
+#include "../rtl8192s/reg_common.h"
+#include "../rtl8192s/def_common.h"
+#include "../rtl8192s/phy_common.h"
+#include "../rtl8192s/dm_common.h"
+#include "../rtl8192s/fw_common.h"
+#include "../rtl8192s/hw_common.h"
 #include "hw.h"
 #include "sw.h"
 #include "trx.h"
@@ -256,7 +257,7 @@ static void rtl92s_deinit_sw_vars(struct ieee80211_hw *hw)
 static struct rtl_hal_ops rtl8192se_hal_ops = {
 	.init_sw_vars = rtl92s_init_sw_vars,
 	.deinit_sw_vars = rtl92s_deinit_sw_vars,
-	.read_eeprom_info = rtl92se_read_eeprom_info,
+	.read_eeprom_info = rtl92s_read_eeprom_info,
 	.interrupt_recognized = rtl92se_interrupt_recognized,
 	.hw_init = rtl92se_hw_init,
 	.hw_disable = rtl92se_card_disable,
@@ -266,17 +267,18 @@ static struct rtl_hal_ops rtl8192se_hal_ops = {
 	.disable_interrupt = rtl92se_disable_interrupt,
 	.set_network_type = rtl92se_set_network_type,
 	.set_chk_bssid = rtl92se_set_check_bssid,
-	.set_qos = rtl92se_set_qos,
-	.set_bcn_reg = rtl92se_set_beacon_related_registers,
-	.set_bcn_intv = rtl92se_set_beacon_interval,
+	.set_qos = rtl92s_set_qos,
+	.set_bcn_reg = rtl92s_set_beacon_related_registers,
+	.set_bcn_intv = rtl92s_set_beacon_interval,
 	.update_interrupt_mask = rtl92se_update_interrupt_mask,
-	.get_hw_reg = rtl92se_get_hw_reg,
-	.set_hw_reg = rtl92se_set_hw_reg,
-	.update_rate_tbl = rtl92se_update_hal_rate_tbl,
+	.get_hw_reg = rtl92s_get_hw_reg,
+	.set_hw_reg = rtl92s_set_hw_reg,
+	.update_rate_tbl = rtl92s_update_hal_rate_tbl,
 	.fill_tx_desc = rtl92se_tx_fill_desc,
+	.cmd_send_packet = rtl92se_cmd_send_packet,
 	.fill_tx_cmddesc = rtl92se_tx_fill_cmddesc,
 	.query_rx_desc = rtl92se_rx_query_desc,
-	.set_channel_access = rtl92se_update_channel_access_setting,
+	.set_channel_access = rtl92s_update_channel_access_setting,
 	.radio_onoff_checking = rtl92se_gpio_radio_on_off_checking,
 	.set_bw_mode = rtl92s_phy_set_bw_mode,
 	.switch_channel = rtl92s_phy_sw_chnl,
@@ -287,8 +289,8 @@ static struct rtl_hal_ops rtl8192se_hal_ops = {
 	.set_desc = rtl92se_set_desc,
 	.get_desc = rtl92se_get_desc,
 	.tx_polling = rtl92se_tx_polling,
-	.enable_hw_sec = rtl92se_enable_hw_security_config,
-	.set_key = rtl92se_set_key,
+	.enable_hw_sec = rtl92s_enable_hw_security_config,
+	.set_key = rtl92s_set_key,
 	.init_sw_leds = rtl92se_init_sw_leds,
 	.allow_all_destaddr = rtl92se_allow_all_destaddr,
 	.get_bbreg = rtl92s_phy_query_bb_reg,

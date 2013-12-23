@@ -31,10 +31,10 @@
 #include "../pci.h"
 #include "../base.h"
 #include "../stats.h"
-#include "reg.h"
-#include "def.h"
-#include "phy.h"
-#include "fw.h"
+#include "../rtl8192s/reg_common.h"
+#include "../rtl8192s/def_common.h"
+#include "../rtl8192s/phy_common.h"
+#include "../rtl8192s/fw_common.h"
 #include "trx.h"
 #include "led.h"
 
@@ -650,4 +650,27 @@ void rtl92se_tx_polling(struct ieee80211_hw *hw, u8 hw_queue)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	rtl_write_word(rtlpriv, TP_POLL, BIT(0) << (hw_queue));
+}
+
+bool rtl92se_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
+	struct rtl8192_tx_ring *ring;
+	struct rtl_tx_desc *pdesc;
+	unsigned long flags;
+	u8 idx = 0;
+
+	ring = &rtlpci->tx_ring[TXCMD_QUEUE];
+
+	spin_lock_irqsave(&rtlpriv->locks.irq_th_lock, flags);
+
+	idx = (ring->idx + skb_queue_len(&ring->queue)) % ring->entries;
+	pdesc = &ring->desc[idx];
+	rtlpriv->cfg->ops->fill_tx_cmddesc(hw, (u8 *)pdesc, 1, 1, skb);
+	__skb_queue_tail(&ring->queue, skb);
+
+	spin_unlock_irqrestore(&rtlpriv->locks.irq_th_lock, flags);
+
+	return true;
 }

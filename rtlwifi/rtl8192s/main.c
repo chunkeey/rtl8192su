@@ -26,18 +26,14 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  *****************************************************************************/
-#ifndef __INC_RTL92S_RF_H
-#define __INC_RTL92S_RF_H
 
-#define	RF6052_MAX_TX_PWR	0x3F
+#include "../wifi.h"
+#include <linux/module.h>
 
-void rtl92s_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw,
-				     u8 bandwidth);
-bool rtl92s_phy_rf6052_config(struct ieee80211_hw *hw) ;
-void rtl92s_phy_rf6052_set_ccktxpower(struct ieee80211_hw *hw,
-				      u8 powerlevel);
-void rtl92s_phy_rf6052_set_ofdmtxpower(struct ieee80211_hw *hw,
-				       u8 *p_pwrlevel, u8 chnl);
-
-#endif
-
+MODULE_AUTHOR("lizhaoming		<chaoming_li@realsil.com.cn>");
+MODULE_AUTHOR("Realtek WlanFAE		<wlanfae@realtek.com>");
+MODULE_AUTHOR("Georgia			<georgia@realtek.com>");
+MODULE_AUTHOR("Ziv Huang		<ziv_huang@realtek.com>");
+MODULE_AUTHOR("Larry Finger		<Larry.Finger@lwfinger.net>");
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Realtek 8192S/8188S 802.11n wireless Library");

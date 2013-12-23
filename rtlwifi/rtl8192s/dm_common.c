@@ -29,11 +29,11 @@
 
 #include "../wifi.h"
 #include "../base.h"
-#include "reg.h"
-#include "def.h"
-#include "phy.h"
-#include "dm.h"
-#include "fw.h"
+#include "reg_common.h"
+#include "def_common.h"
+#include "phy_common.h"
+#include "dm_common.h"
+#include "fw_common.h"
 
 static const u32 edca_setting_dl[PEER_MAX] = {
 	0xa44f,		/* 0 UNKNOWN */
@@ -375,6 +375,7 @@ void rtl92s_dm_init_edca_turbo(struct ieee80211_hw *hw)
 	rtlpriv->dm.is_any_nonbepkts = false;
 	rtlpriv->dm.is_cur_rdlstate = false;
 }
+EXPORT_SYMBOL_GPL(rtl92s_dm_init_edca_turbo);
 
 static void _rtl92s_dm_init_rate_adaptive_mask(struct ieee80211_hw *hw)
 {
@@ -729,6 +730,7 @@ void rtl92s_dm_init(struct ieee80211_hw *hw)
 
 	rtl_write_dword(rtlpriv, WFM5, FW_CCA_CHK_ENABLE);
 }
+EXPORT_SYMBOL_GPL(rtl92s_dm_init);
 
 void rtl92s_dm_watchdog(struct ieee80211_hw *hw)
 {
@@ -739,4 +741,4 @@ void rtl92s_dm_watchdog(struct ieee80211_hw *hw)
 	_rtl92s_dm_refresh_rateadaptive_mask(hw);
 	_rtl92s_dm_switch_baseband_mrc(hw);
 }
-
+EXPORT_SYMBOL_GPL(rtl92s_dm_watchdog);

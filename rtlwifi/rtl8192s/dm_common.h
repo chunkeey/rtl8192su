@@ -26,8 +26,8 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  *****************************************************************************/
-#ifndef	__RTL_92S_DM_H__
-#define __RTL_92S_DM_H__
+#ifndef	__REALTEK_92S_DM_COMMON_H__
+#define __REALTEK_92S_DM_COMMON_H__
 
 enum dm_dig_alg {
 	DIG_ALGO_BY_FALSE_ALARM = 0,
@@ -117,4 +117,3 @@ void rtl92s_dm_init(struct ieee80211_hw *hw);
 void rtl92s_dm_init_edca_turbo(struct ieee80211_hw *hw);
 
 #endif
-

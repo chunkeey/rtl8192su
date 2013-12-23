@@ -28,12 +28,11 @@
  *****************************************************************************/
 
 #include "../wifi.h"
-#include "reg.h"
-#include "def.h"
-#include "phy.h"
-#include "rf.h"
-#include "dm.h"
-
+#include "reg_common.h"
+#include "def_common.h"
+#include "phy_common.h"
+#include "rf_common.h"
+#include "dm_common.h"
 
 static void _rtl92s_get_powerbase(struct ieee80211_hw *hw, u8 *p_pwrlevel,
 				  u8 chnl, u32 *ofdmbase, u32 *mcsbase,
@@ -385,6 +384,7 @@ void rtl92s_phy_rf6052_set_ofdmtxpower(struct ieee80211_hw *hw,
 		_rtl92s_write_ofdm_powerreg(hw, index, writeval);
 	}
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_rf6052_set_ofdmtxpower);
 
 void rtl92s_phy_rf6052_set_ccktxpower(struct ieee80211_hw *hw, u8 pwrlevel)
 {
@@ -421,6 +421,7 @@ void rtl92s_phy_rf6052_set_ccktxpower(struct ieee80211_hw *hw, u8 pwrlevel)
 	rtl_set_bbreg(hw, RTXAGC_CCK_MCS32, BTX_AGCRATECCK, txagc);
 
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_rf6052_set_ccktxpower);
 
 bool rtl92s_phy_rf6052_config(struct ieee80211_hw *hw)
 {
@@ -508,6 +509,7 @@ bool rtl92s_phy_rf6052_config(struct ieee80211_hw *hw)
 fail:
 	return rtstatus;
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_rf6052_config);
 
 void rtl92s_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw, u8 bandwidth)
 {
@@ -533,3 +535,4 @@ void rtl92s_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw, u8 bandwidth)
 		break;
 	}
 }
+EXPORT_SYMBOL_GPL(rtl92s_phy_rf6052_set_bandwidth);

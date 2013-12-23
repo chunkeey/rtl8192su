@@ -26,8 +26,8 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  *****************************************************************************/
-#ifndef __REALTEK_92S_REG_H__
-#define __REALTEK_92S_REG_H__
+#ifndef __REALTEK_92S_REG_COMMON_H__
+#define __REALTEK_92S_REG_COMMON_H__
 
 /* 1. System Configuration Registers  */
 #define	REG_SYS_ISO_CTRL			0x0000

@@ -26,8 +26,8 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  *****************************************************************************/
-#ifndef __RTL92S_PHY_H__
-#define __RTL92S_PHY_H__
+#ifndef __REALTEK_92S_PHY_COMMON_H__
+#define __REALTEK_92S_PHY_COMMON_H__
 
 #define MAX_TXPWR_IDX_NMODE_92S		63
 #define MAX_DOZE_WAITING_TIMES_9x	64
@@ -97,6 +97,5 @@ bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fwcmd_io);
 void rtl92s_phy_chk_fwcmd_iodone(struct ieee80211_hw *hw);
 void rtl92s_phy_set_beacon_hwreg(struct ieee80211_hw *hw, u16 beaconinterval);
 u8 rtl92s_phy_config_rf(struct ieee80211_hw *hw, enum radio_path rfpath) ;
-
+void rtl92s_gpiobit3_cfg_inputmode(struct ieee80211_hw *hw);
 #endif
-

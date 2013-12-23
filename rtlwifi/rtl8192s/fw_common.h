@@ -26,8 +26,8 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  *****************************************************************************/
-#ifndef __REALTEK_FIRMWARE92S_H__
-#define __REALTEK_FIRMWARE92S_H__
+#ifndef __REALTEK_FIRMWARE92S_COMMON_H__
+#define __REALTEK_FIRMWARE92S_COMMON_H__
 
 #define RTL8190_MAX_FIRMWARE_CODE_SIZE		64000
 #define RTL8190_MAX_RAW_FIRMWARE_CODE_SIZE	90000

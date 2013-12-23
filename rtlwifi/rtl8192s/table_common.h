@@ -19,8 +19,8 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  ******************************************************************************/
-#ifndef __INC_HAL8192SE_FW_IMG_H
-#define __INC_HAL8192SE_FW_IMG_H
+#ifndef __REALTEK_92S_TABLE_COMMON_H__
+#define __REALTEK_92S_TABLE_COMMON_H__
 
 #include <linux/types.h>
 
