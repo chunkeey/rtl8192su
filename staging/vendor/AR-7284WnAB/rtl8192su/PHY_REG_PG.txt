@@ -1,0 +1,13 @@
+//=========================
+// PHY_related MAC register
+//=========================
+
+0xe00 0xffffffff 0x06090909 // base on 0x2a  //for 18M,12M,09M,06M
+0xe04 0xffffffff 0x00030406 // base on 0x2a  //for 54M,48M,36M,24M
+0xe08 0x0000ff00 0x00       //for CCK all rate
+0xe10 0xffffffff 0x0a0c0d0e // base on 0x2a  //for MCS=03,02,01,00
+0xe14 0xffffffff 0x04070809 // base on 0x2a  //for MCS=07,06,05,04
+0xe18 0xffffffff 0x0a0c0d0e // base on 0x2a  //for MCS=11,10,09,08
+0xe1c 0xffffffff 0x04070809 // base on 0x2a  //for MCS=15,14,13,12
+
+0xff

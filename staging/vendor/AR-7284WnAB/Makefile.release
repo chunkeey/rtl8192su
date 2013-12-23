@@ -1,0 +1,35 @@
+#
+# drivers/net/rtl8190
+#
+# Makefile for the Linux Wireless network device drivers.
+#
+
+EXTRA_CFLAGS += -I$(TOPDIR)/drivers/net/wireless
+EXTRA_CFLAGS += -std=gnu89
+EXTRA_CFLAGS += -O2
+#EXTRA_CFLAGS += -mhard-float -DCONFIG_FORCE_HARD_FLOAT=y
+#EXTRA_CFLAGS += -DASL=1
+#EXTRA_CFLAGS += -DASL_WME=1
+#EXTRA_CFLAGS += -DASL_DEBUG=1
+#CFLAGS += -DJACKSON_NEW_8187 -DJACKSON_NEW_RX
+#CFLAGS += -DTHOMAS_BEACON -DTHOMAS_TASKLET -DTHOMAS_SKB
+CFLAGS += -include $(dir $@)8672port.h
+#CFLAGS += -DCONFIG_RTL8192
+CFLAGS += -DCONFIG_RTL8671
+#CFLAGS += -DRTL8192SE
+CFLAGS += -DRTL8192SU
+CFLAGS += -DCONFIG_RTL8192SU 
+#CFLAGS += -mips16
+
+ifdef CONFIG_RTL867X_PACKET_PROCESSOR
+WIFI_LIB = 8192su.lib
+else
+WIFI_LIB = 8192su_nopp.lib
+endif
+
+obj-$(CONFIG_USB_RTL8192SU_SOFTAP) = $(WIFI_LIB) 8190n_usb.o
+
+
+#EXTRA_CFLGAS += -Werror
+
+#include $(TOPDIR)/Rules.make
