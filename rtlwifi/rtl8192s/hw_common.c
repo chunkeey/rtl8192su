@@ -783,6 +783,16 @@ static void _rtl92s_get_IC_Inferiority(struct ieee80211_hw *hw)
 	}
 }
 
+void rtl92s_read_chip_version(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+
+	rtlhal->version = (rtl_read_dword(rtlpriv, PMC_FSM) & 0xf8000) >> 15;
+	pr_info("Chip version 0x%x\n", rtlhal->version);
+}
+EXPORT_SYMBOL_GPL(rtl92s_read_chip_version);
+
 static void _rtl92s_read_adapter_info(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
