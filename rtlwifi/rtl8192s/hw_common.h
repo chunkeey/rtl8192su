@@ -29,12 +29,6 @@
 #ifndef __REALTEK_92S_HW_COMMON_H__
 #define __REALTEK_92S_HW_COMMON_H__
 
-#define MSR_LINK_MANAGED   2
-#define MSR_LINK_NONE      0
-#define MSR_LINK_SHIFT     0
-#define MSR_LINK_ADHOC     1
-#define MSR_LINK_MASTER    3
-
 enum WIRELESS_NETWORK_TYPE {
 	WIRELESS_11B = 1,
 	WIRELESS_11G = 2,

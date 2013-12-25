@@ -28,10 +28,8 @@
  *****************************************************************************/
 #ifndef __REALTEK_92S_REG_COMMON_H__
 #define __REALTEK_92S_REG_COMMON_H__
-
+#include "reg_new.h"
 /* 1. System Configuration Registers  */
-#define	REG_SYS_ISO_CTRL			0x0000
-#define	REG_SYS_FUNC_EN				0x0002
 #define	PMC_FSM					0x0004
 #define	SYS_CLKR				0x0008
 #define	EPROM_CMD				0x000A
@@ -47,8 +45,6 @@
 #define	LPLDO_CTRL				0x0024
 #define	AFE_XTAL_CTRL				0x0026
 #define	AFE_PLL_CTRL				0x0028
-#define	REG_EFUSE_CTRL				0x0030
-#define	REG_EFUSE_TEST				0x0034
 #define	PWR_DATA				0x0038
 #define	DBG_PORT				0x003A
 #define	DPS_TIMER				0x003C
@@ -222,13 +218,6 @@
 #define	AMPDU_MIN_SPACE				0x0237
 #define	TXOP_STALL_CTRL				0x0238
 
-/* 9. Security Control Registers */
-#define	REG_RWCAM				0x0240
-#define	REG_WCAMI				0x0244
-#define	REG_RCAMO				0x0248
-#define	REG_CAMDBG				0x024C
-#define	REG_SECR				0x0250
-
 /* 10. Power Save Control Registers */
 #define	WOW_CTRL				0x0260
 #define	PSSTATUS				0x0261
@@ -253,8 +242,6 @@
 #define	MAC_PINMUX_CFG				0x02F1
 #define	LEDCFG					0x02F2
 #define	PHY_REG					0x02F3
-#define	PHY_REG_DATA				0x02F4
-#define	REG_EFUSE_CLK				0x02F8
 
 /* 12. Host Interrupt Status Registers */
 #define	INTA_MASK				0x0300
@@ -477,12 +464,8 @@
 #define	RCR_FIFO_OFFSET				13
 
 
-#define MSR_LINK_MASK				((1 << 0) | (1 << 1))
-#define MSR_LINK_MANAGED			2
 #define MSR_LINK_NONE				0
 #define MSR_LINK_SHIFT				0
-#define MSR_LINK_ADHOC				1
-#define MSR_LINK_MASTER				3
 #define	MSR_NOLINK				0x00
 #define	MSR_ADHOC				0x01
 #define	MSR_INFRA				0x02
@@ -510,10 +493,6 @@
 
 #define	RRSR_RSC_OFFSET				21
 #define	RRSR_SHORT_OFFSET			23
-#define	RRSR_RSC_BW_40M				0x600000
-#define	RRSR_RSC_UPSUBCHNL			0x400000
-#define	RRSR_RSC_LOWSUBCHNL			0x200000
-#define	RRSR_SHORT				0x800000
 #define	RRSR_1M					BIT(0)
 #define	RRSR_2M					BIT(1)
 #define	RRSR_5_5M				BIT(2)
