@@ -81,30 +81,6 @@ static void efuse_power_switch(struct ieee80211_hw *hw, u8 write,
 static u16 efuse_get_current_size(struct ieee80211_hw *hw);
 static u8 efuse_calculate_word_cnts(u8 word_en);
 
-void efuse_initialize(struct ieee80211_hw *hw)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u8 bytetemp;
-	u8 temp;
-
-	bytetemp = rtl_read_byte(rtlpriv, rtlpriv->cfg->maps[SYS_FUNC_EN] + 1);
-	temp = bytetemp | 0x20;
-	rtl_write_byte(rtlpriv, rtlpriv->cfg->maps[SYS_FUNC_EN] + 1, temp);
-
-	bytetemp = rtl_read_byte(rtlpriv, rtlpriv->cfg->maps[SYS_ISO_CTRL] + 1);
-	temp = bytetemp & 0xFE;
-	rtl_write_byte(rtlpriv, rtlpriv->cfg->maps[SYS_ISO_CTRL] + 1, temp);
-
-	bytetemp = rtl_read_byte(rtlpriv, rtlpriv->cfg->maps[EFUSE_TEST] + 3);
-	temp = bytetemp | 0x80;
-	rtl_write_byte(rtlpriv, rtlpriv->cfg->maps[EFUSE_TEST] + 3, temp);
-
-	rtl_write_byte(rtlpriv, 0x2F8, 0x3);
-
-	rtl_write_byte(rtlpriv, rtlpriv->cfg->maps[EFUSE_CTRL] + 3, 0x72);
-
-}
-
 u8 efuse_read_1byte(struct ieee80211_hw *hw, u16 address)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -1126,7 +1102,7 @@ static void efuse_power_switch(struct ieee80211_hw *hw, u8 write, u8 pwrstate)
 	u8 tempval;
 	u16 tmpV16;
 
-	if (pwrstate && (rtlhal->hw_type != HARDWARE_TYPE_RTL8192SE)) {
+	if (pwrstate && !IS_HARDWARE_TYPE_8192S(rtlhal)) {
 		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8188EE)
 			rtl_write_byte(rtlpriv, rtlpriv->cfg->maps[EFUSE_ACCESS],
 				       0x69);
@@ -1164,7 +1140,7 @@ static void efuse_power_switch(struct ieee80211_hw *hw, u8 write, u8 pwrstate)
 						rtlpriv->cfg->maps[EFUSE_TEST] +
 						3);
 
-			if (rtlhal->hw_type != HARDWARE_TYPE_RTL8192SE) {
+			if (!IS_HARDWARE_TYPE_8192S(rtlhal)) {
 				tempval &= 0x0F;
 				tempval |= (VOLTAGE_V25 << 4);
 			}
@@ -1174,7 +1150,7 @@ static void efuse_power_switch(struct ieee80211_hw *hw, u8 write, u8 pwrstate)
 				       (tempval | 0x80));
 		}
 
-		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8192SE) {
+		if (IS_HARDWARE_TYPE_8192S(rtlhal)) {
 			rtl_write_byte(rtlpriv, rtlpriv->cfg->maps[EFUSE_CLK],
 						0x03);
 		}
@@ -1193,7 +1169,7 @@ static void efuse_power_switch(struct ieee80211_hw *hw, u8 write, u8 pwrstate)
 				       (tempval & 0x7F));
 		}
 
-		if (rtlhal->hw_type == HARDWARE_TYPE_RTL8192SE) {
+		if (IS_HARDWARE_TYPE_8192S(rtlhal)) {
 			rtl_write_byte(rtlpriv, rtlpriv->cfg->maps[EFUSE_CLK],
 						0x02);
 		}
