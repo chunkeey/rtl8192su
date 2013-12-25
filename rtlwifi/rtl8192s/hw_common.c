@@ -497,47 +497,35 @@ void rtl92s_enable_hw_security_config(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL_GPL(rtl92s_enable_hw_security_config);
 
-bool rtl92s_halset_sysclk(struct ieee80211_hw *hw, u8 data)
+bool rtl92s_halset_sysclk(struct ieee80211_hw *hw, u16 clk_set)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u8 waitcount = 100;
-	bool bresult = false;
-	u8 tmpvalue;
+	u16 clk;
+	u8 tries = 100;
+	bool result;
 
-	rtl_write_byte(rtlpriv, SYS_CLKR + 1, data);
+	rtl_write_word(rtlpriv, REG_SYS_CLKR, clk_set);
 
-	/* Wait the MAC synchronized. */
+	/* Wait until the MAC is synchronized. */
 	udelay(400);
 
 	/* Check if it is set ready. */
-	tmpvalue = rtl_read_byte(rtlpriv, SYS_CLKR + 1);
-	bresult = ((tmpvalue & BIT(7)) == (data & BIT(7)));
+	clk = rtl_read_word(rtlpriv, SYS_CLKR);
+	result = ((clk & SYS_FWHW_SEL) == (clk_set & SYS_FWHW_SEL));
 
-	if ((data & (BIT(6) | BIT(7))) == false) {
-		waitcount = 100;
-		tmpvalue = 0;
-
-		while (1) {
-			waitcount--;
-
-			tmpvalue = rtl_read_byte(rtlpriv, SYS_CLKR + 1);
-			if ((tmpvalue & BIT(6)))
-				break;
-
-			pr_err("wait for BIT(6) return value %x\n", tmpvalue);
-			if (waitcount == 0)
-				break;
-
+	if (!(clk_set & (SYS_SWHW_SEL | SYS_FWHW_SEL))) {
+		do {
 			udelay(10);
-		}
 
-		if (waitcount == 0)
-			bresult = false;
-		else
-			bresult = true;
+			clk = rtl_read_word(rtlpriv, SYS_CLKR);
+			if ((clk & SYS_SWHW_SEL))
+				return true;
+
+			pr_err("wait for SYS_SWHW_SEL return value %x\n", clk);
+		} while (--tries);
+		return false;
 	}
-
-	return bresult;
+	return result;
 }
 EXPORT_SYMBOL_GPL(rtl92s_halset_sysclk);
 
@@ -809,7 +797,6 @@ static void _rtl92s_read_adapter_info(struct ieee80211_hw *hw)
 			 "RTL819X Not boot from eeprom, check it !!\n");
 	} else if (rtlefuse->epromtype == EEPROM_BOOT_EFUSE) {
 		rtl_efuse_shadow_map_update(hw);
-
 		memcpy((void *)hwinfo, (void *)
 			&rtlefuse->efuse_map[EFUSE_INIT_MAP][0],
 			HWSET_MAX_SIZE_92S);

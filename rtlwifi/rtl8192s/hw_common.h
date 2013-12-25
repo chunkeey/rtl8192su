@@ -66,6 +66,6 @@ void rtl92s_set_key(struct ieee80211_hw *hw, u32 key_index, u8 *macaddr,
 int rtl92s_set_media_status(struct ieee80211_hw *hw, enum nl80211_iftype type);
 void rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw);
 void rtl92s_read_chip_version(struct ieee80211_hw *hw);
-bool rtl92s_halset_sysclk(struct ieee80211_hw *hw, u8 data);
+bool rtl92s_halset_sysclk(struct ieee80211_hw *hw, u16 data);
 bool rtl92s_rf_onoff_detect(struct ieee80211_hw *hw);
 #endif

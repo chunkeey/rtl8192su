@@ -64,12 +64,12 @@ static void _rtl92se_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 	}
 
 	/* Switch to SW IO control */
-	tmpu1b = rtl_read_byte(rtlpriv, (SYS_CLKR + 1));
-	if (tmpu1b & BIT(7)) {
-		tmpu1b &= ~(BIT(6) | BIT(7));
+	tmpu2b = rtl_read_word(rtlpriv, REG_SYS_CLKR);
+	if (tmpu2b & SYS_FWHW_SEL) {
+		tmpu2b &= ~(SYS_SWHW_SEL | SYS_FWHW_SEL);
 
 		/* Set failed, return to prevent hang. */
-		if (!rtl92s_halset_sysclk(hw, tmpu1b))
+		if (!rtl92s_halset_sysclk(hw, tmpu2b))
 			return;
 	}
 
@@ -170,9 +170,10 @@ static void _rtl92se_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 	tmpu2b = rtl_read_word(rtlpriv, SYS_CLKR);
 	rtl_write_word(rtlpriv, SYS_CLKR, (tmpu2b & (~BIT(2))));
 
-	tmpu1b = rtl_read_byte(rtlpriv, (SYS_CLKR + 1));
-	tmpu1b = ((tmpu1b | BIT(7)) & (~BIT(6)));
-	if (!rtl92s_halset_sysclk(hw, tmpu1b))
+	tmpu2b = rtl_read_word(rtlpriv, REG_SYS_CLKR);
+	tmpu2b |= SYS_FWHW_SEL;
+	tmpu2b &= ~SYS_SWHW_SEL;
+	if (!rtl92s_halset_sysclk(hw, tmpu2b))
 		return; /* Set failed, return to prevent hang. */
 
 	rtl_write_word(rtlpriv, CMDR, 0x07FC);
@@ -704,10 +705,10 @@ static void _rtl92se_power_domain_init(struct ieee80211_hw *hw)
 
 	rtlpriv->psc.pwrdomain_protect = true;
 
-	tmpu1b = rtl_read_byte(rtlpriv, (SYS_CLKR + 1));
-	if (tmpu1b & BIT(7)) {
-		tmpu1b &= ~(BIT(6) | BIT(7));
-		if (!rtl92s_halset_sysclk(hw, tmpu1b)) {
+	tmpu2b = rtl_read_word(rtlpriv, REG_SYS_CLKR);
+	if (tmpu2b & SYS_FWHW_SEL) {
+		tmpu2b &= ~(SYS_SWHW_SEL | SYS_FWHW_SEL);
+		if (!rtl92s_halset_sysclk(hw, tmpu2b)) {
 			rtlpriv->psc.pwrdomain_protect = false;
 			return;
 		}
@@ -798,9 +799,10 @@ static void _rtl92se_power_domain_init(struct ieee80211_hw *hw)
 	tmpu2b = rtl_read_word(rtlpriv, SYS_CLKR);
 	rtl_write_word(rtlpriv, SYS_CLKR, (tmpu2b & (~BIT(2))));
 
-	tmpu1b = rtl_read_byte(rtlpriv, (SYS_CLKR + 1));
-	tmpu1b = ((tmpu1b | BIT(7)) & (~BIT(6)));
-	if (!rtl92s_halset_sysclk(hw, tmpu1b)) {
+	tmpu2b = rtl_read_word(rtlpriv, REG_SYS_CLKR);
+	tmpu2b |= SYS_FWHW_SEL;
+	tmpu2b &= ~SYS_SWHW_SEL;
+	if (!rtl92s_halset_sysclk(hw, tmpu2b)) {
 		rtlpriv->psc.pwrdomain_protect = false;
 		return;
 	}
