@@ -29,6 +29,7 @@
 
 #include "../wifi.h"
 #include "../pci.h"
+#include "../usb.h"
 #include "../base.h"
 #include "reg_common.h"
 #include "def_common.h"
@@ -51,7 +52,7 @@ static void _rtl92s_fw_set_rqpn(struct ieee80211_hw *hw)
 static bool _rtl92s_firmware_enable_cpu(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u32 ichecktime = 200;
+	u32 ichecktime = 10;
 	u16 tmpu2b;
 	u8 tmpu1b, cpustatus = 0;
 
@@ -74,7 +75,7 @@ static bool _rtl92s_firmware_enable_cpu(struct ieee80211_hw *hw)
 			break;
 		}
 
-		udelay(100);
+		msleep(20);
 	} while (ichecktime--);
 
 	if (!(cpustatus & IMEM_RDY))
@@ -138,6 +139,17 @@ static void _rtl92s_firmwareheader_priveupdate(struct ieee80211_hw *hw,
 	pfw_priv->rf_config = _rtl92s_firmware_header_map_rftype(hw);
 }
 
+static uint8_t _rtl92s_get_fw_queue(struct rtl_priv *rtlpriv)
+{
+	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
+
+        if (IS_HARDWARE_TYPE_8192SE(rtlhal))
+		return TXCMD_QUEUE;
+	else if (IS_HARDWARE_TYPE_8192SU(rtlhal))
+		return RTL_TXQ_VO;
+	return TXCMD_QUEUE;
+}
+
 static bool _rtl92s_firmware_downloadcode(struct ieee80211_hw *hw,
 		u8 *code_virtual_address, u32 buffer_len)
 {
@@ -182,8 +194,8 @@ static bool _rtl92s_firmware_downloadcode(struct ieee80211_hw *hw,
 		       (u32)(frag_length - extra_descoffset));
 
 		tcb_desc = (struct rtl_tcb_desc *)(skb->cb);
-		tcb_desc->queue_index = TXCMD_QUEUE;
 		tcb_desc->cmd_or_init = DESC_PACKET_TYPE_INIT;
+		tcb_desc->queue_index = _rtl92s_get_fw_queue(rtlpriv);
 		tcb_desc->last_inipkt = last_inipkt;
 
 		rtlpriv->cfg->ops->cmd_send_packet(hw, skb);
@@ -205,7 +217,7 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 	struct rt_firmware *firmware = (struct rt_firmware *)rtlhal->pfirmware;
 	u32 tmpu4b;
 	u8 cpustatus = 0;
-	short pollingcnt = 1000;
+	short pollingcnt = 10;
 	bool rtstatus = true;
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
@@ -220,8 +232,8 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 			cpustatus = rtl_read_byte(rtlpriv, TCR);
 			if (cpustatus & IMEM_CODE_DONE)
 				break;
-			udelay(5);
-		} while (pollingcnt--);
+			msleep(20);
+		} while (--pollingcnt);
 
 		if (!(cpustatus & IMEM_CHK_RPT) || (pollingcnt <= 0)) {
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
@@ -238,7 +250,7 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 			cpustatus = rtl_read_byte(rtlpriv, TCR);
 			if (cpustatus & EMEM_CODE_DONE)
 				break;
-			udelay(5);
+			msleep(20);
 		} while (pollingcnt--);
 
 		if (!(cpustatus & EMEM_CHK_RPT) || (pollingcnt <= 0)) {
@@ -263,7 +275,7 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 			cpustatus = rtl_read_byte(rtlpriv, TCR);
 			if (cpustatus & DMEM_CODE_DONE)
 				break;
-			udelay(5);
+			msleep(20);
 		} while (pollingcnt--);
 
 		if (!(cpustatus & DMEM_CODE_DONE) || (pollingcnt <= 0)) {
@@ -277,15 +289,22 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 			 "DMEM code download success, cpustatus(%#x)\n",
 			 cpustatus);
 
-		/* Prevent Delay too much and being scheduled out */
-		/* Polling Load Firmware ready */
-		pollingcnt = 2000;
+		if (rtl_read_byte(rtlpriv, REG_EEPROM_CMD) &
+		    EEPROM_CMD_93C46) {
+			/* When booting from the eeprom, the firmware
+			 * needs more time to complete the boot procedure. */
+			pollingcnt = 60;
+		} else {
+			/* Boot from eefuse is faster */
+			pollingcnt = 30;
+		}
+
 		do {
 			cpustatus = rtl_read_byte(rtlpriv, TCR);
 			if (cpustatus & FWRDY)
 				break;
-			udelay(40);
-		} while (pollingcnt--);
+			msleep(100);
+		} while (--pollingcnt);
 
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 			 "Polling Load Firmware ready, cpustatus(%x)\n",
@@ -357,7 +376,7 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 
 	if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
 		pfwheader->fwpriv.hci_sel = RTL8712_HCI_TYPE_PCIE;
-	} else if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
+	} else if (IS_HARDWARE_TYPE_8192SU(rtlhal)) {
 		pfwheader->fwpriv.hci_sel = RTL8712_HCI_TYPE_AP_USB;
 		pfwheader->fwpriv.usb_ep_num = 4;
 		pfwheader->fwpriv.beacon_offload = 2; /* BCNOFFLOAD_FW */
@@ -575,7 +594,7 @@ static bool _rtl92s_firmware_set_h2c_cmd(struct ieee80211_hw *hw, u8 h2c_cmd,
 	_rtl92s_fill_h2c_cmd(skb, MAX_TRANSMIT_BUFFER_SIZE, 1, &element_id,
 			&cmd_len, &pcmd_buffer,	&rtlhal->h2c_txcmd_seq);
 	rtlpriv->cfg->ops->cmd_send_packet(hw, skb);
-	rtlpriv->cfg->ops->tx_polling(hw, TXCMD_QUEUE);
+	rtlpriv->cfg->ops->tx_polling(hw, _rtl92s_get_fw_queue(rtlpriv));
 	return true;
 }
 
