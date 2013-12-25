@@ -354,7 +354,18 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 	firmware->pfwheader = (struct fw_hdr *) puc_mappedfile;
 	pfwheader = firmware->pfwheader;
 	firmware->firmwareversion =  byte(pfwheader->version, 0);
-	firmware->pfwheader->fwpriv.hci_sel = 1;/* pcie */
+
+	if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
+		pfwheader->fwpriv.hci_sel = RTL8712_HCI_TYPE_PCIE;
+	} else if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
+		pfwheader->fwpriv.hci_sel = RTL8712_HCI_TYPE_AP_USB;
+		pfwheader->fwpriv.usb_ep_num = 4;
+		pfwheader->fwpriv.beacon_offload = 2; /* BCNOFFLOAD_FW */
+	} else {
+		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
+			 "unsupported device\n");
+		return -ENODEV;
+	}
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "signature:%x, version:%x, size:%x, imemsize:%x, sram size:%x\n",
