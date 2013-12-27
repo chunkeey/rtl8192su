@@ -11,9 +11,7 @@
 #ifndef _8190N_HEADERS_H_
 #define _8190N_HEADERS_H_
 
-#ifdef __KERNEL__
 #include <linux/wireless.h>
-#endif
 
 #include "./8190n_tx.h"
 
@@ -127,18 +125,13 @@ EXTERN int is_rtl8190_priv_buf(unsigned char *head);
 EXTERN void free_rtl8190_priv_buf(unsigned char *head);
 #endif
 
-#ifdef RTL8192E
-EXTERN int realloc_RATid(struct rtl8190_priv * priv);
-#endif
 
 // global variables
 EXTERN UINT8 Realtek_OUI[];
 EXTERN UINT8 dot11_rate_table[];
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
 EXTERN unsigned int set_fw_reg(struct rtl8190_priv *priv, unsigned int cmd, unsigned int val, unsigned int with_val);
 EXTERN void set_fw_A2_entry(struct rtl8190_priv * priv, unsigned int cmd, unsigned char * addr);
-#endif
 #ifdef CONFIG_RTK_MESH
 
 #ifdef _11s_TEST_MODE_
@@ -172,9 +165,7 @@ EXTERN void free_sta_que(struct rtl8190_priv *priv, struct apsd_pkt_queue *que);
 #endif
 #endif
 
-#if defined(RTL8192SU) && defined(CONFIG_RTL8671)
 EXTERN void memDump (void *start, u32 size, char * strHeader);
-#endif
 #undef EXTERN
 
 
@@ -196,16 +187,12 @@ EXTERN void assign_wlanseq(struct rtl8190_hw *phw, unsigned char *pframe, struct
 	);
 EXTERN int rtl8190_start_xmit(struct sk_buff *skb, struct net_device *dev);
 EXTERN int rtl8190_wlantx(struct rtl8190_priv *priv, struct tx_insn *txcfg);
-#if !defined(RTL8192SU)
-EXTERN void rtl8190_tx_dsr(unsigned long task_priv);
-#else
 EXTERN unsigned int get_TxUrb_Pending_num(struct rtl8190_priv *priv);
 #ifdef PKT_PROCESSOR
 EXTERN int rtl8190_start_xmit_from_cpu(struct sk_buff *skb, struct net_device *dev);
 #endif
 #ifdef RTL8192SU_SW_BEACON
 EXTERN void rtk8192su_beacon_time(unsigned long task_priv);
-#endif
 #endif
 EXTERN int rtl8190_firetx(struct rtl8190_priv *priv, struct tx_insn *txcfg);
 EXTERN void signin_txdesc(struct rtl8190_priv *priv, struct tx_insn* txcfg);
@@ -224,12 +211,10 @@ EXTERN void amsdu_timeout(struct rtl8190_priv *priv, unsigned int current_time);
 EXTERN void ampdu_timeout(struct rtl8190_priv *priv, unsigned int current_time);
 #endif
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
 #ifdef FW_SW_BEACON
 extern int rtl8192SE_SendBeaconByCmdQ(struct rtl8190_priv *priv, unsigned char *dat_content, unsigned short txLength);
 #endif
 extern int rtl8192SE_SetupOneCmdPacket(struct rtl8190_priv *priv, unsigned char *dat_content, unsigned short txLength, unsigned char LastPkt);
-#endif
 #ifdef CONFIG_RTK_MESH
 //#ifdef MESH_AMSDU	//plus mark it for build error
 EXTERN int amsdu_check(struct rtl8190_priv *priv, struct sk_buff *skb, struct stat_info *pstat, struct tx_insn *txcfg);
@@ -339,9 +324,7 @@ EXTERN unsigned char *set_fixed_ie(unsigned char *pbuf, unsigned int len, unsign
 EXTERN unsigned char *set_ie(unsigned char *pbuf, int index, unsigned int len, unsigned char *source, unsigned int *frlen);
 EXTERN void update_support_rate(struct	stat_info *pstat, unsigned char* buf, int len);
 #endif
-#if defined(RTL8192SE) || defined(RTL8192SU)
 EXTERN void reset_1r_sta_RA(struct rtl8190_priv *priv, unsigned int sg_rate);
-#endif
 
 #ifdef RTL8192SU_CHECKTXHANGUP
 void send_probereq(struct rtl8190_priv *priv);
@@ -360,9 +343,6 @@ void send_probereq(struct rtl8190_priv *priv);
 #define EXTERN
 #endif
 
-#if defined(RTL8192SE)	&& defined(RX_TASKLET)
-EXTERN void rtl8192_rx_isr(unsigned long task_priv);
-#endif
 EXTERN void rtl8190_rx_isr(struct rtl8190_priv *priv);
 EXTERN void rtl8190_rx_dsr(unsigned long task_priv);
 #ifdef CONFIG_RTL865X
@@ -421,24 +401,17 @@ EXTERN int rtl819x_init_hw_PCI(struct rtl8190_priv *priv);
 EXTERN int rtl819x_stop_hw(struct rtl8190_priv *priv, int reset_bb);
 
 // bcm old 11n chipset iot debug
-#if defined(RTL8190) || defined(RTL8192E)
-EXTERN void fsync_refine_switch(struct rtl8190_priv *priv, unsigned int refine_on);
-EXTERN void rtl8190_fsync_timer(unsigned long task_priv);
-#endif
 
 #ifdef SEMI_QOS
 EXTERN void BE_switch_to_VI(struct rtl8190_priv *priv, int mode, char enable);
 #endif
-#if defined(RTL8192SE) || defined(RTL8192SU)
 EXTERN void tx_path_by_rssi(struct rtl8190_priv *priv, struct stat_info *pstat, unsigned char enable);
-#endif
 EXTERN void rx_path_by_rssi(struct rtl8190_priv *priv, struct stat_info *pstat, int enable);
 EXTERN void rx_path_by_rssi_cck_v2(struct rtl8190_priv *priv, struct stat_info *pstat);
 EXTERN void tx_power_control(struct rtl8190_priv *priv, struct stat_info *pstat, int enable);
 EXTERN void tx_power_tracking(struct rtl8190_priv *priv);
 EXTERN void rtl8190_tpt_timer(unsigned long task_priv);
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
 EXTERN void SwitchExtAnt(struct rtl8190_priv *priv, unsigned char EXT_ANT_PATH);
 EXTERN void check_and_set_ampdu_spacing(struct rtl8190_priv *priv, struct stat_info *pstat);
 EXTERN void rtl8192se_ePhyInit(struct rtl8190_priv * priv);
@@ -448,7 +421,6 @@ EXTERN void CCK_CCA_dynamic_enhance(struct rtl8190_priv * priv, unsigned char rs
 #ifdef HW_QUICK_INIT
 EXTERN void rtl819x_start_hw_trx(struct rtl8190_priv *priv);
 EXTERN void rtl819x_stop_hw_trx(struct rtl8190_priv *priv);
-#endif
 #endif
 
 #ifdef RTL8192SU_EFUSE
@@ -492,13 +464,11 @@ EXTERN int rtl8190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 EXTERN int set_guestmacinvalid(struct rtl8190_priv *priv, char *buf);
 #endif
 
-#ifdef CONFIG_RTL8671
 // MBSSID Port Mapping
 struct port_map {
 	struct net_device *dev_pointer;
 	int dev_ifgrp_member;
 };
-#endif
 
 EXTERN void delay_us(unsigned int t);
 EXTERN void delay_ms(unsigned int t);
@@ -508,28 +478,6 @@ EXTERN void delay_ms(unsigned int t);
 
 
 
-#if 0	//move to hw.c
-/*-----------------------------------------------------------------------------
-								8190n_cam.c
-------------------------------------------------------------------------------*/
-#ifndef _8190N_CAM_C_
-#define EXTERN  extern
-#else
-#define EXTERN
-#endif
-
-EXTERN int CamAddOneEntry(struct rtl8190_priv *priv, unsigned char *pucMacAddr,
-				unsigned long ulKeyId, unsigned long ulEncAlg, unsigned long ulUseDK,
-				unsigned char *pucKey);
-EXTERN int CamDeleteOneEntry(struct rtl8190_priv *priv, unsigned char *pucMacAddr,
-				unsigned long ulKeyId, unsigned int useDK);
-EXTERN void CamResetAllEntry(struct rtl8190_priv *priv);
-EXTERN void CamDumpAll(struct rtl8190_priv *priv);
-EXTERN void CAM_read_entry(struct rtl8190_priv *priv, unsigned char index, unsigned char *macad,
-				unsigned char *key128, unsigned short *config);
-
-#undef EXTERN
-#endif
 
 
 

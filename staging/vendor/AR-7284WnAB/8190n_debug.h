@@ -131,7 +131,6 @@ enum _module_define_ {
 /* Macro for DEBUG_ERR(), DEBUG_TRACE(), DEBUG_WARN(), DEBUG_INFO() */
 
 #ifdef __GNUC__
-#ifdef CONFIG_RTL8671
 #define DEBUG_ERR		printk
 #define DEBUG_TRACE		printk
 #define DEBUG_INFO		printk
@@ -144,35 +143,6 @@ enum _module_define_ {
 #define DBFEXIT
 #define PRINT_INFO		printk
 
-#else
-
-#define __DEBUG_ERR(name, fmt, args...) \
-	if (rtl8190_debug_err&_MODULE_DEFINE) \
-		printk("%s-"_MODULE_NAME"-err: " fmt, name, ## args);
-#define __DEBUG_TRACE(name) \
-	if (rtl8190_debug_trace&_MODULE_DEFINE) \
-		printk("%s-"_MODULE_NAME"-trace: %s----->\n", name, (char *)__FUNCTION__);
-#define __DEBUG_INFO(name, fmt, args...) \
-	if (rtl8190_debug_info&_MODULE_DEFINE) \
-		printk("%s-"_MODULE_NAME"-info: " fmt, name, ## args);
-#define __DEBUG_WARN(name, fmt, args...) \
-	if (rtl8190_debug_warn&_MODULE_DEFINE) \
-		printk("%s-"_MODULE_NAME"-warn: " fmt, name, ## args);
-
-#define DEBUG_ERR(fmt, args...)		__DEBUG_ERR(priv->dev->name, fmt, ## args)
-#define DEBUG_INFO(fmt, args...)	__DEBUG_INFO(priv->dev->name, fmt, ## args)
-#define DEBUG_TRACE					__DEBUG_TRACE(priv->dev->name)
-#define DEBUG_WARN(fmt, args...)	__DEBUG_WARN(priv->dev->name, fmt, ## args)
-
-#define _DEBUG_ERR(fmt, args...)	__DEBUG_ERR("wlan", fmt, ## args)
-#define _DEBUG_INFO(fmt, args...)	__DEBUG_INFO("wlan", fmt, ## args)
-#define _DEBUG_TRACE				__DEBUG_TRACE("wlan")
-#define _DEBUG_WARN(fmt, args...)	__DEBUG_WARN("wlan", fmt, ## args)
-
-#define DBFENTER	printk("----->%s\n", (char *)__FUNCTION__)
-#define DBFEXIT		printk("%s----->\n", (char *)__FUNCTION__)
-#define PRINT_INFO(fmt, args...)	printk(fmt, ## args)
-#endif
 #endif	// __GNUC__
 
 #ifdef __DRAYTEK_OS__
@@ -209,17 +179,12 @@ enum _module_define_ {
 #define PRINT_INFO		printk
 #endif // GREEN_HILL
 
-#elif defined(RTL8192SU)
+#else
 /* Macro for DEBUG_ERR(), DEBUG_TRACE(), DEBUG_WARN(), DEBUG_INFO() */
 
-#ifdef CONFIG_ENABLE_MIPS16 //tysu: mips16 call printk directly will cause crash-message show on console.
-#define DEBUG_ERR(fmt, args...)		do { static char *print_buf=fmt;  printk(print_buf); } while(0);  //for toolchain 1.2.8 
-
-#else
 
 #define DEBUG_ERR(fmt, args...)		printk(fmt, ##args)
 //#define DEBUG_ERR(fmt, args...)
-#endif
 
 //#define DEBUG_INFO(fmt, args...)		printk(fmt, ##args)
 #define DEBUG_INFO(fmt, args...)		
@@ -236,59 +201,6 @@ enum _module_define_ {
 #define DBFEXIT
 #define PRINT_INFO		//printk
 
-#else // not _DEBUG_RTL8190_
-
-#ifdef __GNUC__
-#define DEBUG_ERR(fmt, args...) {}
-#define DEBUG_INFO(fmt, args...) {}
-#define DEBUG_TRACE {}
-#define DEBUG_WARN(fmt, args...) {}
-
-#define _DEBUG_ERR(fmt, args...) {}
-#define _DEBUG_INFO(fmt, args...) {}
-#define _DEBUG_TRACE {}
-#define _DEBUG_WARN(fmt, args...) {}
-
-#define DBFENTER	{}
-#define DBFEXIT		{}
-#define PRINT_INFO(fmt, args...)	{}
-#endif // __GNUC__
-
-#ifdef __DRAYTEK_OS__
-#define __FUNCTION__	""
-
-#define DEBUG_ERR
-#define DEBUG_INFO
-#define DEBUG_TRACE
-#define DEBUG_WARN
-
-#define _DEBUG_ERR
-#define _DEBUG_INFO
-#define _DEBUG_TRACE
-#define _DEBUG_WARN
-
-#define DBFENTER
-#define DBFEXIT
-#define PRINT_INFO
-#endif // __DRAYTEK_OS__
-
-#ifdef GREEN_HILL
-#define DEBUG_ERR(fmt, args...) {}
-#define DEBUG_INFO(fmt, args...) {}
-#define DEBUG_TRACE {}
-#define DEBUG_WARN(fmt, args...) {}
-
-#define _DEBUG_ERR(fmt, args...) {}
-#define _DEBUG_INFO(fmt, args...) {}
-#define _DEBUG_TRACE {}
-#define _DEBUG_WARN(fmt, args...) {}
-
-#define DBFENTER	{}
-#define DBFEXIT		{}
-#define PRINT_INFO(fmt, args...)	{}
-#endif // GREEN_HILL
-
-
-#endif // _DEBUG_RTL8190_
+#endif
 #endif // _8190N_DEBUG_H_
 

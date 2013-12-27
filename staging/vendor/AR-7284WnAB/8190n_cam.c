@@ -195,21 +195,6 @@ void CAM_read_mac_config(struct rtl8190_priv *priv,UCHAR ucIndex, UCHAR* pucMaca
 }
 
 
-#if 0
-void CAM_mark_invalid(struct rtl8190_priv *priv,UCHAR ucIndex)
-{
-	ULONG ioaddr = priv->pshare->ioaddr;
-	ULONG ulCommand=0;
-	ULONG ulContent=0;
-
-	// polling bit, and No Write enable, and address
-	ulCommand= CAM_CONTENT_COUNT*ucIndex;
-	ulCommand= ulCommand | _CAM_POLL_ |_CAM_WE_;
-	// write content 0 is equall to mark invalid
-	WritePortUlong(_CAM_W_, ulContent);
-	WritePortUlong(_CAMCMD_, ulCommand);
-}
-#endif
 
 
 void CAM_empty_entry(struct rtl8190_priv *priv,UCHAR ucIndex)

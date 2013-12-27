@@ -6,14 +6,12 @@
 
 #define _8190N_PROC_C_
 
-#ifdef __KERNEL__
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
 #include <linux/netdevice.h>
 #include <linux/compile.h>
 #include <linux/init.h>
-#endif
 
 #include "./8190n_cfg.h"
 #include "./8190n.h"
@@ -25,9 +23,6 @@
 #include "./mesh_ext/mesh_util.h"
 #endif // CONFIG_RTK_MESH
 
-#ifdef RTL867X_CP3
-#include "./romeperf.h"
-#endif
 
 #ifdef _INCLUDE_PROC_FS_
 #include <asm/uaccess.h>
@@ -414,16 +409,6 @@ static int rtl8190_proc_mib_rf(char *buf, char **start, off_t offset,
 	PRINT_SINGL_ARG("    dot11ch_low: ", priv->pmib->dot11RFEntry.dot11ch_low, "%d");
 	PRINT_SINGL_ARG("    dot11ch_hi: ", priv->pmib->dot11RFEntry.dot11ch_hi, "%d");
 	PRINT_ARRAY_ARG("    pwrlevelCCK: ", priv->pmib->dot11RFEntry.pwrlevelCCK, "%02x", MAX_CCK_CHANNEL_NUM);
-#if defined(RTL8190) || defined(RTL8192E)
-	PRINT_ARRAY_ARG("    pwrlevelOFDM: ", priv->pmib->dot11RFEntry.pwrlevelOFDM, "%02x", 30);
-	PRINT_ARRAY_ARG("                  ", (priv->pmib->dot11RFEntry.pwrlevelOFDM+30), "%02x", 30);
-	PRINT_ARRAY_ARG("                  ", (priv->pmib->dot11RFEntry.pwrlevelOFDM+60), "%02x", 30);
-	PRINT_ARRAY_ARG("                  ", (priv->pmib->dot11RFEntry.pwrlevelOFDM+90), "%02x", 30);
-	PRINT_ARRAY_ARG("                  ", (priv->pmib->dot11RFEntry.pwrlevelOFDM+120), "%02x", 30);
-	PRINT_ARRAY_ARG("                  ", (priv->pmib->dot11RFEntry.pwrlevelOFDM+150), "%02x", 30);
-	PRINT_ARRAY_ARG("                  ", (priv->pmib->dot11RFEntry.pwrlevelOFDM+180), "%02x", 30);
-	PRINT_ARRAY_ARG("                  ", (priv->pmib->dot11RFEntry.pwrlevelOFDM+210), "%02x", 6);
-#else	// RTL8192SE
 	PRINT_ARRAY_ARG("    pwrlevelOFDM_1SS: ", priv->pmib->dot11RFEntry.pwrlevelOFDM_1SS, "%02x", 28);
 	PRINT_ARRAY_ARG("                  ", (priv->pmib->dot11RFEntry.pwrlevelOFDM_1SS+28), "%02x", 30);
 	PRINT_ARRAY_ARG("                  ", (priv->pmib->dot11RFEntry.pwrlevelOFDM_1SS+58), "%02x", 30);
@@ -440,31 +425,18 @@ static int rtl8190_proc_mib_rf(char *buf, char **start, off_t offset,
 	PRINT_ARRAY_ARG("                  ", (priv->pmib->dot11RFEntry.pwrlevelOFDM_2SS+148), "%02x", 30);
 	PRINT_ARRAY_ARG("                  ", (priv->pmib->dot11RFEntry.pwrlevelOFDM_2SS+178), "%02x", 30);
 	PRINT_ARRAY_ARG("                  ", (priv->pmib->dot11RFEntry.pwrlevelOFDM_2SS+208), "%02x", 8);
-#endif
 	PRINT_SINGL_ARG("    shortpreamble: ", priv->pmib->dot11RFEntry.shortpreamble, "%d");
 	PRINT_SINGL_ARG("    disable_ch14_ofdm: ", priv->pmib->dot11RFEntry.disable_ch14_ofdm, "%d");
-#if defined(RTL8190)
-	PRINT_SINGL_ARG("    LOFDM_pwrdiff: ", priv->pmib->dot11RFEntry.legacyOFDM_pwrdiff, "%d");
-	PRINT_SINGL_ARG("    antC_pwrdiff: ", priv->pmib->dot11RFEntry.antC_pwrdiff, "%d");
-	PRINT_SINGL_ARG("    ther_rfic: ", priv->pmib->dot11RFEntry.ther_rfic, "%d");
-	PRINT_SINGL_ARG("    crystalCap: ", priv->pmib->dot11RFEntry.crystalCap, "%d");
-	PRINT_SINGL_ARG("    bw_pwrdiff: ", priv->pmib->dot11RFEntry.bw_pwrdiff, "%d");
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 	PRINT_SINGL_ARG("    LOFDM_pwd_A: ", priv->pmib->dot11RFEntry.LOFDM_pwd_A, "%d");
 	PRINT_SINGL_ARG("    LOFDM_pwd_B: ", priv->pmib->dot11RFEntry.LOFDM_pwd_B, "%d");
 	PRINT_SINGL_ARG("    tssi1: ", priv->pmib->dot11RFEntry.tssi1, "%d");
 	PRINT_SINGL_ARG("    tssi2: ", priv->pmib->dot11RFEntry.tssi2, "%d");
 	PRINT_SINGL_ARG("    ther: ", priv->pmib->dot11RFEntry.ther, "%d");
-#endif
-#if defined(RTL8190)
-	PRINT_SINGL_ARG("    MIMO_TR_hw_support: ", ((priv->pshare->phw->MIMO_TR_hw_support == MIMO_1T2R) ? "1T2R" : "2T4R"), "%s");
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 	if(priv->pshare->phw->MIMO_TR_hw_support == MIMO_2T2R){
 		PRINT_SINGL_ARG("    MIMO_TR_hw_support: ", "2T2R", "%s");
 	}else{
 		PRINT_SINGL_ARG("    MIMO_TR_hw_support: ", ((priv->pshare->phw->MIMO_TR_hw_support == MIMO_1T2R) ? "1T2R" : "1T1R"), "%s");
 	}
-#endif
 	switch (priv->pmib->dot11RFEntry.MIMO_TR_mode) {
 	case MIMO_1T2R:
 		sprintf(tmpbuf, "1T2R");
@@ -481,23 +453,7 @@ static int rtl8190_proc_mib_rf(char *buf, char **start, off_t offset,
 	}
 	PRINT_SINGL_ARG("    MIMO_TR_mode: ", tmpbuf, "%s");
 
-#if defined(RTL8190)
-	switch (priv->pshare->VersionID) {
-	case VERSION_8190_B:
-		VersionID = "RTL8190(b)";
-		break;
-	case VERSION_8190_C:
-		VersionID = "RTL8190(c)";
-		break;
-	default:
-		VersionID = "Unknown";
-		break;
-	}
-#elif defined(RTL8192SE)
-	VersionID = "RTL8192SE";
-#elif defined(RTL8192SU)
 	VersionID = "RTL8192SU";
-#endif
 	PRINT_SINGL_ARG("    chipVersion: ", VersionID, "%s");
 
 	return pos;
@@ -651,241 +607,6 @@ static int rtl8190_proc_mib_brext(char *buf, char **start, off_t offset,
 }
 #endif
 
-#if !defined(RTL8192SU)
-static int rtl8190_proc_txdesc_info(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data, int q_num)
-{
-	struct net_device *dev = (struct net_device *)data;
-	struct rtl8190_priv *priv = (struct rtl8190_priv *)dev->priv;
-	struct rtl8190_hw *phw;
-	unsigned long *txdescptr;
-
-	int len = 0;
-	off_t begin = 0;
-	off_t pos = 0;
-	int i, size;
-
-	phw = GET_HW(priv);
-	size = sprintf(buf, "  Tx queue %d descriptor ..........\n", q_num);
-	CHECK_LEN;
-	if (get_txdesc(phw, q_num)) {
-		size = sprintf(buf+len, "  tx_desc%d/physical: 0x%.8x/0x%.8x\n", q_num, (UINT)get_txdesc(phw, q_num),
-						*(UINT *)(((UINT)&phw->tx_ring0_addr)+sizeof(unsigned long)*q_num));
-		CHECK_LEN;
-		size = sprintf(buf+len, "  head/tail: %3d/%-3d  DW0      DW1      DW2      DW3      DW4      DW5\n",
-			get_txhead(phw, q_num), get_txtail(phw, q_num));
-		CHECK_LEN;
-		for (i=0; i<NUM_TX_DESC; i++) {
-			txdescptr = (unsigned long *)(get_txdesc(phw, q_num) + i);
-			size = sprintf(buf+len, "      txdesc%d[%3d]: %.8x %.8x %.8x %.8x %.8x \n", q_num, i,
-					(UINT)get_desc(txdescptr[0]), (UINT)get_desc(txdescptr[1]),
-					(UINT)get_desc(txdescptr[2]), (UINT)get_desc(txdescptr[3]),
-					(UINT)get_desc(txdescptr[4]));
-			CHECK_LEN;
-		}
-	}
-	*eof = 1;
-
-_ret:
-	*start = buf + (offset - begin);	/* Start of wanted data */
-	len -= (offset - begin);	/* Start slop */
-	if (len > length)
-		len = length;	/* Ending slop */
-	return len;
-}
-
-
-static int rtl8190_proc_txdesc0_info(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	return rtl8190_proc_txdesc_info(buf, start, offset, length, eof, data, 0);
-}
-
-
-static int rtl8190_proc_txdesc1_info(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	return rtl8190_proc_txdesc_info(buf, start, offset, length, eof, data, 1);
-}
-
-
-static int rtl8190_proc_txdesc2_info(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	return rtl8190_proc_txdesc_info(buf, start, offset, length, eof, data, 2);
-}
-
-
-static int rtl8190_proc_txdesc3_info(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	return rtl8190_proc_txdesc_info(buf, start, offset, length, eof, data, 3);
-}
-
-
-static int rtl8190_proc_txdesc4_info(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	return rtl8190_proc_txdesc_info(buf, start, offset, length, eof, data, 4);
-}
-
-
-static int rtl8190_proc_txdesc5_info(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	return rtl8190_proc_txdesc_info(buf, start, offset, length, eof, data, 5);
-}
-
-
-static int rtl8190_proc_rxdesc_info(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	struct net_device *dev = (struct net_device *)data;
-	struct rtl8190_priv *priv = (struct rtl8190_priv *)dev->priv;
-	struct rtl8190_hw *phw;
-	unsigned long *rxdescptr;
-
-	int len = 0;
-	off_t begin = 0;
-	off_t pos = 0;
-	int i, size;
-
-	phw = GET_HW(priv);
-	size = sprintf(buf+len, "  Rx queue descriptor ..........\n");
-	CHECK_LEN;
-	if(phw->rx_descL){
-		size = sprintf(buf+len, "  rx_descL/physical: 0x%.8x/0x%.8x\n", (UINT)phw->rx_descL, (UINT)phw->rx_ring_addr);
-		CHECK_LEN;
-		size = sprintf(buf+len, "  cur_rx: %d\n", phw->cur_rx);
-		CHECK_LEN;
-		for(i=0; i<NUM_RX_DESC; i++) {
-			rxdescptr = (unsigned long *)(phw->rx_descL+i);
-			size = sprintf(buf+len, "      rxdesc[%02d]: 0x%.8x 0x%.8x 0x%.8x 0x%.8x \n", i,
-					(UINT)get_desc(rxdescptr[0]), (UINT)get_desc(rxdescptr[1]),
-					(UINT)get_desc(rxdescptr[2]), (UINT)get_desc(rxdescptr[3]));
-			CHECK_LEN;
-		}
-	}
-	*eof = 1;
-
-_ret:
-	*start = buf + (offset - begin);	/* Start of wanted data */
-	len -= (offset - begin);	/* Start slop */
-	if (len > length)
-		len = length;	/* Ending slop */
-	return len;
-}
-
-
-static int rtl8190_proc_desc_info(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	struct net_device *dev = (struct net_device *)data;
-	struct rtl8190_priv *priv = (struct rtl8190_priv *)dev->priv;
-	struct rtl8190_hw *phw = GET_HW(priv);
-	unsigned long ioaddr = priv->pshare->ioaddr;
-	int pos = 0;
-
-	PRINT_ONE("  descriptor info...", "%s", 1);
-	PRINT_ONE("    RX queue:", "%s", 1);
-	PRINT_ONE("      rx_descL/physical: ", "%s", 0);
-	PRINT_ONE((UINT)phw->rx_descL, "0x%.8x/", 0);
-	PRINT_ONE((UINT)phw->rx_ring_addr, "0x%.8x", 1);
-	PRINT_ONE("      RDSAR: ", "%s", 0);
-	PRINT_ONE((UINT)RTL_R32(_RDSAR_), "0x%.8x", 0);
-	PRINT_ONE("  cur_rx: ", "%s", 0);
-	PRINT_ONE((UINT)phw->cur_rx, "%d", 1);
-
-	PRINT_ONE("    queue 0:", "%s", 1);
-	PRINT_ONE("      tx_desc0/physical: ", "%s", 0);
-	PRINT_ONE((UINT)phw->tx_desc0, "0x%.8x/", 0);
-	PRINT_ONE((UINT)phw->tx_ring0_addr, "0x%.8x", 1);
-	PRINT_ONE("      TMGDA: ", "%s", 0);
-	PRINT_ONE((UINT)RTL_R32(_TMGDA_), "0x%.8x", 0);
-	PRINT_ONE("  head/tail: ", "%s", 0);
-	PRINT_ONE((UINT)phw->txhead0, "%d/", 0);
-	PRINT_ONE((UINT)phw->txtail0, "%d", 1);
-
-	PRINT_ONE("    queue 1:", "%s", 1);
-	PRINT_ONE("      tx_desc1/physical: ", "%s", 0);
-	PRINT_ONE((UINT)phw->tx_desc1, "0x%.8x/", 0);
-	PRINT_ONE((UINT)phw->tx_ring1_addr, "0x%.8x", 1);
-	PRINT_ONE("      TBKDA: ", "%s", 0);
-	PRINT_ONE((UINT)RTL_R32(_TBKDA_), "0x%.8x", 0);
-	PRINT_ONE("  head/tail: ", "%s", 0);
-	PRINT_ONE((UINT)phw->txhead1, "%d/", 0);
-	PRINT_ONE((UINT)phw->txtail1, "%d", 1);
-
-	PRINT_ONE("    queue 2:", "%s", 1);
-	PRINT_ONE("      tx_desc2/physical: ", "%s", 0);
-	PRINT_ONE((UINT)phw->tx_desc2, "0x%.8x/", 0);
-	PRINT_ONE((UINT)phw->tx_ring2_addr, "0x%.8x", 1);
-	PRINT_ONE("      TBEDA: ", "%s", 0);
-	PRINT_ONE((UINT)RTL_R32(_TBEDA_), "0x%.8x", 0);
-	PRINT_ONE("  head/tail: ", "%s", 0);
-	PRINT_ONE((UINT)phw->txhead2, "%d/", 0);
-	PRINT_ONE((UINT)phw->txtail2, "%d", 1);
-
-	PRINT_ONE("    queue 3:", "%s", 1);
-	PRINT_ONE("      tx_desc3/physical: ", "%s", 0);
-	PRINT_ONE((UINT)phw->tx_desc3, "0x%.8x/", 0);
-	PRINT_ONE((UINT)phw->tx_ring3_addr, "0x%.8x", 1);
-	PRINT_ONE("      TLPDA: ", "%s", 0);
-	PRINT_ONE((UINT)RTL_R32(_TLPDA_), "0x%.8x", 0);
-	PRINT_ONE("  head/tail: ", "%s", 0);
-	PRINT_ONE((UINT)phw->txhead3, "%d/", 0);
-	PRINT_ONE((UINT)phw->txtail3, "%d", 1);
-
-	PRINT_ONE("    queue 4:", "%s", 1);
-	PRINT_ONE("      tx_desc4/physical: ", "%s", 0);
-	PRINT_ONE((UINT)phw->tx_desc4, "0x%.8x/", 0);
-	PRINT_ONE((UINT)phw->tx_ring4_addr, "0x%.8x", 1);
-	PRINT_ONE("      TNPDA: ", "%s", 0);
-	PRINT_ONE((UINT)RTL_R32(_TNPDA_), "0x%.8x", 0);
-	PRINT_ONE("  head/tail: ", "%s", 0);
-	PRINT_ONE((UINT)phw->txhead4, "%d/", 0);
-	PRINT_ONE((UINT)phw->txtail4, "%d", 1);
-
-	PRINT_ONE("    queue 5:", "%s", 1);
-	PRINT_ONE("      tx_desc5/physical: ", "%s", 0);
-	PRINT_ONE((UINT)phw->tx_desc5, "0x%.8x/", 0);
-	PRINT_ONE((UINT)phw->tx_ring5_addr, "0x%.8x", 1);
-	PRINT_ONE("      THPDA: ", "%s", 0);
-	PRINT_ONE((UINT)RTL_R32(_THPDA_), "0x%.8x", 0);
-	PRINT_ONE("  head/tail: ", "%s", 0);
-	PRINT_ONE((UINT)phw->txhead5, "%d/", 0);
-	PRINT_ONE((UINT)phw->txtail5, "%d", 1);
-
-	PRINT_ONE("    RX cmd queue:", "%s", 1);
-	PRINT_ONE("      rxcmd_desc/physical: ", "%s", 0);
-	PRINT_ONE((UINT)phw->rxcmd_desc, "0x%.8x/", 0);
-	PRINT_ONE((UINT)phw->rxcmd_ring_addr, "0x%.8x", 1);
-	PRINT_ONE("      RCDSA: ", "%s", 0);
-	PRINT_ONE((UINT)RTL_R32(_RCDSA_), "0x%.8x", 0);
-	PRINT_ONE("  cur_rx: ", "%s", 0);
-	PRINT_ONE((UINT)phw->cur_rxcmd, "%d", 1);
-
-	PRINT_ONE("    TX cmd queue:", "%s", 1);
-	PRINT_ONE("      txcmd_desc/physical: ", "%s", 0);
-	PRINT_ONE((UINT)phw->txcmd_desc, "0x%.8x/", 0);
-	PRINT_ONE((UINT)phw->txcmd_ring_addr, "0x%.8x", 1);
-	PRINT_ONE("      TCDA:  ", "%s", 0);
-	PRINT_ONE((UINT)RTL_R32(_TCDA_), "0x%.8x", 0);
-	PRINT_ONE("  head/tail: ", "%s", 0);
-	PRINT_ONE((UINT)phw->txcmdhead, "%d/", 0);
-	PRINT_ONE((UINT)phw->txcmdtail, "%d", 1);
-
-#if defined(CONFIG_RTL865X) && defined(RTL865X_INFO)
-	PRINT_ONE("    Total Rx:", "%s", 1);
-	PRINT_ONE("      pkt/schedule=avg Rx pkt handled: ", "%s", 0);
-	PRINT_ONE((UINT)rcvPktCnt, "%d/", 0);
-	PRINT_ONE((UINT)rcvLoopCount, "%d=", 0);
-	PRINT_ONE((UINT)rcvPktCnt/rcvLoopCount, "%d", 1);
-#endif
-
-	return pos;
-}
-#endif // !RTL8192SU
 
 
 static int rtl8190_proc_buf_info(char *buf, char **start, off_t offset,
@@ -1002,195 +723,12 @@ static int rtl8190_proc_mib_11n(char *buf, char **start, off_t offset,
 	PRINT_SINGL_ARG("    legacy_obss_to: ", priv->ht_legacy_obss_to, "%d");
 	PRINT_SINGL_ARG("    legacy_sta_num: ", priv->ht_legacy_sta_num, "%d");
 	PRINT_SINGL_ARG("    11nProtection: ", priv->ht_protection, "%d");
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	PRINT_SINGL_ARG("    has_2r_sta: ", priv->pshare->has_2r_sta, "0x%08x");
-#endif
 
 	return pos;
 }
 
 
-#if defined(RTL8192SE) && defined(MERGE_FW)
-static char *get_one_line(char *start, char *end, char *out, int max_len)
-{
-	int len = 0;
-
-	while (1) {
-		if (((unsigned long)start) >= ((unsigned long)end)) {
-			if (len > 0) {
-				out[len] = '\0';
-				return start;
-			}
-			else
-				return NULL;
-		}
-
-		if (*start == '\n' || *start == '\r' || len >= max_len) {
-			if (*start == '\n' || *start == '\r')
-				start++;
-
-			if (len > 0) {
-				out[len] = '\0';
-				return start;
-			}
-		}
-		else
-			out[len++] = *start++;
-	}
-}
-
-
-static int rtl8190_proc_agc_tab(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	int pos = 0;
-	char tmpbuf[256];
-	char *ptr = __AGC_TAB_start;
-
-	while (1) {
-		ptr = get_one_line(ptr, __AGC_TAB_end, tmpbuf, 256);
-		if (ptr) {
-			PRINT_ONE(tmpbuf, "%s", 1);
-		}
-		else
-			break;
-	}
-	return pos;
-}
-
-
-static int rtl8190_proc_phy_reg(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	int pos = 0;
-	char tmpbuf[256];
-	char *ptr = __phy_reg_start;
-
-	while (1) {
-		ptr = get_one_line(ptr, __phy_reg_end, tmpbuf, 256);
-		if (ptr) {
-			PRINT_ONE(tmpbuf, "%s", 1);
-		}
-		else
-			break;
-	}
-	return pos;
-}
-
-
-#ifdef MP_TEST
-static int rtl8190_proc_phy_reg_MP(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	int pos = 0;
-	char tmpbuf[256];
-	char *ptr = __phy_reg_MP_start;
-
-	while (1) {
-		ptr = get_one_line(ptr, __phy_reg_MP_end, tmpbuf, 256);
-		if (ptr) {
-			PRINT_ONE(tmpbuf, "%s", 1);
-		}
-		else
-			break;
-	}
-	return pos;
-}
-#endif
-static int rtl8190_proc_macphy_reg(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	int pos = 0;
-	char tmpbuf[256];
-	char *ptr = __MACPHY_REG_start;
-
-	while (1) {
-		ptr = get_one_line(ptr, __MACPHY_REG_end, tmpbuf, 256);
-		if (ptr) {
-			PRINT_ONE(tmpbuf, "%s", 1);
-		}
-		else
-			break;
-	}
-	return pos;
-}
-
-
-static int rtl8190_proc_radio_a(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	int pos = 0;
-	char tmpbuf[256];
-	char *ptr = __radio_a_start;
-
-	while (1) {
-		ptr = get_one_line(ptr, __radio_a_end, tmpbuf, 256);
-		if (ptr) {
-			PRINT_ONE(tmpbuf, "%s", 1);
-		}
-		else
-			break;
-	}
-	return pos;
-}
-
-
-static int rtl8190_proc_radio_b(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	int pos = 0;
-	char tmpbuf[256];
-	char *ptr = __radio_b_start;
-
-	while (1) {
-		ptr = get_one_line(ptr, __radio_b_end, tmpbuf, 256);
-		if (ptr) {
-			PRINT_ONE(tmpbuf, "%s", 1);
-		}
-		else
-			break;
-	}
-	return pos;
-}
-
-
-static int rtl8190_proc_phy_reg_pg(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	int pos = 0;
-	char tmpbuf[256];
-	char *ptr = __PHY_REG_PG_start;
-
-	while (1) {
-		ptr = get_one_line(ptr, __PHY_REG_PG_end, tmpbuf, 256);
-		if (ptr) {
-			PRINT_ONE(tmpbuf, "%s", 1);
-		}
-		else
-			break;
-	}
-	return pos;
-}
-
-
-static int rtl8190_proc_phy_to1t2r(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	int pos = 0;
-	char tmpbuf[256];
-	char *ptr = __PHY_to1T2R_start;
-
-	while (1) {
-		ptr = get_one_line(ptr, __PHY_to1T2R_end, tmpbuf, 256);
-		if (ptr) {
-			PRINT_ONE(tmpbuf, "%s", 1);
-		}
-		else
-			break;
-	}
-	return pos;
-}
-#endif // defined(RTL8192SE) && defined(MERGE_FW)
 
 
 #ifdef CONFIG_RTK_VLAN_SUPPORT
@@ -1295,28 +833,13 @@ static int rtl8190_proc_mib_all(char *buf, char **start, off_t offset,
 	off_t begin = 0;
 	off_t pos = 0;
 	int size;
-#if defined(RTL8190) || defined(RTL8192E)
-	unsigned int val32, year, month, day, hour, min;
-#endif
 
-#ifdef __KERNEL__
 	size = sprintf(buf, "  Make info: %s by %s, v%d.%d (%s)\n", UTS_VERSION, LINUX_COMPILE_BY,
 		DRV_VERSION_H, DRV_VERSION_L, DRV_RELDATE);
 	CHECK_LEN;
-#endif
 
-#if defined(RTL8190) || defined(RTL8192E)
-	val32 = priv->pshare->fw_version;
-	year = val32 & 0xff;
-	month = (val32 >> 8) & 0x0f;
-	day = (val32 >> 12) & 0x3f;
-	hour = (val32 >> 18) & 0x3f;
-	min = (val32 >> 24) & 0x3f;
-	size = sprintf(buf+len, "  RTL8190 firmware buildtime: 20%02d-%02d-%02d %02d:%02d\n", year, month, day, hour, min);
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 	size = sprintf(buf+len, "  RTL8192 firmware version: %04x(%d.%d)\n",
 		priv->pshare->fw_version, priv->pshare->fw_src_version, priv->pshare->fw_sub_version);
-#endif
 	CHECK_LEN;
 
 	size = rtl8190_proc_mib_rf(buf+len, start, offset, length, eof, data);
@@ -1395,199 +918,6 @@ static int dump_one_stainfo(int num, struct stat_info *pstat, char *buf, char **
 	PRINT_SINGL_ARG_T(pstat->rx_rate/2, "%d");
 	PRINT_SINGL_ARG_T(pstat->state, "%x");
 	PRINT_SINGL_ARG_T(0, "%d");
-#if 0
-	PRINT_ONE(num,  " %d: stat_info...", 1);
-	PRINT_SINGL_ARG("    state: ", pstat->state, "%x");
-	PRINT_SINGL_ARG("    AuthAlgrthm: ", pstat->AuthAlgrthm, "%d");
-	PRINT_SINGL_ARG("    ieee8021x_ctrlport: ", pstat->ieee8021x_ctrlport, "%d");
-	PRINT_ARRAY_ARG("    hwaddr: ",	pstat->hwaddr, "%02x", MACADDRLEN);
-	PRINT_ARRAY_ARG("    bssrateset: ", pstat->bssrateset, "%02x", pstat->bssratelen);
-	PRINT_SINGL_ARG("    aid: ", pstat->aid, "%d");
-	PRINT_SINGL_ARG("    tx_bytes: ", pstat->tx_bytes, "%u");
-	PRINT_SINGL_ARG("    rx_bytes: ", pstat->rx_bytes, "%u");
-	PRINT_SINGL_ARG("    tx_pkts: ", pstat->tx_pkts, "%u");
-	PRINT_SINGL_ARG("    rx_pkts: ", pstat->rx_pkts, "%u");
-	PRINT_SINGL_ARG("    tx_fail: ", pstat->tx_fail, "%u");
-	PRINT_ONE("    rssi: ", "%s", 0);
-	PRINT_ONE(pstat->rssi, "%u", 0);
-	PRINT_ONE(pstat->rf_info.mimorssi[0], " (%u", 0);
-	PRINT_ONE(pstat->rf_info.mimorssi[1], " %u", 0);
-#ifdef RTL8190
-	PRINT_ONE(pstat->rf_info.mimorssi[2], " %u", 0);
-	PRINT_ONE(pstat->rf_info.mimorssi[3], " %u)", 1);
-#else
-	PRINT_ONE(")", "%s", 1);
-#endif
-
-#ifdef WDS
-	if (pstat->state & WIFI_WDS) {
-		PRINT_SINGL_ARG("    idle_time: ", pstat->idle_time, "%d");
-	}
-	else
-#endif
-	{
-		PRINT_SINGL_ARG("    expired_time: ", pstat->expire_to, "%d");
-	}
-
-	PRINT_SINGL_ARG("    sleep: ", (!list_empty(&pstat->sleep_list) ? "yes" : "no"), "%s");
-#if defined(RTL8192E) || defined(STA_EXT)
-	PRINT_SINGL_ARG("    sta_in_firmware_mem: ",(pstat->sta_in_firmware == -1 ? "removed" : ((pstat->sta_in_firmware) == 0 ? "no":"yes")), "%s" );
-	PRINT_SINGL_ARG("    remapped_aid: ", pstat->remapped_aid, "%d");
-#endif
-
-	if (is_MCS_rate(pstat->current_tx_rate)) {
-		PRINT_ONE("    current_tx_rate: MCS", "%s", 0);
-		PRINT_ONE(pstat->current_tx_rate&0x7f, "%d", 0);
-		rate = MCS_DATA_RATE[(pstat->ht_current_tx_info&BIT(0))?1:0][(pstat->ht_current_tx_info&BIT(1))?1:0][pstat->current_tx_rate&0x7f];
-		PRINT_ONE(rate/2, " (%d", 0);
-		if (rate%2) {
-			PRINT_ONE(".5)", "%s", 1);
-		}
-		else {
-			PRINT_ONE(")", "%s", 1);
-		}
-	}
-	else
-	{
-		PRINT_SINGL_ARG("    current_tx_rate: ", pstat->current_tx_rate/2, "%d");
-	}
-
-	if (is_MCS_rate(pstat->rx_rate)) {
-		PRINT_ONE("    current_rx_rate: MCS", "%s", 0);
-		PRINT_ONE(pstat->rx_rate&0x7f, "%d", 0);
-		rate = MCS_DATA_RATE[pstat->rx_bw][pstat->rx_splcp][pstat->rx_rate&0x7f];
-		PRINT_ONE(rate/2, " (%d", 0);
-		if (rate%2) {
-			PRINT_ONE(".5)", "%s", 1);
-		}
-		else {
-			PRINT_ONE(")", "%s", 1);
-		}
-	}
-	else
-	{
-		PRINT_SINGL_ARG("    current_rx_rate: ", pstat->rx_rate/2, "%d");
-	}
-
-	PRINT_SINGL_ARG("    rx_bw: ", (pstat->rx_bw? "40M":"20M"), "%s");
-
-#ifdef SEMI_QOS
-	PRINT_SINGL_ARG("    QoS Enable: ", pstat->QosEnabled, "%d");
-#ifdef WMM_APSD
-	PRINT_SINGL_ARG("    APSD bitmap: ", pstat->apsd_bitmap, "0x%01x");
-#endif
-#endif
-
-	if (pstat->is_rtl8190_sta)
-		sprintf(tmpbuf, "Realtek");
-	else if (pstat->is_broadcom_sta)
-		sprintf(tmpbuf, "Broadcom");
-	else if (pstat->is_marvell_sta)
-		sprintf(tmpbuf, "Marvell");
-	else if (pstat->is_intel_sta)
-		sprintf(tmpbuf, "Intel");
-	else
-		sprintf(tmpbuf, "--");
-	PRINT_SINGL_ARG("    Chip Vendor: ", tmpbuf, "%s");
-#ifdef RTK_WOW
-	if (pstat->is_rtl8190_sta)
-		PRINT_SINGL_ARG("    is_rtk_wow_sta: ", (pstat->is_rtk_wow_sta? "yes":"no"), "%s");
-#endif
-
-	m = pstat->link_time / 86400;
-	n = pstat->link_time % 86400;
-	if (m)	idx += sprintf(tmp, "%d day ", m);
-	m = n / 3600;
-	n = n % 3600;
-	if (m)	idx += sprintf(tmp+idx, "%d hr ", m);
-	m = n / 60;
-	n = n % 60;
-	if (m)	idx += sprintf(tmp+idx, "%d min ", m);
-	idx += sprintf(tmp+idx, "%d sec ", n);
-	PRINT_SINGL_ARG("    link_time: ", tmp, "%s");
-
-	if (pstat->private_ie_len)
-		PRINT_ARRAY_ARG("    private_ie: ", pstat->private_ie, "%02x", pstat->private_ie_len);
-
-	if (pstat->ht_cap_len) {
-		unsigned char *pbuf = (unsigned char *)&pstat->ht_cap_buf;
-		PRINT_ARRAY_ARG("    ht_cap: ", pbuf, "%02x", pstat->ht_cap_len);
-
-		PRINT_ONE("    11n MIMO ps: ", "%s", 0);
-		if (!(pstat->MIMO_ps)) {
-			PRINT_ONE("no limit", "%s", 1);
-		}
-		else {
-			PRINT_ONE(((pstat->MIMO_ps&BIT(0))?"static":"dynamic"), "%s", 1);
-		}
-
-		PRINT_SINGL_ARG("    Is_8K_AMSDU: ", pstat->is_8k_amsdu, "%d");
-		PRINT_SINGL_ARG("    amsdu_level: ", pstat->amsdu_level, "%d");
-
-		switch (pstat->aggre_mthd) {
-		case AGGRE_MTHD_MPDU:
-			sprintf(tmp, "AMPDU");
-			break;
-		case AGGRE_MTHD_MSDU:
-			sprintf(tmp, "AMSDU");
-			break;
-		default:
-			sprintf(tmp, "None");
-			break;
-		}
-		PRINT_SINGL_ARG("    aggre mthd: ", tmp, "%s");
-
-#ifdef _DEBUG_RTL8190_
-		PRINT_ONE("    ch_width: ", "%s", 0);
-		PRINT_ONE((pstat->ht_cap_buf.ht_cap_info & cpu_to_le16(_HTCAP_SUPPORT_CH_WDTH_))?"40M":"20M", "%s", 1);
-		PRINT_ONE("    ampdu_mf: ", "%s", 0);
-		PRINT_ONE(pstat->ht_cap_buf.ampdu_para & 0x03, "%d", 1);
-		PRINT_ONE("    ampdu_amd: ", "%s", 0);
-		PRINT_ONE((pstat->ht_cap_buf.ampdu_para & _HTCAP_AMPDU_SPC_MASK_) >> _HTCAP_AMPDU_SPC_SHIFT_, "%d", 1);
-#endif
-	}
-	else {
-		PRINT_ONE("    ht_cap: none", "%s", 1);
-	}
-
-#ifdef SUPPORT_TX_MCAST2UNI
-	PRINT_SINGL_ARG("    ipmc_num: ", pstat->ipmc_num, "%d");
-	for (idx=0; idx<MAX_IP_MC_ENTRY; idx++) {
-		if (pstat->ipmc[idx].used) {
-			PRINT_ARRAY_ARG("    mcmac: ",	pstat->ipmc[idx].mcmac, "%02x", MACADDRLEN);
-		}
-	}
-#endif
-
-#ifdef CLIENT_MODE
-	if (pstat->ht_ie_len) {
-		unsigned char *pbuf = (unsigned char *)&pstat->ht_ie_buf;
-		PRINT_ARRAY_ARG("    ht_ie: ", pbuf, "%02x", pstat->ht_ie_len);
-	}
-	else {
-		PRINT_ONE("    ht_ie: none", "%s", 1);
-	}
-#endif
-
-#ifdef _DEBUG_RTL8190_
-	PRINT_SINGL_ARG("    amsdu err:  ", pstat->rx_amsdu_err, "%u");
-	PRINT_SINGL_ARG("    amsdu 1pkt: ", pstat->rx_amsdu_1pkt, "%u");
-	PRINT_SINGL_ARG("    amsdu 2pkt: ", pstat->rx_amsdu_2pkt, "%u");
-	PRINT_SINGL_ARG("    amsdu 3pkt: ", pstat->rx_amsdu_3pkt, "%u");
-	PRINT_SINGL_ARG("    amsdu 4pkt: ", pstat->rx_amsdu_4pkt, "%u");
-	PRINT_SINGL_ARG("    amsdu 5pkt: ", pstat->rx_amsdu_5pkt, "%u");
-	PRINT_SINGL_ARG("    amsdu gt 5pkt: ", pstat->rx_amsdu_gt5pkt, "%u");
-
-	PRINT_SINGL_ARG("    rc drop1:     ", pstat->rx_rc_drop1, "%u");
-	PRINT_SINGL_ARG("    rc passup2:   ", pstat->rx_rc_passup2, "%u");
-	PRINT_SINGL_ARG("    rc drop3:     ", pstat->rx_rc_drop3, "%u");
-	PRINT_SINGL_ARG("    rc reorder3:  ", pstat->rx_rc_reorder3, "%u");
-	PRINT_SINGL_ARG("    rc passup3:   ", pstat->rx_rc_passup3, "%u");
-	PRINT_SINGL_ARG("    rc passup4:   ", pstat->rx_rc_passup4, "%u");
-	PRINT_SINGL_ARG("    rc reorder4:  ", pstat->rx_rc_reorder4, "%u");
-	PRINT_SINGL_ARG("    rc passupi:   ", pstat->rx_rc_passupi, "%u");
-#endif
-#endif
 	PRINT_ONE("", "%s", 1);
 
 	return pos;
@@ -1723,9 +1053,7 @@ _ret:
 
 extern unsigned int __drop_lowq_pkt;
 #if !defined(PKT_PROCESSOR) && !defined(PRE_ALLOCATE_SKB)
-#ifdef CONFIG_RTL8671
 extern atomic_t wifi_rxskb_num;
-#endif
 #endif
 static int rtl8190_proc_stats(char *buf, char **start, off_t offset,
 			int length, int *eof, void *data)
@@ -1839,7 +1167,6 @@ static int rtl8190_proc_stats(char *buf, char **start, off_t offset,
 	PRINT_SINGL_ARG("    rx_avarage:    ", priv->ext_stats.rx_avarage, "%lu");
 	PRINT_SINGL_ARG("    rx_peak:       ", priv->ext_stats.rx_peak, "%lu");
 #endif
-#ifdef RTL8192SU
 #ifdef 	LOOPBACK_NORMAL_TX_MODE	
 	PRINT_SINGL_ARG("    lb_tx_cnt:     ", priv->ext_stats.loopback_TX_cnt, "%lu");
 #endif
@@ -1850,10 +1177,7 @@ static int rtl8190_proc_stats(char *buf, char **start, off_t offset,
 	PRINT_SINGL_ARG("    !tx_sc_pkts:   ", priv->ext_stats.nonTxSC_pkt_cnt, "%lu");
 #endif
 #if !defined(PKT_PROCESSOR) && !defined(PRE_ALLOCATE_SKB)
-#ifdef CONFIG_RTL8671
 	PRINT_SINGL_ARG("    wifi_rxskb_num:", atomic_read(&wifi_rxskb_num), "%lu");
-#endif
-#endif
 #endif
 #endif
 	return pos;
@@ -1903,9 +1227,6 @@ static int rtl8190_proc_mib_misc(char *buf, char **start, off_t offset,
 	PRINT_SINGL_ARG("    rc_enable: ", priv->pmib->reorderCtrlEntry.ReorderCtrlEnable, "%d");
 	PRINT_SINGL_ARG("    rc_winsz: ", priv->pmib->reorderCtrlEntry.ReorderCtrlWinSz, "%d");
 	PRINT_SINGL_ARG("    rc_timeout: ", priv->pmib->reorderCtrlEntry.ReorderCtrlTimeout, "%d");
-#if defined(RTL8192SE) && defined(FW_SW_BEACON)
-	PRINT_SINGL_ARG("    vap_enable: ", priv->pmib->miscEntry.vap_enable, "%d");
-#endif
 	PRINT_SINGL_ARG("    func_off: ", priv->pmib->miscEntry.func_off, "%d");
 
 #ifdef HW_QUICK_INIT
@@ -1969,21 +1290,6 @@ static int rtl8190_proc_rfft(char *buf, char **start, off_t offset,
 	PRINT_SINGL_ARG("    rssi_expire_to: ", priv->pshare->rf_ft_var.rssi_expire_to, "%d");
 
 	// bcm old 11n chipset iot debug
-#if defined(RTL8190) || defined(RTL8192E)
-#if defined(UNIVERSAL_REPEATER) || defined(MBSSID)
-	if (IS_ROOT_INTERFACE(priv))
-#endif
-	{
-		PRINT_SINGL_ARG("    fsync_func_on: ", priv->pshare->rf_ft_var.fsync_func_on, "%d");
-		if (priv->fsync_monitor_pstat)
-			PRINT_SINGL_ARG("    fsync_monitor_pstat_aid: ", priv->fsync_monitor_pstat->aid, "%d");
-		PRINT_SINGL_ARG("    fsync_mcs_th: ", priv->pshare->rf_ft_var.fsync_mcs_th, "%d");
-		PRINT_SINGL_ARG("    fsync_rssi_th: ", priv->pshare->rf_ft_var.fsync_rssi_th, "%d");
-		PRINT_SINGL_ARG("    fsync_refine_on: ", priv->pshare->fsync_refine_on, "%d");
-		PRINT_SINGL_ARG("    mcs_ignore_upper: ", priv->pshare->rf_ft_var.mcs_ignore_upper, "%d");
-		PRINT_SINGL_ARG("    mcs_ignore_lower: ", priv->pshare->rf_ft_var.mcs_ignore_lower, "%d");
-	}
-#endif
 
 	PRINT_SINGL_ARG("    igUpperBound: ", priv->pshare->rf_ft_var.mlcstRxIgUpperBound, "%d");
 
@@ -2051,39 +1357,6 @@ static int rtl8190_proc_mib_gbwc(char *buf, char **start, off_t offset,
 }
 #endif
 
-#ifdef RTL867X_CP3
-
-extern struct rtl8190_priv *global_rtl8190_priv;
-
-static int rtk8185_proc_cp3_dump(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	int pos = 0;
-	rtl8651_romeperfDump(ROMEPERF_INDEX_MIN, ROMEPERF_INDEX_MAX );
-	return pos;
-}
-int show_rx_rate=0;
-
-static int rtk8185_proc_cp3_reset(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data)
-{
-	int pos = 0;
-	u32 i;
-	rtl8651_romeperfReset();
-	rtl8651_romeperfDump(ROMEPERF_INDEX_MIN, ROMEPERF_INDEX_MAX );
-//	rtl8672_dumpRing(3,15);
-//	rtl8672_dumpRing(4,15);	
-//	rtl8672_dumpRing(0,9);
-//	rtl8672_dumpRing(4,9);	
-//	dump_tx_urb_pool(global_rtl8190_priv);
-
-//	printk("free cnt=%d\n",free_cnt);
-
-//	rtl8672_dumpRing(4,15);
-//	show_rx_rate=(++show_rx_rate)&1;
-	return pos;
-}
-#endif
 
 #ifdef CONFIG_RTL_KERNEL_MIPS16_WLAN
 __NOMIPS16
@@ -2111,7 +1384,6 @@ static int rtl8190_proc_led(struct file *file, const char *buffer,
 }
 
 
-#ifdef __KERNEL__
 void MDL_DEVINIT rtl8190_proc_init(struct net_device *dev)
 {
 	struct rtl8190_priv *priv = dev->priv;
@@ -2180,48 +1452,6 @@ void MDL_DEVINIT rtl8190_proc_init(struct net_device *dev)
 		return;
 	}
 
-#if !defined(RTL8192SU)
-	if ( create_proc_read_entry ("txdesc0", 0644, rtl8190_proc_root,
-			rtl8190_proc_txdesc0_info, (void *)dev) == NULL ) {
-		printk("create proc txdesc0 failed!\n");
-		return;
-	}
-	if ( create_proc_read_entry ("txdesc1", 0644, rtl8190_proc_root,
-			rtl8190_proc_txdesc1_info, (void *)dev) == NULL ) {
-		printk("create proc txdesc1 failed!\n");
-		return;
-	}
-	if ( create_proc_read_entry ("txdesc2", 0644, rtl8190_proc_root,
-			rtl8190_proc_txdesc2_info, (void *)dev) == NULL ) {
-		printk("create proc txdesc2 failed!\n");
-		return;
-	}
-	if ( create_proc_read_entry ("txdesc3", 0644, rtl8190_proc_root,
-			rtl8190_proc_txdesc3_info, (void *)dev) == NULL ) {
-		printk("create proc txdesc3 failed!\n");
-		return;
-	}
-	if ( create_proc_read_entry ("txdesc4", 0644, rtl8190_proc_root,
-			rtl8190_proc_txdesc4_info, (void *)dev) == NULL ) {
-		printk("create proc txdesc4 failed!\n");
-		return;
-	}
-	if ( create_proc_read_entry ("txdesc5", 0644, rtl8190_proc_root,
-			rtl8190_proc_txdesc5_info, (void *)dev) == NULL ) {
-		printk("create proc txdesc5 failed!\n");
-		return;
-	}
-	if ( create_proc_read_entry ("rxdesc", 0644, rtl8190_proc_root,
-			rtl8190_proc_rxdesc_info, (void *)dev) == NULL ) {
-		printk("create proc rxdesc failed!\n");
-		return;
-	}
-	if ( create_proc_read_entry ("desc_info", 0644, rtl8190_proc_root,
-			rtl8190_proc_desc_info, (void *)dev) == NULL ) {
-		printk("create proc desc_info failed!\n");
-		return;
-	}
-#endif //!RTL8192SU
 
 	if ( create_proc_read_entry ("buf_info", 0644, rtl8190_proc_root,
 			rtl8190_proc_buf_info, (void *)dev) == NULL ) {
@@ -2320,50 +1550,6 @@ void MDL_DEVINIT rtl8190_proc_init(struct net_device *dev)
 	res->write_proc = rtl8190_proc_led;
 	res->data =  (void *)dev;
 
-#if defined(RTL8192SE) && defined(MERGE_FW)
-	if ( create_proc_read_entry ("AGC_TAB.txt", 0644, rtl8190_proc_root,
-			rtl8190_proc_agc_tab, (void *)dev) == NULL ) {
-		printk("create proc AGC_TAB.txt failed!\n");
-		return;
-	}
-	if ( create_proc_read_entry ("phy_reg.txt", 0644, rtl8190_proc_root,
-			rtl8190_proc_phy_reg, (void *)dev) == NULL ) {
-		printk("create proc phy_reg.txt failed!\n");
-		return;
-	}
-#ifdef MP_TEST
-	if ( create_proc_read_entry ("phy_reg_MP.txt", 0644, rtl8190_proc_root,
-			rtl8190_proc_phy_reg_MP, (void *)dev) == NULL ) {
-		printk("create proc phy_reg_MP.txt failed!\n");
-		return;
-	}
-#endif
-	if ( create_proc_read_entry ("MACPHY_REG.txt", 0644, rtl8190_proc_root,
-			rtl8190_proc_macphy_reg, (void *)dev) == NULL ) {
-		printk("create proc MACPHY_REG.txt failed!\n");
-		return;
-	}
-	if ( create_proc_read_entry ("radio_a.txt", 0644, rtl8190_proc_root,
-			rtl8190_proc_radio_a, (void *)dev) == NULL ) {
-		printk("create proc radio_a.txt failed!\n");
-		return;
-	}
-	if ( create_proc_read_entry ("radio_b.txt", 0644, rtl8190_proc_root,
-			rtl8190_proc_radio_b, (void *)dev) == NULL ) {
-		printk("create proc radio_b.txt failed!\n");
-		return;
-	}
-	if ( create_proc_read_entry ("PHY_REG_PG.txt", 0644, rtl8190_proc_root,
-				rtl8190_proc_phy_reg_pg, (void *)dev) == NULL ) {
-		printk("create proc PHY_REG_PG.txt failed!\n");
-		return;
-	}
-	if ( create_proc_read_entry ("PHY_to1T2R.txt", 0644, rtl8190_proc_root,
-				rtl8190_proc_phy_to1t2r, (void *)dev) == NULL ) {
-		printk("create proc PHY_to1T2R.txt failed!\n");
-		return;
-	}
-#endif // defined(RTL8192SE) && defined(MERGE_FW)
 
 
 #ifdef CONFIG_RTK_VLAN_SUPPORT
@@ -2579,19 +1765,6 @@ void MDL_DEVINIT rtl8190_proc_init(struct net_device *dev)
 #endif	// _MESH_DEBUG_
 #endif	// CONFIG_RTK_MESH
 
-#ifdef RTL867X_CP3
-	if ( create_proc_read_entry ("cp3_dump", 0644, rtl8190_proc_root,
-			rtk8185_proc_cp3_dump, (void *)dev) == NULL ) {
-		printk("create proc cp3_dump failed!\n");
-		return;
-	}
-
-	if ( create_proc_read_entry ("cp3_reset", 0644, rtl8190_proc_root,
-			rtk8185_proc_cp3_reset, (void *)dev) == NULL ) {
-		printk("create proc cp3_reset failed!\n");
-		return;
-	}
-#endif
 
 #ifdef RTL8192SU_TXPKT
 	if ( create_proc_read_entry ("send_pkt", 0644, rtl8190_proc_root,
@@ -2615,7 +1788,6 @@ void MDL_DEVINIT rtl8190_proc_init(struct net_device *dev)
 
 void __devexit rtl8190_proc_remove (struct net_device *dev)
 {
-#ifndef CONFIG_ENABLE_MIPS16
 	struct rtl8190_priv *priv = dev->priv;
 	struct proc_dir_entry *rtl8190_proc_root = priv->proc_root;
 
@@ -2676,18 +1848,6 @@ void __devexit rtl8190_proc_remove (struct net_device *dev)
 
 		remove_proc_entry( "mib_11n", rtl8190_proc_root );
 
-#if defined(RTL8192SE) && defined(MERGE_FW)
-		remove_proc_entry( "AGC_TAB.txt", rtl8190_proc_root );
-		remove_proc_entry( "phy_reg.txt", rtl8190_proc_root );
-#ifdef MP_TEST
-		remove_proc_entry( "phy_reg_MP.txt", rtl8190_proc_root );
-#endif
-		remove_proc_entry( "MACPHY_REG.txt", rtl8190_proc_root );
-		remove_proc_entry( "radio_a.txt", rtl8190_proc_root );
-		remove_proc_entry( "radio_b.txt", rtl8190_proc_root );
-		remove_proc_entry( "PHY_REG_PG.txt", rtl8190_proc_root );
-		remove_proc_entry( "PHY_to1T2R.txt", rtl8190_proc_root );
-#endif
 #ifdef CONFIG_RTK_MESH
 		remove_proc_entry( "mesh_auth_mpinfo", rtl8190_proc_root );
 		remove_proc_entry( "mesh_unestablish_mpinfo", rtl8190_proc_root );
@@ -2730,83 +1890,8 @@ void __devexit rtl8190_proc_remove (struct net_device *dev)
 		remove_proc_entry( dev->name, NULL );
 		rtl8190_proc_root = NULL;
 	}
-#endif	//!CONFIG_ENABLE_MIPS16
 }
 
-#else // not __KERNEL__
-
-struct _proc_table_
-{
-	char *cmd;
-	int (*func)(char *buf, char **start, off_t offset,
-			int length, int *eof, void *data);
-};
-
-static struct _proc_table_ proc_table[] =
-{
-	{"mib_all",				rtl8190_proc_mib_all},
-	{"mib_rf",				rtl8190_proc_mib_rf},
-	{"mib_operation",		rtl8190_proc_mib_operation},
-	{"mib_staconfig",		rtl8190_proc_mib_staconfig},
-	{"mib_dkeytbl",			rtl8190_proc_mib_dkeytbl},
-	{"mib_auth",			rtl8190_proc_mib_auth},
-	{"mib_gkeytbl",			rtl8190_proc_mib_gkeytbl},
-	{"mib_rsnie",			rtl8190_proc_mib_rsnie},
-	{"mib_bssdesc",			rtl8190_proc_mib_bssdesc},
-	{"sta_info",			rtl8190_proc_stainfo},
-	{"sta_keyinfo",			rtl8190_proc_sta_keyinfo},
-	{"txdesc0",				rtl8190_proc_txdesc0_info},
-	{"txdesc1",				rtl8190_proc_txdesc1_info},
-	{"txdesc2",				rtl8190_proc_txdesc2_info},
-	{"txdesc3",				rtl8190_proc_txdesc3_info},
-	{"txdesc4",				rtl8190_proc_txdesc4_info},
-	{"txdesc5",				rtl8190_proc_txdesc5_info},
-	{"rxdesc",				rtl8190_proc_rxdesc_info},
-	{"desc_info",			rtl8190_proc_desc_info},
-	{"buf_info",			rtl8190_proc_buf_info},
-	{"stats",				rtl8190_proc_stats},
-	{"mib_erp",				rtl8190_proc_mib_erp},
-	{"cam_info",			rtl8190_proc_cam_info},
-#ifdef WDS
-	{"mib_wds",				rtl8190_proc_mib_wds},
-#endif
-#ifdef RTK_BR_EXT
-	{"mib_brext",			rtl8190_proc_mib_brext},
-#endif
-#ifdef ENABLE_RTL_SKB_STATS
-	{"skb_info",			rtl8190_proc_skb_info},
-#endif
-#ifdef DFS
-	{"mib_dfs",				rtl8190_proc_mib_DFS},
-#endif
-	{"mib_misc",			rtl8190_proc_mib_misc},
-
-#ifdef _MESH_DEBUG_ // 802.11s output debug information
-	{"mesh_unestablish_mpinfo",	rtl8190_mesh_unEstablish_mpinfo},
-	{"mesh_assoc_mpinfo",		rtl8190_mesh_assoc_mpinfo},
-	{"mesh_stats",			rtl8190_proc_mesh_stats}
-#endif	// _MESH_DEBUG_
-};
-
-#define NUM_CMD_TABLE_ENTRY		(sizeof(proc_table) / sizeof(struct _proc_table_))
-
-void rtl8190_proc_debug(struct net_device *dev, char *cmd)
-{
-	int i, j, eof, len;
-	char *tmpbuf, *start;
-
-	start = tmpbuf = (char *)kmalloc(4096, 0);
-	for (i=0; i<NUM_CMD_TABLE_ENTRY; i++) {
-		if (!strcmp(cmd, proc_table[i].cmd)) {
-			memset(tmpbuf, 0, 4096);
-			len = proc_table[i].func(tmpbuf, &start, 0, 4096, &eof, dev);
-			for(j=0; j<len; j++)
-				printk("%c", tmpbuf[j]);
-		}
-	}
-	kfree(tmpbuf);
-}
-#endif // __KERNEL__
 
 #endif // __INCLUDE_PROC_FS__
 

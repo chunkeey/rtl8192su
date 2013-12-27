@@ -5,16 +5,11 @@
  */
 
 #define _8190N_SECURITY_C_
-#ifdef __KERNEL__
 #include <asm/uaccess.h>
 #include <linux/module.h>
-#endif
 
 #include "./8190n_cfg.h"
 
-#ifndef __KERNEL__
-#include "./sys-support.h"
-#endif
 
 #include "./8190n.h"
 #include "./8190n_security.h"
@@ -89,54 +84,6 @@ int DOT11_DeQueue(unsigned long task_priv, DOT11_QUEUE *q, unsigned char *item, 
 #endif // !WITHOUT_ENQUEUE
 
 
-#if 0
-void DOT11_PrintQueue(DOT11_QUEUE *q)
-{
-	int i, j, index;
-
-	printk("\n/-------------------------------------------------\n[DOT11_PrintQueue]: MaxItem = %d, NumItem = %d, Head = %d, Tail = %d\n", q->MaxItem, q->NumItem, q->Head, q->Tail);
-	for(i=0; i<q->NumItem; i++) {
-		index = (i + q->Head) % q->MaxItem;
-		printk("Queue[%d].ItemSize = %d  ", index, q->ItemArray[index].ItemSize);
-		for(j=0; j<q->ItemArray[index].ItemSize; j++)
-			printk(" %x", q->ItemArray[index].Item[j]);
-		printk("\n");
-	}
-	printk("------------------------------------------------/\n");
-}
-
-
-char *DOT11_ErrMsgQueue(int err)
-{
-	switch(err)
-	{
-	case E_DOT11_2LARGE:
-		return E_MSG_DOT11_2LARGE;
-	case E_DOT11_QFULL:
-		return E_MSG_DOT11_QFULL;
-	case E_DOT11_QEMPTY:
-		return E_MSG_DOT11_QEMPTY;
-	default:
-		return "E_MSG_DOT11_QNOERR";
-	}
-}
-
-
-void DOT11_Dump(char *fun, UINT8 *buf, int size, char *comment)
-{
-	int i;
-
-	printk("$$ %s $$: %s", fun, comment);
-	if (buf != NULL) {
-		printk("\nMessage is %d bytes %x hex", size, size);
-		for (i = 0; i < size; i++) {
-			if (i % 16 == 0) printk("\n\t");
-			printk("%2x ", *(buf+i));
-		}
-	}
-	printk("\n");
-}
-#endif
 
 
 /*------------------------------------------------------------
@@ -197,32 +144,6 @@ static int DOT11_Process_Set_RSNIE(struct net_device *dev, struct iw_point *data
 }
 
 
-#if 0
-char *DOT11_Parse_RSNIE_Err(int err)
-{
-	switch(err)
-	{
-	case ERROR_BUFFER_TOO_SMALL:
-		return RSN_STRERROR_BUFFER_TOO_SMALL;
-	case ERROR_INVALID_PARA:
-		return RSN_STRERROR_INVALID_PARAMETER;
-	case ERROR_INVALID_RSNIE:
-		return RSN_STRERROR_INVALID_RSNIE;
-	case ERROR_INVALID_MULTICASTCIPHER:
-		return RSN_STRERROR_INVALID_MULTICASTCIPHER;
-	case ERROR_INVALID_UNICASTCIPHER:
-		return RSN_STRERROR_INVALID_UNICASTCIPHER;
-	case ERROR_INVALID_AUTHKEYMANAGE:
-		return RSN_STRERROR_INVALID_AUTHKEYMANAGE;
-	case ERROR_UNSUPPORTED_RSNEVERSION:
-		return RSN_STRERROR_UNSUPPORTED_RSNEVERSION;
-	case ERROR_INVALID_CAPABILITIES:
-		return RSN_STRERROR_INVALID_CAPABILITIES;
-	default:
-		return "Uknown Failure";
-	}
-}
-#endif
 
 
 /*-------------------------------------------------
@@ -494,9 +415,7 @@ int DOT11_Process_Set_Key(struct net_device *dev, struct iw_point *data,
 		}
 #endif
 #ifdef MBSSID
-#if defined(RTL8192SE) || defined(RTL8192SU)
 		if (GET_ROOT(priv)->pmib->miscEntry.vap_enable)
-#endif
 		{
 			if (IS_VAP_INTERFACE(priv))
 				set_gkey_to_cam = 0;
@@ -663,33 +582,6 @@ int DOT11_Process_Set_Key(struct net_device *dev, struct iw_point *data,
 	{
 #ifdef WDS
 // always to store WDS key for tx-hangup re-init
-#if 0
-		// if driver is not opened, save the WDS key into mib. The key value will
-		// be updated into CAM when driver opened. david
-		if ( !IS_DRV_OPEN(priv)) { // not open or not in open
-			// if interface is not open and STA is a WDS entry, save the key
-			// to mib and restore it to STA table when driver is open, david
-			struct net_device *pNet = getWdsDevByAddr(priv, Set_Key.MACAddr);
-			if (pNet) {
-				int widx = getWdsIdxByDev(priv, pNet);
-				if (widx >= 0) {
-					if (Set_Key.EncType == _WEP_40_PRIVACY_ ||
-						Set_Key.EncType == _WEP_104_PRIVACY_)
-						memcpy(pmib->dot11WdsInfo.wdsWepKey, key_combo, 32);
-					else {
-						memcpy(pmib->dot11WdsInfo.wdsMapingKey[widx], key_combo, 32);
-						pmib->dot11WdsInfo.wdsMappingKeyLen[widx] = 32;
-					}
-
-					pmib->dot11WdsInfo.wdsKeyId = Set_Key.KeyIndex;
-					pmib->dot11WdsInfo.wdsPrivacy = Set_Key.EncType;
-
-					return 0;
-				}
-			}
-			return -1;
-		}
-#endif
 		int widx = -1;
 		struct net_device *pNet = getWdsDevByAddr(priv, Set_Key.MACAddr);
 		if (pNet) {
@@ -1010,14 +902,12 @@ int DOT11_Indicate_MIC_Failure(struct net_device *dev, struct stat_info *pstat)
 		// Second time to detect MIC error in a time period
 
 		// Stop Timer (fill a timer before than now)
-		#ifdef CONFIG_RTL8671
 		if (pstat != NULL) {
 			if( (pstat->dot11KeyMapping.keyInCam == TRUE) && ((jiffies - pstat->setCamTime) < 500 ) ) //cathy, to avoid disconnect sta if rx tkip data when hw is not ready for decryption
 				return 0;
 			else
 				printk("pstat->setCamTime=%lu, jiffies=%lu\n", pstat->setCamTime, jiffies);
 		}
-		#endif
 		if (timer_pending(&priv->MIC_check_timer))
 			del_timer_sync(&priv->MIC_check_timer);
 		priv->MIC_timer_on = FALSE;
@@ -1121,97 +1011,6 @@ void DOT11_Indicate_MIC_Failure_Clnt(struct rtl8190_priv *priv, unsigned char *s
 }
 
 
-#if 0
-void DOT11_Process_Acc_SetExpiredTime(struct net_device *dev, struct iw_point *data)
-{
-	struct rtl8180_priv	*priv = (struct rtl8180_priv *) dev->priv;
-	WLAN_CTX        	*wCtx = (WLAN_CTX *) ( priv->pwlanCtx );
-	DOT11_SET_EXPIREDTIME	*Set_ExpireTime = (DOT11_SET_EXPIREDTIME *)data->pointer;
-	int	sta_tbl_idx;
-
-	Set_ExpireTime->EventId = DOT11_EVENT_ACC_SET_EXPIREDTIME;
-	Set_ExpireTime->IsMoreEvent = 0;
-
-	if( Set_ExpireTime != NULL ){
-		if( wlan_sta_tbl_lookup(wCtx, Set_ExpireTime->MACAddr, &sta_tbl_idx) == TRUE ){
-			wCtx->wlan_sta_tbl[sta_tbl_idx].def_expired_time = Set_ExpireTime->ExpireTime;
-			DEBUG_INFO("%s: Set wlan_sta_tbl[%d].def_expired_time = %ld!\n", (char *)__FUNCTION__, sta_tbl_idx, Set_ExpireTime->ExpireTime);
-		}
-		else{
-			DEBUG_ERR("%s: ERROR wlan_sta_tbl_lookup!\n", (char *)__FUNCTION__);
-		}
-	}
-	else{
-		DEBUG_ERR("%s: NULL POINTER!\n", (char *)__FUNCTION__);
-	}
-}
-
-
-void DOT11_Process_Acc_QueryStats(struct net_device *dev, struct iw_point *data)
-{
-	struct rtl8180_priv	*priv = (struct rtl8180_priv *) dev->priv;
-	WLAN_CTX        	*wCtx = (WLAN_CTX *) ( priv->pwlanCtx );
-	DOT11_QUERY_STATS	*pStats = (DOT11_QUERY_STATS *)data->pointer;
-	int	sta_tbl_idx;
-
-	pStats->EventId = DOT11_EVENT_ACC_QUERY_STATS;
-	pStats->IsMoreEvent = 0;
-
-	if( pStats != NULL ){
-		if( wlan_sta_tbl_lookup(wCtx, pStats->MACAddr, &sta_tbl_idx) == TRUE ){
-			pStats->tx_packets = wCtx->wlan_sta_tbl[sta_tbl_idx].tx_packets ;
-			pStats->rx_packets = wCtx->wlan_sta_tbl[sta_tbl_idx].rx_packets ;
-			pStats->tx_bytes = wCtx->wlan_sta_tbl[sta_tbl_idx].tx_bytes ;
-			pStats->rx_bytes = wCtx->wlan_sta_tbl[sta_tbl_idx].rx_bytes ;
-
-			pStats->IsSuccess = TRUE;
-			DEBUG_INFO("%s: Get wlan_sta_tbl[%d].stats!\n", (char *)__FUNCTION__, sta_tbl_idx);
-		}
-		else{
-			pStats->IsSuccess = FALSE;
-			DEBUG_ERR("%s: ERROR wlan_sta_tbl_lookup!\n", (char *)__FUNCTION__);
-		}
-	}
-	else{
-		DEBUG_ERR("%s: NULL POINTER!\n", (char *)__FUNCTION__);
-	}
-}
-
-
-//-------------------------
-//DOT11_QUERY_STATS		stats[RTL_AP_MAX_STA_NUM+1];
-//data->pointer = (unsigned char *)stats;
-void DOT11_Process_Acc_QueryStats_All(struct net_device *dev, struct iw_point *data)
-{
-	struct rtl8180_priv	*priv = (struct rtl8180_priv *) dev->priv;
-	WLAN_CTX        	*wCtx = (WLAN_CTX *) ( priv->pwlanCtx );
-	DOT11_QUERY_STATS	*pStats = (DOT11_QUERY_STATS *)data->pointer;
-	int i;
-	int cnt = 0;
-
-	if( pStats != NULL ){
-
-		for( i=1; i<=RTL_AP_MAX_STA_NUM; i++ ){
-			if( ( wCtx->wlan_sta_tbl[i].aid != 0 ) && GstaInfo_assoc( wCtx, i ) ){
-
-				pStats[cnt].EventId = DOT11_EVENT_ACC_QUERY_STATS_ALL;
-				pStats[cnt].IsMoreEvent = 0;
-
-				memcpy( pStats[cnt].MACAddr, wCtx->wlan_sta_tbl[i].addr, 6 );
-				pStats[cnt].tx_packets = wCtx->wlan_sta_tbl[i].tx_packets ;
-				pStats[cnt].rx_packets = wCtx->wlan_sta_tbl[i].rx_packets ;
-				pStats[cnt].tx_bytes = wCtx->wlan_sta_tbl[i].tx_bytes ;
-				pStats[cnt].rx_bytes = wCtx->wlan_sta_tbl[i].rx_bytes ;
-
-				cnt++;
-			}
-		}
-	}
-	else{
-		printk("%s: NULL POINTER!\n", (char *)__FUNCTION__);
-	}
-}
-#endif
 
 
 static int DOT11_Process_STA_Query_Bssid(struct net_device *dev, struct iw_point *data)
@@ -1285,13 +1084,6 @@ static int DOT11_WSC_set_ie(struct net_device *dev, struct iw_point *data)
 		priv->pmib->wscEntry.assoc_ielen = Set_RSNIE->RSNIELen;
 		memcpy((void *)priv->pmib->wscEntry.assoc_ie, Set_RSNIE->RSNIE, Set_RSNIE->RSNIELen);
 	}
-#if 0
-	else if (Set_RSNIE->Flag == 3) {
-		printk("WSC: set RSN IE\n");
-		priv->pmib->dot11RsnIE.rsnielen = Set_RSNIE->RSNIELen;
-		memcpy((void *)priv->pmib->dot11RsnIE.rsnie, Set_RSNIE->RSNIE, Set_RSNIE->RSNIELen);
-	}
-#endif
 	else {
 		DEBUG_ERR("Invalid flag of set IE [%d]!\n", Set_RSNIE->Flag);
 	}
@@ -1308,9 +1100,6 @@ However, my guess is, someone always want to port these driver to fit different
 OS platform. At that time, please always keep in mind all the possilbe racing
 condition... That could be big disasters...
 ------------------------------------------------------------------------------*/
-#if defined(RTL8192SU) && defined(CONFIG_ENABLE_MIPS16)
-__attribute__((nomips16)) 
-#endif
 int rtl8190_ioctl_priv_daemonreq(struct net_device *dev, struct iw_point *data)
 {
 	int		ret;
@@ -1414,10 +1203,6 @@ int rtl8190_ioctl_priv_daemonreq(struct net_device *dev, struct iw_point *data)
 			break;
 
 		case DOT11_EVENT_ASSOCIATION_INFO:
-			#if 0
-			if(!DOT11_Process_Association_Info(dev, data))
-			{}
-			#endif
 			DEBUG_INFO("trying to process assoc info\n");
 			break;
 

@@ -76,29 +76,6 @@
 //#define __fswab32(x) ___fswab32(x)
 
 
-#if 0
-extern __attribute__((nomips16)) int __test_and_change_bit__(int nr, volatile unsigned long *addr);
-extern __attribute__((nomips16)) int _test_and_set_bit(int nr, volatile unsigned long *addr);
-extern __attribute__((nomips16)) int _test_and_clear_bit(int nr, volatile unsigned long *addr);
-extern __attribute__((nomips16)) int _get_fd_set(int nr, void *ufdset, unsigned long *fdset);
-extern __attribute__((nomips16)) void _clear_bit(int nr, volatile unsigned long *addr);
-extern __attribute__((nomips16)) int _atomic_sub_return(int i, atomic_t * v);
-extern __attribute__((nomips16)) void _activate_mm(struct mm_struct *prev, struct mm_struct *next);
-extern __attribute__((nomips16)) void _switch_mm(struct mm_struct *prev, struct mm_struct *next, struct task_struct *tsk);
-extern __attribute__((nomips16)) cycles_t _get_cycles(void);
-extern __attribute__((nomips16)) int __list_cmp_name__(const void *i, const char *name);
-extern __attribute__((nomips16)) unsigned short _ip_compute_csum(unsigned char * buff, int len);
-extern __attribute__((nomips16)) int _tcp_checksum_complete(struct sk_buff *skb);
-extern __attribute__((nomips16)) u16 _tcp_v4_check(struct tcphdr *th, int len,unsigned long saddr, unsigned long daddr, unsigned long base);
-extern __attribute__((nomips16)) int __tcp_checksum_complete__(struct sk_buff *skb);
-extern __attribute__((nomips16)) unsigned short _ip_fast_csum(unsigned char *iph, unsigned int ihl);
-extern __attribute__((nomips16)) unsigned short int _csum_tcpudp_magic(unsigned long saddr, unsigned long daddr, unsigned short len, unsigned short proto, unsigned int sum);
-extern __attribute__((nomips16)) unsigned short int _csum_fold(unsigned int sum);
-extern __attribute__((nomips16)) __u16 ___fswab16(__u16 x);
-extern __attribute__((nomips16)) __u32 ___fswab32(__u32 x);
-//#define spin_lock_irqsave(x,y)	__spin_lock_irqsave__(x,y)
-
-#endif
 
 
 extern __attribute__((nomips16)) __u16 ___cpu_to_le16p(const __u16 *p);

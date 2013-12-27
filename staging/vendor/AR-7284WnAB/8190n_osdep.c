@@ -9,7 +9,6 @@
 ------------------------------------------------------------------------------*/
 #define _8190N_OSDEP_C_
 
-#ifdef __KERNEL__
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -28,7 +27,6 @@
 #include <linux/signal.h>
 #include <asm/uaccess.h>
 #include <linux/sched.h>
-#endif
 #include "flash_layout.h"
 #ifdef __DRAYTEK_OS__
 #include <draytek/softimer.h>
@@ -38,26 +36,13 @@
 
 #include "./8190n_cfg.h"
 
-#ifdef RTL867X_CP3
-#include "./romeperf.h"
-#endif
 
-#ifdef __KERNEL__
-#ifdef __LINUX_2_6__
 #include <linux/syscalls.h>
 #include <linux/file.h>
 #include <asm/unistd.h>
-#endif
 #if defined(RTK_BR_EXT) || defined(BR_SHORTCUT)
-#ifdef __LINUX_2_6__
 #include <linux/syscalls.h>
-#else
-#include <linux/fs.h>
-#endif
 #include <../net/bridge/br_private.h>
-#endif
-#else
-#include "./sys-support.h"
 #endif
 
 #include "./8190n.h"
@@ -66,9 +51,7 @@
 #include "./8190n_rx.h"
 #include "./8190n_debug.h"
 
-#ifdef RTL8192SU
 #include "./8190n_usb.h"
-#endif
 
 #ifdef RTL8190_VARIABLE_USED_DMEM
 #include "./8190n_dmem.h"
@@ -103,9 +86,6 @@
 #endif
 
 
-#if !defined(CONFIG_NET_PCI) && defined(CONFIG_RTL8196B) && !defined(RTL8192SU)
-#include <asm/rtl865x/platform.h>
-#endif
 
 #ifdef CONFIG_WIRELESS_LAN_MODULE
 extern int (*wirelessnet_hook)(void);
@@ -137,40 +117,17 @@ static struct _device_info_ wlan_device[] =
 {
 #if defined(CONFIG_RTL_EB8186) || defined(USE_RTL8186_SDK)
 	//{(MESH_NUM_CFG<<MESH_SHIFT) |(WDS_NUM_CFG<<WDS_SHIFT) | (TYPE_EMBEDDED<<TYPE_SHIFT), 0, 0xbd400000, 2, NULL},
-	#ifdef CONFIG_NET_PCI
-	{(MESH_NUM_CFG<<MESH_SHIFT) |(WDS_NUM_CFG<<WDS_SHIFT) | (TYPE_PCI_BIOS<<TYPE_SHIFT) | ACCESS_SWAP_MEM, 0, 0, 0, NULL},
-	#else
 	#ifdef IO_MAPPING
 	{(WDS_NUM_CFG<<WDS_SHIFT) | (TYPE_PCI_DIRECT<<TYPE_SHIFT) | ACCESS_SWAP_MEM, PCI_SLOT1_CONFIG_ADDR, 0xb8C00000, 3, NULL},
 	#else
 #ifdef CONFIG_RTL8196B
-#ifdef RTL8192SU
 	{(MESH_NUM_CFG<<MESH_SHIFT) |(WDS_NUM_CFG<<WDS_SHIFT) | (TYPE_PCI_BIOS<<TYPE_SHIFT) | ACCESS_SWAP_MEM, 0, 1, 0, NULL},
-#else
-	{(MESH_NUM_CFG<<MESH_SHIFT) |(WDS_NUM_CFG<<WDS_SHIFT) | (TYPE_PCI_DIRECT<<TYPE_SHIFT) | ACCESS_SWAP_MEM, PCIE0_D_CFG0, PCIE0_D_MEM, PCIE_IRQ, NULL},
-#endif	
 #else
 	{(MESH_NUM_CFG<<MESH_SHIFT) | (WDS_NUM_CFG<<WDS_SHIFT) | (TYPE_PCI_DIRECT<<TYPE_SHIFT) | ACCESS_SWAP_MEM, PCI_SLOT1_CONFIG_ADDR, 0xb9000000, 3, NULL},
 #endif
 	#endif
-	#endif
-#elif defined(CONFIG_X86)
-	{(MESH_NUM_CFG<<MESH_SHIFT) |(WDS_NUM_CFG<<WDS_SHIFT) | (TYPE_PCI_BIOS<<TYPE_SHIFT), 0, 0, 0, NULL}
-#elif defined(CONFIG_RTL865X)
-	{(MESH_NUM_CFG<<MESH_SHIFT) |(WDS_NUM_CFG<<WDS_SHIFT) | (TYPE_PCI_BIOS<<TYPE_SHIFT) | ACCESS_SWAP_MEM, 0, 0, 0, NULL},
-	{(MESH_NUM_CFG<<MESH_SHIFT) |(WDS_NUM_CFG<<WDS_SHIFT) | (TYPE_PCI_BIOS<<TYPE_SHIFT) | ACCESS_SWAP_MEM, 0, 0, 0, NULL},
-#elif defined(CONFIG_RTL8671) //8671 pci intf
-	#ifdef IO_MAPPING
-	{(WDS_NUM_CFG<<WDS_SHIFT) | (TYPE_PCI_DIRECT<<TYPE_SHIFT) | ACCESS_SWAP_MEM, PCI_SLOT0_CONFIG_ADDR, 0xbd200000, 7, NULL},
-	#else
-		#ifdef RTL8192SU
-			{(MESH_NUM_CFG<<MESH_SHIFT) |(WDS_NUM_CFG<<WDS_SHIFT) | (TYPE_PCI_BIOS<<TYPE_SHIFT) | ACCESS_SWAP_MEM, 0, 1, 0, NULL},
-		#else
-			{(MESH_NUM_CFG<<MESH_SHIFT) |(WDS_NUM_CFG<<WDS_SHIFT) | (TYPE_PCI_DIRECT<<TYPE_SHIFT) | ACCESS_SWAP_MEM, PCI_SLOT0_CONFIG_ADDR, 0xbd300000, 7, NULL},
-		#endif	
-	#endif
 #else
-	#error No_System_Defined
+	{(MESH_NUM_CFG<<MESH_SHIFT) |(WDS_NUM_CFG<<WDS_SHIFT) | (TYPE_PCI_BIOS<<TYPE_SHIFT), 0, 0, 0, NULL}
 #endif
 };
 
@@ -182,12 +139,10 @@ static int rtl865x_wlanRegistration(struct net_device *dev, int index);
 static int rtl865x_wlanUnregistration(struct net_device *dev, int index);
 #endif	/* CONFIG_RTL865X */
 
-#ifdef CONFIG_RTL8671
 // Added by Mason Yu
 // MBSSID Port Mapping
 struct port_map wlanDev[5];
 static int wlanDevNum=0;
-#endif
 
 #ifdef PRIV_STA_BUF
 static struct rtl8190_hw hw_info;
@@ -269,14 +224,8 @@ __IRAM void us_delay(int nus)
 	unsigned int i,j=0,k;
 	k=1333; // 0.005ms  ==>666, 10us==>1333
 	
-#ifdef RTL867X_CP3
-		rtl8651_romeperfEnterPoint(ROMEPERF_INDEX_USB_TEST3);
-#endif		
 		for(i=0;i<k*nus;i++)
 			j++;			
-#ifdef RTL867X_CP3
-		rtl8651_romeperfExitPoint(ROMEPERF_INDEX_USB_TEST3);
-#endif
 
 }
 
@@ -351,22 +300,6 @@ __IRAM static void read_complete(struct urb *purb, struct pt_regs *regs)
 		                                                        9);
 		if (ret != NULL)
 		{
-#if 0	//Slow, 133Mhz --> 69.2Mbps
-		        insert_skb_pool(ret);
-
-			skb_pool[idx]=get_free_skb();
-			if (skb_pool[idx] != NULL)
-			{
-				skb_pool[idx]->head=(unsigned char *)((u32)skb_pool[idx]->head & (~0x20000000));
-				skb_pool[idx]->data=skb_pool[idx]->head+RX_DMA_SHIFT;
-				skb_pool[idx]->tail=skb_pool[idx]->data;
-				skb_pool[idx]->end=skb_pool[idx]->head+RX_DMA_SHIFT+RX_ALLOC_SIZE;
-				skb_pool[idx]->fcpu=0;
-				
-				privs->transfer_buffer=skb_pool[idx]->data;
-				privs->buffer_length=1600;
-			}
-#else	//Fast, 133Mhz --> 111.4Mbps
 			skb_pool[idx]=ret;
 			ret->head=(unsigned char *)((u32)ret->head & (~0x20000000));
 			ret->data=ret->head+RX_DMA_SHIFT;
@@ -375,7 +308,6 @@ __IRAM static void read_complete(struct urb *purb, struct pt_regs *regs)
 			ret->fcpu=0;				
 			privs->transfer_buffer=ret->data;
 			privs->buffer_length=RX_ALLOC_SIZE;
-#endif
 		
 		}else
 		{
@@ -438,710 +370,9 @@ static int flush_perf_dump(struct file *file, const char *buffer,
 	#define REG32(reg) 		(*(volatile unsigned int *)(reg))
 #endif
 
-#if !defined(CONFIG_NET_PCI) && defined(CONFIG_RTL8196B) && !defined(RTL8192SU)
-#define MAX_PAYLOAD_SIZE_128B    0x00
 
- #ifdef CONFIG_RTL_KERNEL_MIPS16_WLAN
-__NOMIPS16
-#endif
-static void rtl8196b_pci_reset(unsigned long conf_addr)
-{
-   /* If PCI needs to be reset, put code here.
-    * Note:
-    *    Software may need to do hot reset for a period of time, say ~100us.
-    *    Here we put 2ms.
-    */
 
-	//Modified for PCIE PHY parameter due to RD center suggestion by Jason 12252009
-	WRITE_MEM32(0xb8000044, 0x9);//Enable PCIE PLL
-	delay_ms(10);
-	REG32(0xb8000010)=REG32(0xb8000010)|(0x500); //Active LX & PCIE Clock in 8196B system register
-	delay_ms(10);
-	WRITE_MEM32(0xb800003C, 0x1);//PORT0 PCIE PHY MDIO Reset
-	delay_ms(10);
-	WRITE_MEM32(0xb800003C, 0x3);//PORT0 PCIE PHY MDIO Reset
-	delay_ms(10);
-	WRITE_MEM32(0xb8000040, 0x1);//PORT1 PCIE PHY MDIO Reset
-	delay_ms(10);
-	WRITE_MEM32(0xb8000040, 0x3);//PORT1 PCIE PHY MDIO Reset
-	delay_ms(10);
-	WRITE_MEM32(0xb8b01008, 0x1);// PCIE PHY Reset Close:Port 0
-	delay_ms(10);
-	WRITE_MEM32(0xb8b01008, 0x81);// PCIE PHY Reset On:Port 0
-	delay_ms(10);
-#ifdef PIN_208
-	WRITE_MEM32(0xb8b21008, 0x1);// PCIE PHY Reset Close:Port 1
-	delay_ms(10);
-	WRITE_MEM32(0xb8b21008, 0x81);// PCIE PHY Reset On:Port 1
-	delay_ms(10);
-#endif
-#ifdef OUT_CYSTALL
-	WRITE_MEM32(0xb8b01000, 0xcc011901);// PCIE PHY Reset On:Port 0
-	delay_ms(10);
-#ifdef PIN_208
-	WRITE_MEM32(0xb8b21000, 0xcc011901);// PCIE PHY Reset On:Port 1
-	delay_ms(10);
-#endif
-#endif
-	REG32(0xb8000010)=REG32(0xb8000010)|(0x01000000); //PCIE PHY Reset On:Port 0
-	delay_ms(10);
 
-   WRITE_MEM32(PCIE0_H_PWRCR, READ_MEM32(PCIE0_H_PWRCR) & 0xFFFFFF7F);
-#ifdef PIN_208
-   WRITE_MEM32(PCIE1_H_PWRCR, READ_MEM32(PCIE1_H_PWRCR) & 0xFFFFFF7F);
-#endif
-   delay_ms(100);
-   WRITE_MEM32(PCIE0_H_PWRCR, READ_MEM32(PCIE0_H_PWRCR) | 0x00000080);
-#ifdef PIN_208
-   WRITE_MEM32(PCIE1_H_PWRCR, READ_MEM32(PCIE1_H_PWRCR) | 0x00000080);
-#endif
-
-   delay_ms(10);
-
-   // Enable PCIE host
-	WRITE_MEM32(PCIE0_H_CFG + 0x04, 0x00100007);
-	WRITE_MEM8(PCIE0_H_CFG + 0x78, (READ_MEM8(conf_addr + 0x78) & (~0xE0)) | MAX_PAYLOAD_SIZE_128B);  // Set MAX_PAYLOAD_SIZE to 128B
-}
-#endif // !defined(CONFIG_NET_PCI) && defined(CONFIG_RTL8196B)
-
-
-#if 0
-static int is_giga_board(void)
-{
-	unsigned int tmp;
-	int b1, b2, b3, b4;
-
-	REG32(PEFGHCNR_REG) = REG32(PEFGHCNR_REG)  &(~(0x03<<24)) & (~(0x48<<8) ); //set (GP4 GP3 GP2 GP1)=(H1 H0 F3 F6)= gpio
-	REG32(PEFGHPTYPE_REG)=REG32(PEFGHPTYPE_REG)&(~(0x03<<24)) & (~(0x48<<8) );  //change to GPIO mode
-	REG32(PEFGHDIR_REG) = REG32(PEFGHDIR_REG)    &(~(0x03<<24)) & (~(0x48<<8) );;  //0 input, 1 output, set  inpur
-	tmp=REG32(PEFGHDAT_REG);
-	b4 = (tmp&(0x02<<24))>>25;
-	b3 = (tmp&(0x01<<24))>>24;
-	b2 = (tmp&(0x08<<8))>>11;
-	b1 = (tmp&(0x40<<8))>>14;
-	tmp = (b1&0x1) | ((b2<<1)&0x2) |  ((b3<<2)&0x4) | ((b4<<2)&0x8);
-
-	/*
-	 * GP4 GP3 GP2 GP1   ||   Giga     || Type
-	 * =========================================
-	 *   0    0     0    0           Yes          10/100
-	 *   0    0     0    1           No           10/100
-	 *   0    0     1    0           Yes          10/100
-	 *   0    0     1    1           No           10/100
-	 *   0    1     0    0           Yes          10/100
-	 *   0    1     0    1           No           10/100
-	 *   0    1     1    0           Yes          10/100
-	 *   0    1     1    1           No           10/100
-	 *   1    0     0    0           Yes          Serdes
-	 *   1    0     0    1                          Serdes
-	 *   1    0     1    0           Yes          Serdes
-	 *   1    0     1    1                          Serdes
-	 *   1    1     0    0           Yes          Serdes
-	 *   1    1     0    1                          Serdes
-	 *   1    1     1    0           Yes          Serdes
-	 *   1    1     1    1                          Serdes
-	 */
-	/* !!! use "priv->pshare->is_giga_exist != 0" to indicate "Serdes or 10/100 have Giga" */
-	if (b4 == 1 && b1 == 0) /* Serdes has Giga */
-		return 2;
-	else if (b1 == 0 || b4 == 1) /* Serdes or 10/100 have Giga */
-		return 1;
-	else
-		return 0;
-}
-#endif
-
-#if !defined(RTL8192SU)
-static void rtl8190_bcnProc(struct rtl8190_priv *priv, unsigned int bcnInt,
-				unsigned int bcnOk, unsigned int bcnErr
-#ifdef RTL8192SE
-				, unsigned int status
-#endif
-				)
-{
-#ifdef MBSSID
-	int i;
-#endif
-
-	/* ================================================================
-			Process Beacon interrupt
-	    ================================================================ */
-	//
-	// Update beacon content
-	//
-	if (bcnInt) {
-#ifdef RTL8192SE
-		if (status & IMR_BcnInt)
-#endif
-	{
-#ifdef UNIVERSAL_REPEATER
-		if ((OPMODE & WIFI_STATION_STATE) && GET_VXD_PRIV(priv) &&
-						(GET_VXD_PRIV(priv)->drv_state & DRV_STATE_VXD_AP_STARTED)) {
-			if (GET_VXD_PRIV(priv)->timoffset) {
-				update_beacon(GET_VXD_PRIV(priv));
-			}
-		}
-		else
-#endif
-		{
-			if (priv->timoffset) {
-				update_beacon(priv);
-			}
-		}
-		}
-#ifdef RTL8192SE
-		else
-#endif
-		{
-#ifdef MBSSID
-#ifdef RTL8192SE
-			if (GET_ROOT(priv)->pmib->miscEntry.vap_enable)
-#endif
-			{
-				for (i=0; i<RTL8190_NUM_VWLAN; i++) {
-#ifdef RTL8192SE
-					if ((priv->pvap_priv[i]->vap_init_seq > 0) && IS_DRV_OPEN(priv->pvap_priv[i]) 
-						&& (status & (IMR_BCNDMAINT1 << (priv->pvap_priv[i]->vap_init_seq-1))))
-#else
-					if (IS_DRV_OPEN(priv->pvap_priv[i]))
-#endif
-					{
-						if (priv->pvap_priv[i]->timoffset) {
-							update_beacon(priv->pvap_priv[i]);
-						}
-					}
-				}
-			}
-#endif
-		}
-	}
-
-	/* ================================================================
-			Process Beacon OK/ERROR interrupt
-	    ================================================================ */
-	if (bcnOk || bcnErr)
-	{
-		unsigned int polling_hiQ = 0;
-		unsigned char val8;
-
-#ifdef UNIVERSAL_REPEATER
-		struct rtl8190_priv *priv_root=NULL;
-		if ((OPMODE & WIFI_STATION_STATE) && GET_VXD_PRIV(priv) &&
-						(GET_VXD_PRIV(priv)->drv_state & DRV_STATE_VXD_AP_STARTED)) {
-			priv_root = priv;
-			priv = GET_VXD_PRIV(priv);
-		}
-#endif
-
-		//
-		// Polling highQ as there is multicast waiting for tx...
-		//
-		if (OPMODE & WIFI_AP_STATE) {
-			val8 = *((unsigned char *)priv->beaconbuf + priv->timoffset + 4);
-			if (val8 & 0x01) {
-				polling_hiQ = 1;
-				priv->pkt_in_dtimQ = 0;
-			}
-#ifdef MBSSID
-			if (GET_ROOT(priv)->pmib->miscEntry.vap_enable) {
-				for (i=0; i<RTL8190_NUM_VWLAN; i++) {
-					if (IS_DRV_OPEN(priv->pvap_priv[i])) {
-						val8 = *((unsigned char *)priv->pvap_priv[i]->beaconbuf + priv->pvap_priv[i]->timoffset + 4);
-						if (val8 & 0x01) {
-							polling_hiQ = 1;
-							priv->pvap_priv[i]->pkt_in_dtimQ = 0;
-						}
-					}
-				}
-			}
-#endif
-			if (polling_hiQ) {
-#if	defined(RTL8190) || defined(RTL8192E)
-#ifdef SW_MCAST
-				process_mcast_dzqueue(priv);
-#else
-				int pre_head = get_txhead(phw, MCAST_QNUM);
-				do {
-					txdesc_rollback(&pre_head);
-				} while ((get_txdesc_info(priv->pshare->pdesc_info, MCAST_QNUM) + pre_head)->type != _PRE_ALLOCLLCHDR_);
-				if (get_desc((get_txdesc(phw, MCAST_QNUM) + pre_head)->cmd) & _OWN_)
-					*(unsigned short *)((get_txdesc_info(priv->pshare->pdesc_info, MCAST_QNUM) + pre_head)->pframe) &= (~cpu_to_le16(_MORE_DATA_));
-				tx_poll(priv, MCAST_QNUM);
-#endif
-#elif	defined(RTL8192SE)
-#ifdef SW_MCAST
-				process_mcast_dzqueue(priv);
-#else
-				int pre_head = get_txhead(phw, MCAST_QNUM);
-				do {
-					txdesc_rollback(&pre_head);
-				} while ((get_txdesc_info(priv->pshare->pdesc_info, MCAST_QNUM) + pre_head)->type != _PRE_ALLOCLLCHDR_);
-				if (get_desc((get_txdesc(phw, MCAST_QNUM) + pre_head)->OWN) == 1)
-					*(unsigned short *)((get_txdesc_info(priv->pshare->pdesc_info, MCAST_QNUM) + pre_head)->pframe) &= (~cpu_to_le16(_MORE_DATA_));
-				tx_poll(priv, MCAST_QNUM);
-#endif
-#endif
-			}
-		}
-
-		//
-		// Statistics and LED counting
-		//
-		if (bcnOk) {
-			priv->ext_stats.beacon_ok++;
-
-			// for SW LED
-			if ((LED_TYPE >= LEDTYPE_SW_LINK_TXRX) && (LED_TYPE <= LEDTYPE_SW_LINKTXRX))
-				priv->pshare->LED_tx_cnt++;
-#ifdef MBSSID
-#ifdef RTL8192SE
-			if (GET_ROOT(priv)->pmib->miscEntry.vap_enable)
-#endif
-			{
-				for (i=0; i<RTL8190_NUM_VWLAN; i++) {
-					if (IS_DRV_OPEN(priv->pvap_priv[i]))
-						priv->pvap_priv[i]->ext_stats.beacon_ok++;
-				}
-			}
-#endif
-			SNMP_MIB_INC(dot11TransmittedFragmentCount, 1);
-		}
-		else {
-			priv->ext_stats.beacon_er++;
-#ifdef MBSSID
-#ifdef RTL8192SE
-			if (GET_ROOT(priv)->pmib->miscEntry.vap_enable)
-#endif
-			{
-				for (i=0; i<RTL8190_NUM_VWLAN; i++) {
-					if (IS_DRV_OPEN(priv->pvap_priv[i]))
-						priv->pvap_priv[i]->ext_stats.beacon_er++;
-				}
-			}
-#endif
-		}
-
-#ifdef UNIVERSAL_REPEATER
-		if (priv_root != NULL)
-			priv = priv_root;
-#endif
-
-	}
-
-#ifdef CLIENT_MODE
-	//
-	// Ad-hoc beacon status
-	//
-	if (OPMODE & WIFI_ADHOC_STATE) {
-		if (bcnOk)
-			priv->ibss_tx_beacon = TRUE;
-		if (bcnErr)
-			priv->ibss_tx_beacon = FALSE;
-	}
-#endif
-}
-
-
-#if	defined(RTL8192SE)
-//#ifdef CONFIG_RTL8196_RTL8366
-int RetryCounter1=0;
-//#endif
-
-
-#ifdef __LINUX_2_6__
-__IRAM_FASTEXTDEV
-#else
-__MIPS16
-__IRAM_IN_865X_HI
-#endif
-__inline__ static int __rtl8192SE_interrupt(void *dev_instance)
-{
-	// Use static variables for stack size overflow issue, david+2007-09-19
-	__DRAM_IN_865X static struct net_device *dev = NULL;
-	__DRAM_IN_865X static struct rtl8190_priv *priv = NULL;
-	__DRAM_IN_865X static struct rtl8190_hw *phw = NULL;
-	__DRAM_IN_865X static unsigned long ioaddr = 0;
-
-	__DRAM_IN_865X static unsigned int status, status_ext;
-	__DRAM_IN_865X static unsigned int caseBcnInt, caseBcnStatusOK, caseBcnStatusER;
-	__DRAM_IN_865X static unsigned int caseRxStatus, caseRxRDU;
-	__DRAM_IN_865X static unsigned int caseRxCmd, caseTimer1, caseTimer2;
-#ifdef SUPPORT_TX_AMSDU
-	__DRAM_IN_865X static unsigned long current_value, timeout;
-#endif
-
-	dev = (struct net_device *)dev_instance;
-	priv = (struct rtl8190_priv *)dev->priv;
-	phw = GET_HW(priv);
-	ioaddr = priv->pshare->ioaddr;
-
-	caseBcnInt = caseBcnStatusOK = caseBcnStatusER = 0;
-	caseRxStatus = caseRxRDU = 0;
-	caseRxCmd = caseTimer1 = caseTimer2 = 0;
-
-	// For fixing 92SE  We must only clear IMR mask register
-	status = RTL_R32(ISR);
-//	status &= priv->pshare->InterruptMask;
-	RTL_W32(ISR, status);
-	status_ext = RTL_R32(ISR+4);
-//#ifdef CONFIG_RTL8196_RTL8366
-	if (status_ext == 0) {
-		RetryCounter1++;
-		if (RetryCounter1 > 100) {
-			printk("!");
-			while (status_ext == 0) {
-				status_ext = RTL_R32(ISR+4);
-			}
-			RetryCounter1 = 0;
-		}
-	}
-	else {
-		RetryCounter1 = 0;
-	}
-//#endif
-
-//	status_ext &= priv->pshare->InterruptMaskExt;
-	RTL_W32(ISR+4, status_ext);
-	if (status == 0 && status_ext == 0) {
-		return FAIL;
-	}
-
-//	printk("status: %x, status_ext: %x \n", status=RTL_R32(ISR), RTL_R32(ISR+4));
-
-
-//	if (!mask)
-//		return FAIL;
-
-//	printk("status %x, status_ext: %x\n", status, status_ext);
-/*
-	if(status &(IMR_MGNTDOK | IMR_HCCADOK | IMR_BKDOK | IMR_BEDOK | IMR_VIDOK | IMR_VODOK))
-		printk("TX Q ok !\n");
-*/
-
-	if (status & (IMR_BcnInt | IMR_BCNDMAINT1 | IMR_BCNDMAINT2 | IMR_BCNDMAINT3 | IMR_BCNDMAINT4))
-		caseBcnInt = 1;
-
-//	if ((OPMODE & WIFI_AP_STATE) && (status & (_BCNDOK_ | _BCNDOK2_ | _BCNDOK3_ | _BCNDOK4_ | _BCNDOK5_)))
-	if (status & (IMR_BDOK | IMR_BCNDOK1 | IMR_BCNDOK2 | IMR_BCNDOK3 | IMR_BCNDOK4))
-		caseBcnStatusOK = 1;
-
-	if (status_ext & IMR_TBDOK)
-		caseBcnStatusOK = 1;
-
-	if (status_ext & IMR_TBDER)
-		caseBcnStatusER = 1;
-
-	if (status & (IMR_ROK | IMR_RDU))
-		caseRxStatus = 1;
-
-	if (status & IMR_RDU) {
-		priv->ext_stats.rx_rdu++;
-		caseRxRDU = 1;
-	}
-
-	if (status & IMR_RXFOVW)
-		priv->ext_stats.rx_fifoO++;
-
-	if (status & IMR_RXCMDOK)
-		caseRxCmd = 1;
-
-	if (status & IMR_TIMEOUT1)
-		caseTimer1 = 1;
-
-	if (status & IMR_TIMEOUT2)
-		caseTimer2 = 1;
-
-	if (caseBcnInt || caseBcnStatusOK || caseBcnStatusER){
-		rtl8190_bcnProc(priv, caseBcnInt, caseBcnStatusOK, caseBcnStatusER, status);
-	}
-
-
-	//
-	// Rx interrupt
-	//
-	if (caseRxStatus)
-	{
-		// stop RX first
-#ifdef __KERNEL__
-#if defined(RTL8190_ISR_RX) && defined(RTL8190_DIRECT_RX)
-#if defined(RX_TASKLET)
-		if (!priv->pshare->has_triggered_rx_tasklet) {
-			priv->pshare->has_triggered_rx_tasklet = 1;
-			RTL_W32(IMR, priv->pshare->InterruptMask & ~(IMR_RXFOVW | IMR_RDU | IMR_ROK));
-			tasklet_hi_schedule(&priv->pshare->rx_tasklet);
-		}
-#else
-		rtl8190_rx_isr(priv);
-#endif
-
-#else// defined RTL8190_ISR_RX && RTL8190_DIRECT_RX
-		if (caseRxRDU) {
-			rtl8190_rx_isr(priv);
-		}
-		else {
-			if (priv->pshare->rxInt_useTsklt)
-				tasklet_hi_schedule(&priv->pshare->rx_tasklet);
-			else
-				rtl8190_rx_dsr((unsigned long)priv);
-		}
-#endif
-
-#else	// __KERNEL__
-		rtl8190_rx_dsr((unsigned long)priv);
-#endif
-
-	}
-
-	//
-	// Tx interrupt
-	//
-#ifdef MP_TEST
-	if (OPMODE & WIFI_MP_STATE)
-		rtl8190_tx_dsr((unsigned long)priv);
-	else
-#endif
-
-	if ((CIRC_CNT_RTK(phw->txhead0, phw->txtail0, NUM_TX_DESC) > 10) ||
-		(CIRC_CNT_RTK(phw->txhead1, phw->txtail1, NUM_TX_DESC) > 10) ||
-		(CIRC_CNT_RTK(phw->txhead2, phw->txtail2, NUM_TX_DESC) > 10) ||
-		(CIRC_CNT_RTK(phw->txhead3, phw->txtail3, NUM_TX_DESC) > 10) ||
-		(CIRC_CNT_RTK(phw->txhead4, phw->txtail4, NUM_TX_DESC) > 10) ||
-		(CIRC_CNT_RTK(phw->txhead5, phw->txtail5, NUM_TX_DESC) > 10)
-	) {
-#ifdef __KERNEL__
-		if (!priv->pshare->has_triggered_tx_tasklet) {
-			tasklet_schedule(&priv->pshare->tx_tasklet);
-			priv->pshare->has_triggered_tx_tasklet = 1;
-		}
-#else
-		rtl8190_tx_dsr((unsigned long)priv);
-#endif
-	}
-
-	//
-	// Rx command queue
-	//
-//	if (caseRxCmd)
-//		rtl8190_rxcmd_isr(priv);
-
-	if (caseTimer1) {
-		RTL_W32(IMR, RTL_R32(IMR) & ~IMR_TIMEOUT1);
-
-#ifdef BUFFER_TX_AMPDU
-		current_value = RTL_R32(TSFR) ;
-		timeout = RTL_R32(TIMER0);
-		if (TSF_LESS(current_value, timeout))
-			setup_timer1(priv, timeout);
-		else
-			ampdu_timeout(priv, current_value);
-#endif
-	}
-
-#ifdef SUPPORT_TX_AMSDU
-	if (caseTimer2) {
-		RTL_W32(IMR, RTL_R32(IMR) & ~IMR_TIMEOUT2);
-
-		current_value = RTL_R32(TSFR) ;
-		timeout = RTL_R32(TIMER1);
-		if (TSF_LESS(current_value, timeout))
-			setup_timer2(priv, timeout);
-		else
-			amsdu_timeout(priv, current_value);
-	}
-#endif
-
-	return SUCCESS;
-}
-
-
-#elif	defined(RTL8190) || defined(RTL8192E)
-__IRAM_FASTEXTDEV
-__inline__ static int __rtl8190_interrupt(void *dev_instance)
-{
-	// Use static variables for stack size overflow issue, david+2007-09-19
-	__DRAM_IN_865X static struct net_device *dev = NULL;
-	__DRAM_IN_865X static struct rtl8190_priv *priv = NULL;
-	__DRAM_IN_865X static struct rtl8190_hw *phw = NULL;
-	__DRAM_IN_865X static unsigned long ioaddr = 0;
-
-	__DRAM_IN_865X static unsigned int status;
-	__DRAM_IN_865X static unsigned int caseBcnInt, caseBcnStatusOK, caseBcnStatusER;
-	__DRAM_IN_865X static unsigned int caseRxStatus, caseRxRDU;
-	__DRAM_IN_865X static unsigned int caseRxCmd, caseTimer1, caseTimer2;
-	__DRAM_IN_865X static unsigned long current_value, timeout;
-
-	dev = (struct net_device *)dev_instance;
-	priv = (struct rtl8190_priv *)dev->priv;
-	phw = GET_HW(priv);
-	ioaddr = priv->pshare->ioaddr;
-
-	caseBcnInt = caseBcnStatusOK = caseBcnStatusER = 0;
-	caseRxStatus = caseRxRDU = 0;
-	caseRxCmd = caseTimer1 = caseTimer2 = 0;
-
-	status = RTL_R32(_ISR_);
-	if (status == 0) {
-		return FAIL;
-	}
-	RTL_W32(_ISR_, status);
-
-//	if (!mask)
-//		return FAIL;
-
-	if (status & (_BCNDMAINT_ | _BCNDMAINT2_ | _BCNDMAINT3_ | _BCNDMAINT4_ | _BCNDMAINT5_))
-		caseBcnInt = 1;
-
-//	if ((OPMODE & WIFI_AP_STATE) && (status & (_BCNDOK_ | _BCNDOK2_ | _BCNDOK3_ | _BCNDOK4_ | _BCNDOK5_)))
-	if (status & (_BCNDOK_ | _BCNDOK2_ | _BCNDOK3_ | _BCNDOK4_ | _BCNDOK5_))
-		caseBcnStatusOK = 1;
-
-	if (status & _TBDOK_)
-		caseBcnStatusOK = 1;
-
-	if (status & _TBDER_)
-		caseBcnStatusER = 1;
-
-	if (status & (_ROK_ | _RDU_))
-		caseRxStatus = 1;
-
-	if (status & _RDU_) {
-		priv->ext_stats.rx_rdu++;
-		caseRxRDU = 1;
-	}
-
-	if (status & _RXFOVW_)
-		priv->ext_stats.rx_fifoO++;
-
-	if (status & _RXCMDOK_)
-		caseRxCmd = 1;
-
-	if (status & _TIMEOUT1_)
-		caseTimer1 = 1;
-
-	if (status & _TIMEOUT2_)
-		caseTimer2 = 1;
-
-	if (caseBcnInt || caseBcnStatusOK || caseBcnStatusER)
-		rtl8190_bcnProc(priv, caseBcnInt, caseBcnStatusOK, caseBcnStatusER);
-
-	//
-	// Rx interrupt
-	//
-	if (caseRxStatus)
-	{
-#ifdef __KERNEL__
-
-#if defined(RTL8190_ISR_RX) && defined(RTL8190_DIRECT_RX)
-		rtl8190_rx_isr(priv);
-#else
-		if (caseRxRDU) {
-			rtl8190_rx_isr(priv);
-		}
-		else {
-			if (priv->pshare->rxInt_useTsklt)
-				tasklet_hi_schedule(&priv->pshare->rx_tasklet);
-			else
-				rtl8190_rx_dsr((unsigned long)priv);
-		}
-#endif
-
-#else
-		rtl8190_rx_dsr((unsigned long)priv);
-#endif
-	}
-
-	//
-	// Tx interrupt
-	//
-#ifdef MP_TEST
-	if (OPMODE & WIFI_MP_STATE)
-		rtl8190_tx_dsr((unsigned long)priv);
-	else
-#endif
-	if ((CIRC_CNT_RTK(phw->txhead0, phw->txtail0, NUM_TX_DESC) > 20) ||
-		(CIRC_CNT_RTK(phw->txhead1, phw->txtail1, NUM_TX_DESC) > 20) ||
-		(CIRC_CNT_RTK(phw->txhead2, phw->txtail2, NUM_TX_DESC) > 20) ||
-		(CIRC_CNT_RTK(phw->txhead3, phw->txtail3, NUM_TX_DESC) > 20) ||
-		(CIRC_CNT_RTK(phw->txhead4, phw->txtail4, NUM_TX_DESC) > 20) ||
-		(CIRC_CNT_RTK(phw->txhead5, phw->txtail5, NUM_TX_DESC) > 20)
-	) {
-#ifdef __KERNEL__
-		tasklet_schedule(&priv->pshare->tx_tasklet);
-#else
-		rtl8190_tx_dsr((unsigned long)priv);
-#endif
-	}
-
-#if	defined(RTL8190) || defined(RTL8192E)
-	//
-	// Rx command queue
-	//
-	if (caseRxCmd)
-		rtl8190_rxcmd_isr(priv);
-#endif
-
-	if (caseTimer1) {
-		RTL_W32(_IMR_, RTL_R32(_IMR_) & ~_TIMEOUT1_);
-
-#ifdef BUFFER_TX_AMPDU
-		current_value = RTL_R32(_TSFTR_L_) ;
-		timeout = RTL_R32(_TIMER1_);
-		if (TSF_LESS(current_value, timeout))
-			setup_timer1(priv, timeout);
-		else
-			ampdu_timeout(priv, current_value);
-#endif
-	}
-
-#ifdef SUPPORT_TX_AMSDU
-	if (caseTimer2) {
-		RTL_W32(_IMR_, RTL_R32(_IMR_) & ~_TIMEOUT2_);
-
-		current_value = RTL_R32(_TSFTR_L_) ;
-		timeout = RTL_R32(_TIMER2_);
-		if (TSF_LESS(current_value, timeout))
-			setup_timer2(priv, timeout);
-		else
-			amsdu_timeout(priv, current_value);
-	}
-#endif
-
-	return SUCCESS;
-}
-#endif
-
-
-#ifdef __LINUX_2_6__
-#ifdef IRAM_FOR_WIRELESS_AND_WAPI_PERFORMANCE
-#else
-__IRAM_FASTEXTDEV
-#endif
-irqreturn_t rtl8190_interrupt(int irq, void *dev_instance)
-{
-	int ret;
-#if	defined(RTL8190) || defined(RTL8192E)
-	ret = __rtl8190_interrupt(dev_instance);
-#elif	defined(RTL8192SE)
-	ret = __rtl8192SE_interrupt(dev_instance);
-#endif
-	if (ret == FAIL)
-		return IRQ_RETVAL(IRQ_NONE);
-	else
-		return IRQ_RETVAL(IRQ_HANDLED);
-}
-#else
-__IRAM_FASTEXTDEV
-void rtl8190_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
-{
-#if	defined(RTL8190) || defined(RTL8192E)
-	__rtl8190_interrupt(dev_instance);
-#elif	defined(RTL8192SE)
-	__rtl8192SE_interrupt(dev_instance);
-#endif
-	return;
-}
-#endif
-#endif //!RTL8192SU
 
 
 static void rtl8190_set_rx_mode(struct net_device *dev)
@@ -1203,9 +434,6 @@ static int rtl8190_init_sw(struct rtl8190_priv *priv)
 	struct rtl8190_hw *phw=NULL;
 	static unsigned long offset;
 	static unsigned int  i;
-#if !defined(RTL8192SU)
-	static struct sk_buff	*pskb;
-#endif
 	static unsigned char	*page_ptr;
 	static struct wlan_hdr_poll	*pwlan_hdr_poll;
 	static struct wlanllc_hdr_poll	*pwlanllc_hdr_poll;
@@ -1284,7 +512,6 @@ static int rtl8190_init_sw(struct rtl8190_priv *priv)
 	if (IS_ROOT_INTERFACE(priv))
 #endif
 	{
-#ifdef __KERNEL__
 #ifdef DFS
 		// will not initialize the tasklet if the driver is rebooting due to the detection of radar
 		if (!priv->pmib->dot11DFSEntry.DFS_detected)
@@ -1294,22 +521,10 @@ static int rtl8190_init_sw(struct rtl8190_priv *priv)
 			if (!priv->reset_hangup)
 #endif
 			{
-#if !defined(RTL8192SU)
-#if !(defined(RTL8190_ISR_RX) && defined(RTL8190_DIRECT_RX))
-				tasklet_init(&priv->pshare->rx_tasklet, rtl8190_rx_dsr, (unsigned long)priv);
-#else
-#if defined(RTL8192SE) && defined(RX_TASKLET)
-				tasklet_init(&priv->pshare->rx_tasklet, rtl8192_rx_isr, (unsigned long)priv);
-#endif
-#endif
-				tasklet_init(&priv->pshare->tx_tasklet, rtl8190_tx_dsr, (unsigned long)priv);
-#else //RTL8192SU
 				tasklet_init(&priv->pshare->rx_tasklet,(void(*)(unsigned long))rtl8192su_irq_rx_tasklet_new,(unsigned long)priv);
-#endif
 				tasklet_init(&priv->pshare->oneSec_tasklet, rtl8190_expire_timer, (unsigned long)priv);
 			}
 		}
-#endif // __KERNEL__
 
 #ifdef DFS
 		if (priv->pmib->dot11DFSEntry.DFS_detected)
@@ -1334,10 +549,6 @@ static int rtl8190_init_sw(struct rtl8190_priv *priv)
 			memset((void *)phw, 0, sizeof(struct rtl8190_hw));
 			phw->ring_virt_addr = ring_virt_addr;
 			phw->ring_buf_len = ring_buf_len;
-#ifdef CONFIG_NET_PCI
-			if (IS_PCIBIOS_TYPE)
-				phw->ring_dma_addr = ring_dma_addr;
-#endif
 			phw->MIMO_TR_hw_support = MIMO_TR_hw_support;
 			phw->NumTotalRFPath = NumTotalRFPath;
 		}
@@ -1470,200 +681,12 @@ static int rtl8190_init_sw(struct rtl8190_priv *priv)
 		page_ptr = (unsigned char *)phw->ring_virt_addr;
 		memset(page_ptr, 0, phw->ring_buf_len); // this is vital!
 
-#ifndef __KERNEL__
-		if ((unsigned int)page_ptr & (~(PAGE_SIZE - 1)))
-			page_ptr = (unsigned char *)(((unsigned int)page_ptr & (~(PAGE_SIZE - 1))) + PAGE_SIZE);
-#endif
-#ifdef CONFIG_NET_PCI
-		if (!IS_PCIBIOS_TYPE)
-#endif
 			phw->ring_dma_addr = virt_to_bus(page_ptr);
 
 		phw->rx_ring_addr  = phw->ring_dma_addr;
-#if !defined(RTL8192SU)
-		phw->tx_ring0_addr = phw->ring_dma_addr + NUM_RX_DESC * sizeof(struct rx_desc);
-		phw->tx_ring1_addr = phw->tx_ring0_addr + NUM_TX_DESC * sizeof(struct tx_desc);
-		phw->tx_ring2_addr = phw->tx_ring1_addr + NUM_TX_DESC * sizeof(struct tx_desc);
-		phw->tx_ring3_addr = phw->tx_ring2_addr + NUM_TX_DESC * sizeof(struct tx_desc);
-		phw->tx_ring4_addr = phw->tx_ring3_addr + NUM_TX_DESC * sizeof(struct tx_desc);
-		phw->tx_ring5_addr = phw->tx_ring4_addr + NUM_TX_DESC * sizeof(struct tx_desc);
-		phw->rxcmd_ring_addr = phw->tx_ring5_addr + NUM_TX_DESC * sizeof(struct tx_desc);
-		phw->txcmd_ring_addr = phw->rxcmd_ring_addr + NUM_CMD_DESC * sizeof(struct rx_desc);
-		phw->tx_ringB_addr = phw->txcmd_ring_addr + NUM_CMD_DESC * sizeof(struct tx_desc);
-
-		phw->rx_descL = (struct rx_desc *)page_ptr;
-		phw->tx_desc0 = (struct tx_desc *)(page_ptr + NUM_RX_DESC * sizeof(struct rx_desc));
-		phw->tx_desc1 = (struct tx_desc *)((unsigned long)phw->tx_desc0 + NUM_TX_DESC * sizeof(struct tx_desc));
-		phw->tx_desc2 = (struct tx_desc *)((unsigned long)phw->tx_desc1 + NUM_TX_DESC * sizeof(struct tx_desc));
-		phw->tx_desc3 = (struct tx_desc *)((unsigned long)phw->tx_desc2 + NUM_TX_DESC * sizeof(struct tx_desc));
-		phw->tx_desc4 = (struct tx_desc *)((unsigned long)phw->tx_desc3 + NUM_TX_DESC * sizeof(struct tx_desc));
-		phw->tx_desc5 = (struct tx_desc *)((unsigned long)phw->tx_desc4 + NUM_TX_DESC * sizeof(struct tx_desc));
-		phw->rxcmd_desc = (struct rx_desc *)((unsigned long)phw->tx_desc5 + NUM_TX_DESC * sizeof(struct tx_desc));
-		phw->txcmd_desc = (struct tx_desc *)((unsigned long)phw->rxcmd_desc + NUM_CMD_DESC * sizeof(struct rx_desc));
-		phw->tx_descB = (struct tx_desc *)((unsigned long)phw->txcmd_desc + NUM_CMD_DESC * sizeof(struct tx_desc));
-#else //RTL8192SU
 		phw->tx_ringB_addr = phw->ring_dma_addr + NUM_CMD_DESC * sizeof(struct tx_desc);
 		phw->tx_descB = (struct tx_desc *)page_ptr;
-#endif //!RTL8192SU
 
-#if !defined(RTL8192SU)
-		/* To set the DMA address for both RX/TX ring */
-		{
-#ifndef USE_RTL8186_SDK
-			int txDescRingIdx;
-
-			struct tx_desc *tx_desc_array[] = {
-				phw->tx_desc0,
-				phw->tx_desc1,
-				phw->tx_desc2,
-				phw->tx_desc3,
-				phw->tx_desc4,
-				phw->tx_desc5,
-				phw->tx_descB,
-				0
-				};
-#ifdef CONFIG_NET_PCI
-			unsigned long *tx_desc_dma_array[] = {
-				(unsigned long*)(phw->tx_desc0_dma_addr),
-				(unsigned long*)(phw->tx_desc1_dma_addr),
-				(unsigned long*)(phw->tx_desc2_dma_addr),
-				(unsigned long*)(phw->tx_desc3_dma_addr),
-				(unsigned long*)(phw->tx_desc4_dma_addr),
-				(unsigned long*)(phw->tx_desc5_dma_addr),
-				(unsigned long*)(phw->tx_descB_dma_addr),
-				(unsigned long*)0
-				};
-#endif
-#endif // !USE_RTL8186_SDK
-
-			/* RX RING */
-			for (i=0; i<NUM_RX_DESC; i++) {
-				phw->rx_descL_dma_addr[i] = get_physical_addr(priv, (void *)(&phw->rx_descL[i]),
-					sizeof(struct rx_desc), PCI_DMA_TODEVICE);
-			}
-
-#ifndef USE_RTL8186_SDK
-			/* TX RING */
-			txDescRingIdx = 0;
-
-			while (tx_desc_array[txDescRingIdx] != 0) {
-#ifdef CONFIG_NET_PCI
-				unsigned long *tx_desc_dma_ptr = tx_desc_dma_array[txDescRingIdx];
-#endif
-				struct tx_desc *tx_desc_ptr = tx_desc_array[txDescRingIdx];
-
-				for (i=0; i<NUM_TX_DESC; i++) {
-					tx_desc_dma_ptr[i] = get_physical_addr(priv, (void *)(&(tx_desc_ptr[i])),
-						sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-				}
-
-				txDescRingIdx ++;
-			}
-#endif	// !USE_RTL8186_SDK
-
-			for (i=0; i<NUM_CMD_DESC; i++) {
-				phw->rxcmd_desc_dma_addr[i] = get_physical_addr(priv, (void *)(&phw->rxcmd_desc[i]),
-					sizeof(struct rx_desc), PCI_DMA_TODEVICE);
-				phw->txcmd_desc_dma_addr[i] = get_physical_addr(priv, (void *)(&phw->txcmd_desc[i]),
-					sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-			}
-		}
-
-		DEBUG_INFO("rx_descL=%08x tx_desc0=%08x, tx_desc1=%08x, tx_desc2=%08x, tx_desc3=%08x, tx_desc4=%08x, "
-			"tx_desc5=%08x, rxcmd_desc=%08x, txcmd_desc=%08x, tx_descB=%08x\n",
-			(UINT)phw->rx_descL, (UINT)phw->tx_desc0, (UINT)phw->tx_desc1, (UINT)phw->tx_desc2,
-			(UINT)phw->tx_desc3, (UINT)phw->tx_desc4, (UINT)phw->tx_desc5,
-			(UINT)phw->rxcmd_desc, (UINT)phw->txcmd_desc, (UINT)phw->tx_descB);
-#ifdef RTK_QUE
-		rtk_queue_init(&priv->pshare->skb_queue);
-#else
-		skb_queue_head_init(&priv->pshare->skb_queue);
-#endif
-
-		// Now for Rx desc...
-		for(i=0; i<NUM_RX_DESC; i++)
-		{
-#ifdef RTL8190_FASTEXTDEV_FUNCALL
-			pskb = rtl_dev_alloc_rxRing_skb(priv,
-											RX_BUF_LEN,
-											_SKB_RX_,
-											i,
-											priv->dev);
-#else
-			pskb = rtl_dev_alloc_skb(priv, RX_BUF_LEN, _SKB_RX_, 1);
-#endif
-			if (pskb == NULL) {
-				printk("can't allocate skbuff for RX, abort!\n");
-				return 1;
-			}
-			init_rxdesc(pskb, i, priv);
-		}
-
-		// Nothing to do for Tx desc...
-		for(i=0; i<NUM_TX_DESC; i++)
-		{
-			init_txdesc(priv, phw->tx_desc0, phw->tx_ring0_addr, i);
-			init_txdesc(priv, phw->tx_desc1, phw->tx_ring1_addr, i);
-			init_txdesc(priv, phw->tx_desc2, phw->tx_ring2_addr, i);
-			init_txdesc(priv, phw->tx_desc3, phw->tx_ring3_addr, i);
-			init_txdesc(priv, phw->tx_desc4, phw->tx_ring4_addr, i);
-			init_txdesc(priv, phw->tx_desc5, phw->tx_ring5_addr, i);
-		}
-
-#ifdef MBSSID
-		for(i=0; i<=RTL8190_NUM_VWLAN; i++) {
-#if	defined(RTL8190) || defined(RTL8192E)
-			if (i == RTL8190_NUM_VWLAN)
-				(phw->tx_descB + i)->n_desc = set_desc(phw->tx_ringB_addr);
-			else
-				(phw->tx_descB + i)->n_desc = set_desc(phw->tx_ringB_addr + (i+1) * sizeof(struct tx_desc));
-#elif defined(RTL8192SE)
-			if (GET_ROOT(priv)->pmib->miscEntry.vap_enable) {
-				if (i == RTL8190_NUM_VWLAN)
-					(phw->tx_descB + i)->Dword9 = set_desc(phw->tx_ringB_addr);
-					//(phw->tx_descB + i)->NextTxDescAddress = set_desc(phw->tx_ringB_addr);
-				else
-					(phw->tx_descB + i)->Dword9 = set_desc(phw->tx_ringB_addr + (i+1) * sizeof(struct tx_desc));
-					//(phw->tx_descB + i)->NextTxDescAddress = set_desc(phw->tx_ringB_addr + (i+1) * sizeof(struct tx_desc));
-			}
-#endif
-		}
-#endif
-
-#if 0
-		for(i=0; i<NUM_CMD_DESC; i++)
-		{
-#ifdef RTL8190_FASTEXTDEV_FUNCALL
-			pskb = rtl_dev_alloc_rxRing_skb(priv,
-											RX_BUF_LEN,
-											_SKB_RX_,
-											i,
-											priv->dev);
-#else
-			pskb = rtl_dev_alloc_skb(priv, RX_BUF_LEN, _SKB_RX_, 1);
-#endif
-			if (pskb == NULL) {
-				printk("can't allocate skbuff for RX, abort!\n");
-				return 1;
-			}
-			init_rxcmddesc(pskb, i, priv);
-		}
-#endif
-
-		for(i=0; i<NUM_CMD_DESC; i++) {
-#if	defined(RTL8190) || defined(RTL8192E)
-			if (i == (NUM_CMD_DESC - 1))
-				(phw->txcmd_desc + i)->n_desc = set_desc(phw->txcmd_ring_addr);
-			else
-				(phw->txcmd_desc + i)->n_desc = set_desc(phw->txcmd_ring_addr + (i+1) * sizeof(struct tx_desc));
-#elif defined(RTL8192SE)
-			if (i == (NUM_CMD_DESC - 1))// set NextAddrs
-				(phw->txcmd_desc + i)->Dword9 = set_desc(phw->txcmd_ring_addr);
-			else
-				(phw->txcmd_desc + i)->Dword9 = set_desc(phw->txcmd_ring_addr + (i+1) * sizeof(struct tx_desc));
-#endif
-		}
-#else //RTL8192SU
 			int txDescRingIdx;
 			struct tx_desc *tx_desc_array[] = {
 				phw->tx_descB,
@@ -1676,7 +699,6 @@ static int rtl8190_init_sw(struct rtl8190_priv *priv)
 			while (tx_desc_array[txDescRingIdx] != 0) {
 				txDescRingIdx ++;
 			}
-#endif	//!RTL8192SU
 #ifdef HW_QUICK_INIT
 skip_init_desc:
 #endif
@@ -1856,12 +878,6 @@ skip_init_desc:
 		}
 
 // Mark the code to auto disable N mode in WEP encrypt
-#if 0
-		if ((priv->pmib->dot11BssType.net_work_type & WIRELESS_11N) &&
-				(priv->pmib->dot1180211AuthEntry.dot11PrivacyAlgrthm == _WEP_40_PRIVACY_ ||
-					priv->pmib->dot1180211AuthEntry.dot11PrivacyAlgrthm == _WEP_104_PRIVACY_))
-			priv->pmib->dot11BssType.net_work_type &= ~WIRELESS_11N;
-#endif
 //------------------------------ david+2008-01-11
 
 		// support cck only in channel 14
@@ -2087,21 +1103,17 @@ skip_init_desc:
 	}
 
 //#ifndef RTL8192SE
-#if 1
 	// Realtek proprietary IE
 	memcpy(&(priv->pshare->rtk_ie_buf[0]), Realtek_OUI, 3);
 	priv->pshare->rtk_ie_buf[3] = 2;
 	priv->pshare->rtk_ie_buf[4] = 1;
 	priv->pshare->rtk_ie_buf[5] = 0;
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	priv->pshare->rtk_ie_buf[5] |= RTK_CAP_IE_WLAN_8192SE;
-#endif
 #ifdef CLIENT_MODE
 	if (OPMODE & WIFI_STATION_STATE)
 		priv->pshare->rtk_ie_buf[5] |= RTK_CAP_IE_AP_CLEINT;
 #endif
 	priv->pshare->rtk_ie_len = 6;
-#endif
 
 #ifdef A4_TUNNEL
 	if (priv->pmib->miscEntry.a4tnl_enable) {
@@ -2189,10 +1201,8 @@ skip_init_desc:
 		priv->pmib->dot11StationConfigEntry.dot11BeaconPeriod = 100;		
 #endif
 
-#ifdef RTL8192SU
 	priv->amsdu_skb=NULL;
 	priv->amsdu_pkt_remain_size=0;
-#endif
 
 	return 0;
 }
@@ -2214,14 +1224,10 @@ static int rtl8190_stop_sw(struct rtl8190_priv *priv)
 	{
 		del_timer_sync(&priv->expire_timer);
 		del_timer_sync(&priv->pshare->rc_sys_timer);
-#if	1//defined(RTL8190)
 	if (timer_pending(&priv->pshare->phw->tpt_timer))
 		del_timer_sync(&priv->pshare->phw->tpt_timer);
-#endif
-#ifdef CONFIG_RTL8671
 		if(timer_pending(&priv->poll_usb_timer))
 			del_timer_sync(&priv->poll_usb_timer);
-#endif
 #if defined(CONFIG_RTL_WAPI_SUPPORT)
 	if (priv->pmib->wapiInfo.wapiType!=wapiDisable
    #ifdef CHECK_HANGUP
@@ -2271,12 +1277,6 @@ static int rtl8190_stop_sw(struct rtl8190_priv *priv)
 	del_timer_sync(&priv->assoc_reject_timer);
 
 	// bcm old 11n chipset iot debug
-#if defined(RTL8190) || defined(RTL8192E)
-#if defined(UNIVERSAL_REPEATER) || defined(MBSSID)
-	if (IS_ROOT_INTERFACE(priv))
-#endif
-		del_timer_sync(&priv->fsync_timer);
-#endif
 
 	// to avoid add RAtid fail
 	del_timer_sync(&priv->add_RATid_timer);
@@ -2376,7 +1376,6 @@ static int rtl8190_stop_sw(struct rtl8190_priv *priv)
 		if ((LED_TYPE >= LEDTYPE_SW_LINK_TXRX) && (LED_TYPE < LEDTYPE_SW_MAX) || priv->pshare->LED_sw_use)
 			disable_sw_LED(priv);
 
-#ifdef __KERNEL__
 #ifdef DFS
 		// prevent killing tasklet issue in interrupt
 		if (!priv->pmib->dot11DFSEntry.DFS_detected)
@@ -2387,13 +1386,9 @@ static int rtl8190_stop_sw(struct rtl8190_priv *priv)
 #endif
 			{
 				tasklet_kill(&priv->pshare->rx_tasklet);
-#if !defined(RTL8192SU)
-				tasklet_kill(&priv->pshare->tx_tasklet);
-#endif				
 				tasklet_kill(&priv->pshare->oneSec_tasklet);
 			}
 		}
-#endif // __KERNEL__
 
 		phw = GET_HW(priv);
 
@@ -2402,91 +1397,8 @@ static int rtl8190_stop_sw(struct rtl8190_priv *priv)
 			goto skip_clear_desc;
 #endif
 
-#if !defined(RTL8192SU)
-		for (i=0; i<NUM_RX_DESC; i++)
-		{
-#ifdef CONFIG_NET_PCI
-			// if pci bios, then pci_unmap_single and dev_kfree_skb
-			if (IS_PCIBIOS_TYPE)
-				pci_unmap_single(priv->pshare->pdev, phw->rx_infoL[i].paddr, (RX_BUF_LEN - sizeof(struct rx_frinfo)), PCI_DMA_FROMDEVICE);
-#endif
-#ifdef RTL8190_FASTEXTDEV_FUNCALL
-			rtl_actually_kfree_skb(priv, (struct sk_buff*)(phw->rx_infoL[i].pbuf), priv->dev, _SKB_RX_);
-#else
-			rtl_kfree_skb(priv, (struct sk_buff*)(phw->rx_infoL[i].pbuf), _SKB_RX_);
-#endif
-		}
 
-		// free the skb buffer in Low and Hi queue
-		DEBUG_INFO("free tx Q0 head %d tail %d\n", phw->txhead0, phw->txtail0);
-		DEBUG_INFO("free tx Q1 head %d tail %d\n", phw->txhead1, phw->txtail1);
-		DEBUG_INFO("free tx Q2 head %d tail %d\n", phw->txhead2, phw->txtail2);
-		DEBUG_INFO("free tx Q3 head %d tail %d\n", phw->txhead3, phw->txtail3);
-		DEBUG_INFO("free tx Q4 head %d tail %d\n", phw->txhead4, phw->txtail4);
-		DEBUG_INFO("free tx Q5 head %d tail %d\n", phw->txhead5, phw->txtail5);
 
-		for (i=0; i<NUM_TX_DESC; i++)
-		{
-			// free tx queue skb
-			struct tx_desc_info *tx_info;
-			int j;
-			int	head, tail;
-
-			for (j=0; j<=HIGH_QUEUE; j++) {
-				head = get_txhead(phw, j);
-				tail = get_txtail(phw, j);
-//				if (i <tail || i >= head)
-				if( (tail < head) ? (i <tail || i >= head) :(i <tail && i >= head))
-					continue;
-
-				tx_info = get_txdesc_info(priv->pshare->pdesc_info, j);
-
-				if (tx_info[i].pframe &&
-					(tx_info[i].type == _SKB_FRAME_TYPE_)) {
-#ifdef CONFIG_NET_PCI
-					if (IS_PCIBIOS_TYPE)
-						pci_unmap_single(priv->pshare->pdev, tx_info[i].paddr, (tx_info[i].len), PCI_DMA_TODEVICE);
-#endif
-#ifdef RTL8190_FASTEXTDEV_FUNCALL
-					rtl_actually_kfree_skb(priv, tx_info[i].pframe, priv->dev, _SKB_TX_);
-#else
-					rtl_kfree_skb(priv, tx_info[i].pframe, _SKB_TX_);
-#endif
-					DEBUG_INFO("free skb in queue %d\n", j);
-				}
-			}
-		} // TX descriptor Free
-#endif	//!RTL8192SU	
-
-#if 0
-		for (i=0; i<NUM_CMD_DESC; i++)
-		{
-			// Rx command queue
-#ifdef CONFIG_NET_PCI
-			// if pci bios, then pci_unmap_single and dev_kfree_skb
-			if (IS_PCIBIOS_TYPE)
-				pci_unmap_single(priv->pshare->pdev, phw->rxcmd_info[i].paddr, (RX_BUF_LEN - sizeof(struct rx_frinfo)), PCI_DMA_FROMDEVICE);
-#endif
-#ifdef RTL8190_FASTEXTDEV_FUNCALL
-			rtl_actually_kfree_skb(priv, (struct sk_buff*)(phw->rxcmd_info[i].pbuf), priv->dev, _SKB_RX_);
-#else
-			rtl_kfree_skb(priv, (struct sk_buff*)(phw->rxcmd_info[i].pbuf), _SKB_RX_);
-#endif
-		}
-#endif
-
-#ifdef CONFIG_NET_PCI
-		// unmap  beacon buffer
-		if (IS_PCIBIOS_TYPE) {
-#if	defined(RTL8190) || defined(RTL8192E)
-			pci_unmap_single(priv->pshare->pdev, get_desc(phw->tx_descB->paddr),
-				128*sizeof(unsigned int), PCI_DMA_TODEVICE);
-#elif defined(RTL8192SE)
-			pci_unmap_single(priv->pshare->pdev, get_desc(phw->tx_descB->Dword8),
-				128*sizeof(unsigned int), PCI_DMA_TODEVICE);
-#endif
-		}
-#endif
 	} // if (IS_ROOT_INTERFACE(priv))
 
 #ifdef HW_QUICK_INIT
@@ -2587,9 +1499,7 @@ skip_clear_desc:
 #endif
 
 #ifdef MBSSID
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	if (GET_ROOT(priv)->pmib->miscEntry.vap_enable)
-#endif
 	{
 		if (IS_VAP_INTERFACE(priv) && !priv->pmib->dot11OperationEntry.keep_rsnie) {
 			priv->pmib->dot11RsnIE.rsnielen = 0;	// reset RSN IE length
@@ -2641,10 +1551,8 @@ skip_clear_desc:
 	}
 #endif
 
-#ifdef RTL8192SU
 	if (priv->amsdu_skb != NULL)
 		rtl_kfree_skb(priv, priv->amsdu_skb, _SKB_TX_);
-#endif
 
 	RESTORE_INT(flags);
 	printk("stop sw finished!\n");
@@ -2655,46 +1563,6 @@ skip_clear_desc:
 #ifdef MBSSID
 static void rtl8190_init_vap_mib(struct rtl8190_priv *priv)
 {
-#if 0
-	unsigned char tmpbuf[36], hwaddr[6];
-	int len;
-	//unsigned int AclMode;
-	//unsigned char AclAddr[NUM_ACL][MACADDRLEN];
-	//unsigned int AclNum;
-	struct Dot1180211AuthEntry dot1180211AuthEntry;
-	struct Dot118021xAuthEntry dot118021xAuthEntry;
-	struct Dot11DefaultKeysTable dot11DefaultKeysTable;
-	struct Dot11RsnIE dot11RsnIE;
-
-	// backup mib that can differ from root interface
-	memcpy(hwaddr, GET_MY_HWADDR, 6);
-	len = SSID_LEN;
-	memcpy(tmpbuf, SSID, len);
-	//AclMode = priv->pmib->dot11StationConfigEntry.dot11AclMode;
-	//memcpy(AclAddr, priv->pmib->dot11StationConfigEntry.dot11AclAddr, sizeof(AclAddr));
-	//AclNum = priv->pmib->dot11StationConfigEntry.dot11AclNum;
-	memcpy(&dot1180211AuthEntry, &priv->pmib->dot1180211AuthEntry, sizeof(struct Dot1180211AuthEntry));
-	memcpy(&dot118021xAuthEntry, &priv->pmib->dot118021xAuthEntry, sizeof(struct Dot118021xAuthEntry));
-	memcpy(&dot11DefaultKeysTable, &priv->pmib->dot11DefaultKeysTable, sizeof(struct Dot11DefaultKeysTable));
-	memcpy(&dot11RsnIE, &priv->pmib->dot11RsnIE, sizeof(struct Dot11RsnIE));
-
-	// copy mib from root interface
-	memcpy(priv->pmib, GET_ROOT_PRIV(priv)->pmib, sizeof(struct wifi_mib));
-
-	// restore the different part
-	memcpy(GET_MY_HWADDR, hwaddr, 6);
-	SSID_LEN = len;
-	memcpy(SSID, tmpbuf, len);
-	SSID2SCAN_LEN = len;
-	memcpy(SSID2SCAN, SSID, len);
-	//priv->pmib->dot11StationConfigEntry.dot11AclMode = AclMode;
-	//memcpy(priv->pmib->dot11StationConfigEntry.dot11AclAddr, AclAddr, sizeof(AclAddr));
-	//priv->pmib->dot11StationConfigEntry.dot11AclNum = AclNum;
-	memcpy(&priv->pmib->dot1180211AuthEntry, &dot1180211AuthEntry, sizeof(struct Dot1180211AuthEntry));
-	memcpy(&priv->pmib->dot118021xAuthEntry, &dot118021xAuthEntry, sizeof(struct Dot118021xAuthEntry));
-	memcpy(&priv->pmib->dot11DefaultKeysTable, &dot11DefaultKeysTable, sizeof(struct Dot11DefaultKeysTable));
-	memcpy(&priv->pmib->dot11RsnIE, &dot11RsnIE, sizeof(struct Dot11RsnIE));
-#endif
 
 	// copy mib_rf from root interface
 	memcpy(&priv->pmib->dot11RFEntry, &GET_ROOT_PRIV(priv)->pmib->dot11RFEntry, sizeof(struct Dot11RFEntry));
@@ -2721,9 +1589,6 @@ static void rtl8190_init_vap_mib(struct rtl8190_priv *priv)
 
 static void rtl8190_init_mbssid(struct rtl8190_priv *priv)
 {
-#if !defined(RTL8192SU)
-	unsigned long	ioaddr = priv->pshare->ioaddr;
-#endif	
 	int i, j;
 	unsigned int camData[2];
 	unsigned char *macAddr = GET_MY_HWADDR;
@@ -2734,15 +1599,8 @@ static void rtl8190_init_mbssid(struct rtl8190_priv *priv)
 		camData[1] = (macAddr[3] << 24) | (macAddr[2] << 16) | (macAddr[1] << 8) | macAddr[0];
 		for (j=0; j<2; j++) {
 			RTL_W32((_MBIDCAMCONTENT_+4)-4*j, camData[j]);
-#if defined(RTL8190) || defined(RTL8192E)
-			RTL_W8(_MBIDCAMCFG_ + 2, 1);
-			RTL_W8(_MBIDCAMCFG_, 0);
-			RTL_W8(_MBIDCAMCFG_ + 3, 0x80);
-#endif
 		}
-#if defined(RTL8192SE) || defined(RTL8192SU)
 		RTL_W8(_MBIDCAMCFG_, BIT(7) | BIT(6));
-#endif
 
 		// clear the rest area of CAM
 		camData[0] = 0;
@@ -2750,23 +1608,12 @@ static void rtl8190_init_mbssid(struct rtl8190_priv *priv)
 		for (i=1; i<32; i++) {
 			for (j=0; j<2; j++) {
 				RTL_W32((_MBIDCAMCONTENT_+4)-4*j, camData[j]);
-#if defined(RTL8190) || defined(RTL8192E)
-				RTL_W8(_MBIDCAMCFG_ + 2, 1);
-				RTL_W8(_MBIDCAMCFG_, (unsigned char)i);
-				RTL_W8(_MBIDCAMCFG_ + 3, 0x80);
-#endif
 			}
-#if defined(RTL8192SE) || defined(RTL8192SU)
 			RTL_W8(_MBIDCAMCFG_, BIT(7) | BIT(6) | (unsigned char)i);
-#endif
 		}
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
 		// set MBIDCTRL & MBID_BCN_SPACE by cmd
 		set_fw_reg(priv, 0xf1000101, 0, 0);
-#else
-		RTL_W16(_MBIDCTRL_	, BIT(15) | BIT(12) | 4); // for debug
-#endif
 		RTL_W32(_RCR_, RTL_R32(_RCR_) | _ENMBID_);	// MBSSID enable
 
 #ifdef CLIENT_MODE
@@ -2777,28 +1624,16 @@ static void rtl8190_init_mbssid(struct rtl8190_priv *priv)
 	}
 	else if (IS_VAP_INTERFACE(priv))
 	{
-#if defined(RTL8192SE) || defined(RTL8192SU)
 		priv->vap_init_seq = (RTL_R8(_MBIDCTRL_) & (BIT(4) | BIT(5) | BIT(6))) >> 4;
 		priv->vap_init_seq++;
 		set_fw_reg(priv, 0xf1000001 | ((priv->vap_init_seq + 1)&0xffff)<<8, 0, 0);
-#else
-		priv->vap_init_seq = (RTL_R16(_MBIDCTRL_) & (BIT(12) | BIT(13) | BIT(14))) >> 12;
-		RTL_W16(_MBIDCTRL_, (RTL_R16(_MBIDCTRL_) & ~(BIT(12) | BIT(13) | BIT(14))) | ((priv->vap_init_seq + 1) << 12));
-#endif
 
 		camData[0] = 0x00800000 | (macAddr[5] << 8) | macAddr[4];
 		camData[1] = (macAddr[3] << 24) | (macAddr[2] << 16) | (macAddr[1] << 8) | macAddr[0];
 		for (j=0; j<2; j++) {
 			RTL_W32((_MBIDCAMCONTENT_+4)-4*j, camData[j]);
-#if defined(RTL8190) || defined(RTL8192E)
-			RTL_W8(_MBIDCAMCFG_ + 2, 1);
-			RTL_W8(_MBIDCAMCFG_, (unsigned char)priv->vap_init_seq);
-			RTL_W8(_MBIDCAMCFG_ + 3, 0x80);
-#endif
 		}
-#if defined(RTL8192SE) || defined(RTL8192SU)
 		RTL_W8(_MBIDCAMCFG_, BIT(7) | BIT(6) | ((unsigned char)priv->vap_init_seq & 0x1f));
-#endif
 
 		RTL_W32(_RCR_, RTL_R32(_RCR_) & ~_ENMBID_);
 		RTL_W32(_RCR_, RTL_R32(_RCR_) | _ENMBID_);	// MBSSID enable
@@ -2808,9 +1643,6 @@ static void rtl8190_init_mbssid(struct rtl8190_priv *priv)
 
 static void rtl8190_stop_mbssid(struct rtl8190_priv *priv)
 {
-#if !defined(RTL8192SU)
-	unsigned long	ioaddr = priv->pshare->ioaddr;
-#endif	
 	int i, j;
 
 	if (IS_ROOT_INTERFACE(priv))
@@ -2819,43 +1651,21 @@ static void rtl8190_stop_mbssid(struct rtl8190_priv *priv)
 		for (i=0; i<32; i++) {
 			for (j=0; j<2; j++) {
 				RTL_W32((_MBIDCAMCONTENT_+4)-4*j, 0);
-#if defined(RTL8190) || defined(RTL8192E)
-				RTL_W8(_MBIDCAMCFG_ + 2, 1);
-				RTL_W8(_MBIDCAMCFG_, (unsigned char)i);
-				RTL_W8(_MBIDCAMCFG_ + 3, 0x80);
-#endif
 			}
-#if defined(RTL8192SE) || defined(RTL8192SU)
 			RTL_W8(_MBIDCAMCFG_, BIT(7) | BIT(6) | (unsigned char)i);
-#endif
 		}
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
 		set_fw_reg(priv, 0xf1000001, 0, 0);
-#else
-		RTL_W16(_MBIDCTRL_	, RTL_R16(_MBIDCTRL_) & ~(BIT(15)));
-#endif
 		RTL_W32(_RCR_, RTL_R32(_RCR_) & ~_ENMBID_);	// MBSSID disable
 	}
 	else if (IS_VAP_INTERFACE(priv) && (priv->vap_init_seq >= 0))
 	{
-#if defined(RTL8192SE) || defined(RTL8192SU)
 		set_fw_reg(priv, 0xf1000001 | (((RTL_R8(_MBIDCTRL_) & (BIT(4) | BIT(5) | BIT(6))) >> 4)&0xffff)<<8, 0, 0);
-#else
-		RTL_W16(_MBIDCTRL_, (RTL_R16(_MBIDCTRL_) & ~(BIT(12) | BIT(13) | BIT(14))) | ((((RTL_R16(_MBIDCTRL_) & (BIT(12) | BIT(13) | BIT(14))) >> 12) - 1) << 12));
-#endif
 
 		for (j=0; j<2; j++) {
 			RTL_W32((_MBIDCAMCONTENT_+4)-4*j, 0);
-#if defined(RTL8190) || defined(RTL8192E)
-			RTL_W8(_MBIDCAMCFG_ + 2, 1);
-			RTL_W8(_MBIDCAMCFG_, (unsigned char)priv->vap_init_seq);
-			RTL_W8(_MBIDCAMCFG_ + 3, 0x80);
-#endif
 		}
-#if defined(RTL8192SE) || defined(RTL8192SU)
 		RTL_W8(_MBIDCAMCFG_, BIT(7) | BIT(6) | ((unsigned char)priv->vap_init_seq & 0x1f));
-#endif
 
 		RTL_W32(_RCR_, RTL_R32(_RCR_) & ~_ENMBID_);
 		RTL_W32(_RCR_, RTL_R32(_RCR_) | _ENMBID_);
@@ -2871,9 +1681,6 @@ static void create_wds_tbl(struct rtl8190_priv *priv)
 	int i;
 	struct stat_info *pstat;
 	DOT11_SET_KEY Set_Key;
-#if !defined(RTL8192SU)	
-	unsigned long ioaddr=priv->pshare->ioaddr;
-#endif	
 
 #ifdef FAST_RECOVERY
 	if (priv->reset_hangup)
@@ -2950,13 +1757,6 @@ static void create_wds_tbl(struct rtl8190_priv *priv)
 			add_update_RATid(priv, pstat);
 			pstat->wds_idx = i;
 
-#if defined(RTL8190) || defined(RTL8192E)
-			if (priv->pmib->dot11WdsInfo.wdsPrivacy == _TKIP_PRIVACY_)
-				pstat->is_legacy_encrpt = 1;
-			else if (priv->pmib->dot11WdsInfo.wdsPrivacy == _WEP_40_PRIVACY_ ||
-						priv->pmib->dot11WdsInfo.wdsPrivacy == _WEP_104_PRIVACY_ )
-				pstat->is_legacy_encrpt = 2;
-#endif
 
 			assign_tx_rate(priv, pstat, NULL);
 			assign_aggre_mthod(priv, pstat);
@@ -2968,7 +1768,6 @@ static void create_wds_tbl(struct rtl8190_priv *priv)
 #endif //  WDS
 
 
-#ifdef RTL8192SU
 void rtl8192su_rx_initiate(struct rtl8190_priv *priv)
 {
 	int i;
@@ -2996,9 +1795,7 @@ void rtl8192su_rx_initiate(struct rtl8190_priv *priv)
 	priv->pshare->rx_hw_index = 0;
 	priv->pshare->rx_schedule_index = 0;
 		
-#if 1//def THOMAS_TASKLET
 	atomic_set(&priv->irt_counter,0);
-#endif
 	for(i = 0;i < MAX_RX_URB; i++)
 	{
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
@@ -3010,17 +1807,13 @@ void rtl8192su_rx_initiate(struct rtl8190_priv *priv)
 			goto destroy;
 		pskb = priv->pp_rxskb[i] =  rtl_dev_alloc_skb(priv, RX_ALLOC_SIZE, _SKB_RX_,TRUE);
 
-#ifdef CONFIG_RTL8671
 		pskb->head=(unsigned char *)((u32)pskb->head & (~0x20000000));
-#endif
 		pskb->data=pskb->head+RX_DMA_SHIFT;
 		pskb->tail=pskb->data;
 //		if((((u32)pskb->end) | ((u32)pskb->head+RX_DMA_SHIFT+RX_ALLOC_SIZE))!=(u32)pskb->end)
 //			printk("BUG at: %s %d - pskb->end=%x,%x\n",__FUNCTION__,__LINE__,(u32)pskb->end,(u32)pskb->head+RX_DMA_SHIFT+RX_ALLOC_SIZE);
-#ifdef CONFIG_RTL8671
 #if defined(PKT_PROCESSOR)
 		pskb->end=(unsigned char *)((u32)pskb->head+RX_DMA_SHIFT+RX_ALLOC_SIZE);
-#endif
 #endif
 
 #if defined(PKT_PROCESSOR) || defined(PRE_ALLOCATE_SKB)
@@ -3075,25 +1868,19 @@ void rtl8192su_rx_reinitiate(struct rtl8190_priv *priv)
 	priv->tx_urb_index = 0;
 	priv->pshare->rx_hw_index = 0;
 	priv->pshare->rx_schedule_index = 0;
-#if 1//def THOMAS_TASKLET
 	atomic_set(&priv->irt_counter,0);
-#endif
 	for(i = 0;i < MAX_RX_URB; i++)
 	{
 		purb = priv->rx_urb[i];
 		pskb = priv->pp_rxskb[i];
-#ifdef CONFIG_RTL8671
 		pskb->head=(unsigned char *)((u32)pskb->head & (~0x20000000));
-#endif
 		pskb->data=pskb->head+RX_DMA_SHIFT;
 		pskb->tail=pskb->data;
 
 //		if((((u32)pskb->end) | ((u32)pskb->head+RX_DMA_SHIFT+RX_ALLOC_SIZE))!=(u32)pskb->end)
 //			printk("BUG at: %s %d\n",__FUNCTION__,__LINE__);
-#ifdef CONFIG_RTL8671
 #if defined(PKT_PROCESSOR)
 		pskb->end=(unsigned char *)((u32)pskb->head+RX_DMA_SHIFT+RX_ALLOC_SIZE);
-#endif
 #endif
 #if defined(PKT_PROCESSOR) || defined(PRE_ALLOCATE_SKB)
 		pskb->fcpu=0;
@@ -3172,9 +1959,7 @@ void rtl8192su_rx_free(struct rtl8190_priv *priv)
 			priv->pshare->rx_hw_index = 0;
 			priv->pshare->rx_schedule_index = 0;
 				
-#if 1//def THOMAS_TASKLET
 			atomic_set(&priv->irt_counter,0);
-#endif
 
 			//free tx urb
 			for(i=0;i<MAX_TX_URB;i++)
@@ -3241,7 +2026,6 @@ void rtl8192su_rx_disable(struct rtl8190_priv *priv)
 		}
 	}
 }
-#endif //RTL8192SU
 
 void validate_fixed_tx_rate(struct rtl8190_priv *priv)
 {
@@ -3291,7 +2075,6 @@ printk("%s %d\n",__FUNCTION__,__LINE__);
 		
 		
 //---
-#if 1
 		txbuff[i][0]=(pktSize-32)&0xff;
 		txbuff[i][1]=((pktSize-32)>>8)&0xff;	
 		txbuff[i][2]=0x20;
@@ -3368,7 +2151,6 @@ printk("%s %d\n",__FUNCTION__,__LINE__);
 		txbuff[i][52]=0x44;
 		txbuff[i][53]=0x55;
 #endif		
-#endif		
 
 		tx_urb[i]=usb_alloc_urb(0,GFP_KERNEL);
 		tx_own[i]=0;
@@ -3439,16 +2221,13 @@ printk("%s %d\n",__FUNCTION__,__LINE__);
 	// packet come from packet genarator 
 
 // set TXOP and NAV protect length
-#if 1
 	printk("0x238=%x 0x234=%x 0x235=%x\n",RTL_R8(0x238),RTL_R8(0x234),RTL_R8(0x235));
 	RTL_W8(0x238,0);
 	RTL_W8(0x234,0);
 	RTL_W8(0x235,0);	
 	printk("0x238=%x 0x234=%x 0x235=%x\n",RTL_R8(0x238),RTL_R8(0x234),RTL_R8(0x235));	
-#endif
 
 
-#if 1
 	// short GI for MCS7
 	RTL_W16(0x1f6,0x7777); //MAX MCS Rate available --->MCS7
 	RTL_W8(0x237,(10<<3)|RTL_R8(0x237));
@@ -3457,7 +2236,6 @@ printk("%s %d\n",__FUNCTION__,__LINE__);
 	// 40Mhz Mode
 	RTL_W8(0x203,0);	
 //	PHY_SetBBReg(priv, rFPGA0_RFMOD, bRFMOD, 0x1); // for 40Mhz BW Mode
-#endif
 
 
 	while(1)
@@ -3552,9 +2330,6 @@ printk("%s %d\n",__FUNCTION__,__LINE__);
 }
 #endif
 
-#if !defined(RTL8192SU)
-#define __DRAM		__attribute__ ((section(".dram")))
-#endif
 #ifdef TBS_MP
 void initMPmib(struct rtl8190_priv *priv)
 {
@@ -3627,9 +2402,6 @@ int rtl8190_open(struct net_device *dev)
 	static int rc, i;
 	static unsigned long x;
 	unsigned char *macAddr = GET_MY_HWADDR;
-#if defined(RTL8192E) || defined(RTL8192SE)
-	static unsigned long ioaddr;
-#endif
 #ifdef CONFIG_RTL865X_WTDOG
 #ifndef CONFIG_RTL8196B
 	static unsigned long wtval;
@@ -3639,35 +2411,20 @@ int rtl8190_open(struct net_device *dev)
 	static int is_reset;
 #endif
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	static int init_hw_cnt;
 	init_hw_cnt = 0;
-#endif
 
-#ifdef RTL8192SU
 	struct wifi_mib	*pmib;
-#endif
 
 	DBFENTER;
 
 	priv = dev->priv;
-#if defined(RTL8192SE) || defined(RTL8192E)
-	ioaddr = priv->pshare->ioaddr;
-#endif
 #ifdef CHECK_HANGUP
 	is_reset = priv->reset_hangup;
 #endif
 
 	/* 增加产测MAC地址写入 -chenzanhui*/
 	tbs_read_mac( WLAN_MAC, priv->vap_id+1, macAddr);
-#if 0
-	printk("==============>>>>>>>>>>>>==================");
-	printk("\n wlan0-vap%d macAddr=",priv->vap_id);
-	for(i=0;i<6;i++)
-	printk("%02x",macAddr[i]);
-	printk("\n============<<<<<<<<<<<<==================\n");
-#endif
-#ifdef RTL8192SU
 	pmib = GET_MIB(priv);
 #ifdef MBSSID
 	if (IS_ROOT_INTERFACE(priv))
@@ -3687,7 +2444,6 @@ int rtl8190_open(struct net_device *dev)
 	}
 #endif
 
-#endif //RTL8192SU
 	
 #ifdef WDS
 	if (dev->base_addr == 0)
@@ -3737,15 +2493,6 @@ int rtl8190_open(struct net_device *dev)
 	}
 #endif // CONFIG_RTK_MESH
 
-#ifdef RTL8192E
-        // Triggering pll on and wait for a while
-        // 8192 only
-        // Accordign to designer's explain, LBUS active will never > 10ms. We delay 10ms
-        // Joseph increae the time to prevent firmware download fail
-
-        RTL_W8(_ANAPAR_, 0x37);
-        delay_ms(50);
-#endif
 
 	// stop h/w in the very beginning
 #if defined(UNIVERSAL_REPEATER) || defined(MBSSID)
@@ -3772,55 +2519,6 @@ int rtl8190_open(struct net_device *dev)
 
 		if (!(priv->drv_state & DRV_STATE_VXD_INIT)) {
 // Mark following code. MIB copy will be executed through ioctl -------------
-#if 0
-			unsigned char tmpbuf[36];
-			int len, encyption, is_1x, mac_clone, nat25;
-			struct Dot11RsnIE rsnie;
-
-			len = SSID_LEN;
-			memcpy(tmpbuf, SSID, len);
-			encyption = priv->pmib->dot1180211AuthEntry.dot11PrivacyAlgrthm;
-			is_1x = IEEE8021X_FUN;
-			mac_clone = priv->pmib->ethBrExtInfo.macclone_enable;
-			nat25 = priv->pmib->ethBrExtInfo.nat25_disable;
-			memcpy((char *)&rsnie, (char *)&priv->pmib->dot11RsnIE, sizeof(rsnie));
-
-			memcpy(priv->pmib, GET_ROOT_PRIV(priv)->pmib, sizeof(struct wifi_mib));
-
-			SSID_LEN = len;
-			memcpy(SSID, tmpbuf, len);
-			SSID2SCAN_LEN = len;
-			memcpy(SSID2SCAN, SSID, len);
-			priv->pmib->dot1180211AuthEntry.dot11PrivacyAlgrthm = encyption;
-			IEEE8021X_FUN = is_1x;
-			priv->pmib->ethBrExtInfo.macclone_enable = mac_clone;
-			priv->pmib->ethBrExtInfo.nat25_disable = nat25;
-			memcpy((char *)&priv->pmib->dot11RsnIE, (char *)&rsnie, sizeof(rsnie));
-#ifdef WDS
-			// always disable wds in vxd
-			priv->pmib->dot11WdsInfo.wdsEnabled = 0;
-			priv->pmib->dot11WdsInfo.wdsPure = 0;
-#endif
-
-			// if root interface is AP mode, set infra-client in vxd
-			// if root interfeace is a infra-client, set AP in vxd
-			if (OPMODE & WIFI_AP_STATE) {
-				OPMODE = WIFI_STATION_STATE;
-#if defined(SEMI_QOS) && defined(WMM_APSD)
-				APSD_ENABLE = 0;
-#endif
-				DEBUG_INFO("Set vxd as an infra-client\n");
-			}
-			else if (OPMODE & WIFI_STATION_STATE) {
-				OPMODE = WIFI_AP_STATE;
-				priv->auto_channel = 0;
-				DEBUG_INFO("Set vxd as an AP\n");
-			}
-			else {
-				DEBUG_ERR("Invalid opmode for vxd!\n");
-				return 0;
-			}
-#endif
 //---------------------------------------------------------- david+2008-03-17
 
 			// correct RSN IE will be set later for WPA/WPA2
@@ -3840,14 +2538,6 @@ int rtl8190_open(struct net_device *dev)
 			GET_MIB(priv)->dot1180211sInfo.mesh_enable = 0;
 #endif // CONFIG_RTK_MESH
 
-#if defined(RTL8190) || defined(RTL8192E)
-#if defined(CLIENT_MODE) && defined(INCLUDE_WPA_PSK)
-			// Use auth daemon for client PSK. May need to remove the code when use driver PSK in the future
-			if (OPMODE & WIFI_STATION_STATE)
-				priv->pmib->dot1180211AuthEntry.dot11EnablePSK=0;
-			//--------------------------------------------------------------- david+2008-02-01
-#endif
-#endif
 
 			priv->drv_state |= DRV_STATE_VXD_INIT;	// indicate the mib of vxd driver has been initialized
 		}
@@ -3883,9 +2573,7 @@ int rtl8190_open(struct net_device *dev)
 	}
 
 #ifdef MBSSID
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	if (GET_ROOT(priv)->pmib->miscEntry.vap_enable)
-#endif
 	{
 		if (IS_VAP_INTERFACE(priv)) {
 			if (!IS_DRV_OPEN(GET_ROOT_PRIV(priv))) {
@@ -3939,7 +2627,6 @@ int rtl8190_open(struct net_device *dev)
 	if (IS_ROOT_INTERFACE(priv))
 #endif
 	{
-#ifdef __KERNEL__
 #ifdef CHECK_HANGUP
 		if (!is_reset)
 #endif
@@ -3948,13 +2635,6 @@ int rtl8190_open(struct net_device *dev)
 			if (priv->pshare->hw_inited == 0)
 #endif
 			{
-#if !defined(RTL8192SU)	//usb is call by rx_callback function
-#ifndef CONFIG_RTL8671
-				rc = request_irq(dev->irq, rtl8190_interrupt, SA_SHIRQ, dev->name, dev);
-#else
-				rc = request_irq(dev->irq, rtl8190_interrupt, SA_INTERRUPT, dev->name, dev);
-#endif
-#endif //!RTL8192SU
 #ifdef CONFIG_RTL865X
 				printk("Request IRQ%d, ret=%d\n", dev->irq, rc);
 #endif
@@ -3963,11 +2643,7 @@ int rtl8190_open(struct net_device *dev)
 				}
 			}
 		}
-#endif
 
-#ifndef	CONFIG_X86
-		SAVE_INT_AND_CLI(x);
-#endif
 
 #ifdef CONFIG_RTL865X_WTDOG
 #ifndef CONFIG_RTL8196B
@@ -3976,9 +2652,7 @@ int rtl8190_open(struct net_device *dev)
 #endif
 #endif
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
 do_hw_init:	
-#endif
 
 #ifdef HW_QUICK_INIT
 		if (priv->pshare->hw_inited == 0) {
@@ -3991,7 +2665,6 @@ do_hw_init:
 		}
 #else
 		rc = rtl819x_init_hw_PCI(priv);
-#ifdef RTL8192SU
 		if (rc==LOADFW_FAIL) //Firmware Download Fail
 		{
 			printk("[%s, %d]Firmware Download Fail\n", __FUNCTION__, __LINE__);
@@ -3999,15 +2672,10 @@ do_hw_init:
 			goto do_hw_init;
 		}
 #endif
-#endif
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
 		// write IDR0, IDR4 here
 		{
 			unsigned long reg = 0;
-#if !defined(RTL8192SU)			
-			unsigned long	ioaddr = priv->pshare->ioaddr;
-#endif			
 			reg = *(unsigned long *)(dev->dev_addr);
 			RTL_W32(IDR0, (cpu_to_le32(reg)));
 			reg = *(unsigned long *)((unsigned long)dev->dev_addr + 4);
@@ -4020,7 +2688,6 @@ do_hw_init:
 #endif			
 			goto do_hw_init;			
 		}
-#endif
 
 #ifdef CONFIG_RTL865X_WTDOG
 #ifndef CONFIG_RTL8196B
@@ -4029,31 +2696,18 @@ do_hw_init:
 #endif
 #endif
 
-#ifndef	CONFIG_X86
-		RESTORE_INT(x);
-#endif
 
 		if (rc) {
 			DEBUG_ERR("init hw failed!\n");
-#if defined(RTL8192SE) || defined(RTL8192SU)
 			force_stop_wlan_hw();
-#ifdef CONFIG_ENABLE_MIPS16
-#else
 			cli();
-#endif			
 			*(volatile unsigned long *)(0xB800311c) = 0; /* enable watchdog reset now */		
 			for(;;);
-#endif
 			return rc;
 		}
 	}
 #if defined(UNIVERSAL_REPEATER) || defined(MBSSID)
 	else {
-#if defined(RTL8190) || defined(RTL8192E)
-		// support up to MCS13 for 1T2R, modify rx capability here
-		if ((get_rf_mimo_mode(priv) == MIMO_1T2R) || (get_rf_mimo_mode(priv) == MIMO_2T2R))
-			GET_MIB(priv)->dot11nConfigEntry.dot11nSupportedMCS &= 0x3fff;
-#endif
 		if (get_rf_mimo_mode(priv) == MIMO_1T1R)
 			GET_MIB(priv)->dot11nConfigEntry.dot11nSupportedMCS &= 0x00ff;
 	}
@@ -4063,26 +2717,17 @@ do_hw_init:
 
 #ifdef MBSSID
 	if (OPMODE & WIFI_AP_STATE) {
-#if defined(RTL8192SE) || defined(RTL8192SU)
 		if (GET_ROOT(priv)->pmib->miscEntry.vap_enable)
-#endif
 			rtl8190_init_mbssid(priv);
-#if defined(RTL8192SE) || defined(RTL8192SU)
 		if (GET_ROOT(priv)->pmib->miscEntry.vap_enable) {
 			// set BcnDmaInt & BcnOk of different VAP in IMR
 			if (IS_VAP_INTERFACE(priv)) {
 				priv->pshare->InterruptMask |= (IMR_BCNDOK1 << (priv->vap_init_seq-1)) |
 					(IMR_BCNDMAINT1 << (priv->vap_init_seq-1));
-#if !defined(RTL8192SU)
-				RTL_W32(IMR, priv->pshare->InterruptMask);
-#endif
 			}
 		}
-#endif
 	}
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	if (GET_ROOT(priv)->pmib->miscEntry.vap_enable)
-#endif
 	{
 		if (IS_VAP_INTERFACE(priv) && (GET_ROOT_PRIV(priv)->auto_channel == 0))
 			init_beacon(priv);
@@ -4112,16 +2757,6 @@ do_hw_init:
 	priv->ss_timer.function = rtl8190_ss_timer;
 
 	// bcm old 11n chipset iot debug
-#if defined(RTL8190) || defined(RTL8192E)
-#if defined(UNIVERSAL_REPEATER) || defined(MBSSID)
-	if (IS_ROOT_INTERFACE(priv))
-#endif
-	{
-		init_timer(&priv->fsync_timer);
-		priv->fsync_timer.data = (unsigned long) priv;
-		priv->fsync_timer.function = rtl8190_fsync_timer;
-	}
-#endif
 
 #ifdef CLIENT_MODE
 	init_timer(&priv->reauth_timer);
@@ -4293,14 +2928,10 @@ do_hw_init:
 #endif
 
 	//if (OPMODE & WIFI_AP_STATE)  //in case of station mode, queue will start only after assoc.
-#if !defined(RTL8192SU)
-		netif_start_queue(dev);		// start queue always
-#else
 		if(!netif_queue_stopped(dev))
 			netif_start_queue(dev);
 		else
 			netif_wake_queue(dev);
-#endif	//!RTL8192SU	
 
 #ifdef CONFIG_RTL865X
 	if (rtl865x_wlanRegistration(dev, 0 /* Non-WDS interface*/) != 0) {
@@ -4324,9 +2955,7 @@ do_hw_init:
 			ToDrv_SetGTK(priv);
 #endif
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	check_and_set_ampdu_spacing(priv, NULL);
-#endif
 
 #ifdef CONFIG_RTL865X
 err_out_hw:
@@ -4363,11 +2992,7 @@ err_out_hw:
 	if (OPMODE & (WIFI_STATION_STATE | WIFI_ADHOC_STATE)) {
 #ifdef RTK_BR_EXT
 		if (priv->dev->br_port) {
-#ifdef __LINUX_2_6__
 			memcpy(priv->br_mac, priv->dev->br_port->br->dev->dev_addr, MACADDRLEN);
-#else
-			memcpy(priv->br_mac, priv->dev->br_port->br->dev.dev_addr, MACADDRLEN);
-#endif
 		}
 #endif
 
@@ -4406,9 +3031,7 @@ err_out_hw:
 
 #ifdef MBSSID
 	if (IS_ROOT_INTERFACE(priv)) {
-#if defined(RTL8192SE) || defined(RTL8192SU)
 		if (priv->pmib->miscEntry.vap_enable)
-#endif
 		{
 			for (i=0; i<RTL8190_NUM_VWLAN; i++) {
 				if (netif_running(priv->pvap_priv[i]->dev))
@@ -4418,7 +3041,6 @@ err_out_hw:
 	}
 #endif
 
-#ifdef RTL8192SU
 #ifdef RTL8192SU_FWBCN
 #ifdef MBSSID
 	if (IS_ROOT_INTERFACE(priv))
@@ -4480,7 +3102,6 @@ loopback_loop:
 		}
 	}
 #endif
-#endif //RTL8192SU
 
 	DBFEXIT;
 	return 0;
@@ -4491,20 +3112,13 @@ int  rtl8190_set_hwaddr(struct net_device *dev, void *addr)
 {
 	unsigned long flags;
 	struct rtl8190_priv *priv = (struct rtl8190_priv *)dev->priv;
-#if !defined(RTL8192SU)
-	unsigned long ioaddr = priv->pshare->ioaddr;
-#endif
 	unsigned long reg;
 	unsigned char *p;
 #ifdef WDS
 	int i;
 #endif
 
-#ifdef __KERNEL__
 	p = ((struct sockaddr *)addr)->sa_data;
-#else
-	p = (unsigned char *)addr;
-#endif
 
 	SAVE_INT_AND_CLI(flags);
 
@@ -4512,9 +3126,7 @@ int  rtl8190_set_hwaddr(struct net_device *dev, void *addr)
 	memcpy(GET_MY_HWADDR, p, 6);
 
 #ifdef MBSSID
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	if (GET_ROOT(priv)->pmib->miscEntry.vap_enable)
-#endif
 	{
 		if (IS_VAP_INTERFACE(priv)) {
 			RESTORE_INT(flags);
@@ -4547,21 +3159,12 @@ int  rtl8190_set_hwaddr(struct net_device *dev, void *addr)
 	}
 #endif
 
-#if defined(RTL8190) || defined(RTL8192E)
-	reg = *(unsigned long *)(dev->dev_addr);
-	RTL_W32(_IDR0_, (cpu_to_le32(reg)));
-	reg = *(unsigned long *)((unsigned long)dev->dev_addr + 4);
-	RTL_W32(_IDR0_ + 4, (cpu_to_le32(reg)));
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 	reg = *(unsigned long *)(dev->dev_addr);
 	RTL_W32(IDR0, (cpu_to_le32(reg)));
 	reg = *(unsigned long *)((unsigned long)dev->dev_addr + 4);
 	RTL_W32(IDR4, (cpu_to_le32(reg)));
-#endif
 #ifdef MBSSID
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	if (GET_ROOT(priv)->pmib->miscEntry.vap_enable)
-#endif
 	{
 		if (OPMODE & WIFI_AP_STATE)
 			rtl8190_init_mbssid(priv);
@@ -4604,14 +3207,12 @@ int rtl8190_close(struct net_device *dev)
 	}
 
 	priv->drv_state &= ~DRV_STATE_OPEN;     // set driver as has been closed, david
-#ifdef RTL8192SU
 	printk("intf down.................\n");
 
 	// receive all tx isr
 	usb_receive_all_pkts(priv);
 
 	printk("after recycle all tx pool.................\n");	
-#endif
 
 #ifdef UNIVERSAL_REPEATER
 	if (IS_ROOT_INTERFACE(priv)) {
@@ -4717,9 +3318,7 @@ int rtl8190_close(struct net_device *dev)
 #ifdef RTL8192SU_FWBCN
 		set_fw_reg(priv, 0xf1000003, 0, 0);
 #endif
-#if defined(RTL8192SE) || defined(RTL8192SU)
 		if (priv->pmib->miscEntry.vap_enable)
-#endif
 		{
 			for (i=0; i<RTL8190_NUM_VWLAN; i++) {
 				if (IS_DRV_OPEN(priv->pvap_priv[i]))
@@ -4728,9 +3327,7 @@ int rtl8190_close(struct net_device *dev)
 		}
 	}
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	if (GET_ROOT(priv)->pmib->miscEntry.vap_enable)
-#endif
 		rtl8190_stop_mbssid(priv);
 #endif
 
@@ -4770,12 +3367,10 @@ int rtl8190_close(struct net_device *dev)
 		if (priv->pshare->hw_inited == 0)
 #endif
 		{
-#ifdef __KERNEL__
 #ifdef CHECK_HANGUP
 			if (!priv->reset_hangup)
 #endif
 				free_irq(dev->irq, dev);
-#endif
 		}
 
 #ifdef UNIVERSAL_REPEATER
@@ -4790,9 +3385,7 @@ int rtl8190_close(struct net_device *dev)
 	DEBUG_INFO("skb_rx_cnt =%d\n", rtl_atomic_read(&priv->rtl_rx_skb_cnt));
 #endif
 
-#ifdef RTL8192SU
 	rtl8192su_rx_disable(priv);
-#endif
 
 	DBFEXIT;
     return 0;
@@ -4806,13 +3399,8 @@ static void MDL_DEVINIT set_mib_default(struct rtl8190_priv *priv)
 {
 	unsigned char *p;
 	unsigned char wlanmac[MACADDRLEN];
-#ifdef __KERNEL__
 	struct sockaddr addr;
 	p = addr.sa_data;
-#else
-	unsigned char tmpbuf[10];
-	p = (unsigned char *)tmpbuf;
-#endif
 
 	priv->pmib->mib_version = MIB_VERSION;
 	set_mib_default_tbl(priv);
@@ -4823,11 +3411,7 @@ static void MDL_DEVINIT set_mib_default(struct rtl8190_priv *priv)
 	tbs_read_mac( WLAN_MAC, 0, wlanmac);
  
 	memcpy(p, wlanmac, MACADDRLEN);
-#ifdef 	__KERNEL__
 	rtl8190_set_hwaddr(priv->dev, (void *)&addr);
-#else
-	rtl8190_set_hwaddr(priv->dev, (void *)p);
-#endif
 
 #if defined(UNIVERSAL_REPEATER) || defined(MBSSID)
 	if (IS_ROOT_INTERFACE(priv))  // is root interface
@@ -4836,37 +3420,6 @@ static void MDL_DEVINIT set_mib_default(struct rtl8190_priv *priv)
 #ifdef RTL8192SU_EFUSE
 		ReadAdapterInfo8192S(priv);
 #else
-#if !defined(RTL8192SE) && !defined(RTL8192SU)
-		// david, read EEPROM value as default if EEP existed -----------
-		unsigned char data;
-		ReadAdapterInfo(priv, EEPROM_RF_CHIP_ID, (void *)&data);
-		if (!priv->EE_AutoloadFail) {
-			PRINT_INFO("Load EEPROM value into MIB\n");
-
-#ifdef RTL8190
-			if (priv->EE_RFTypeID == 9)
-				priv->pmib->dot11RFEntry.dot11RFType = 7;
-			else if (priv->EE_RFTypeID == 10)
-				priv->pmib->dot11RFEntry.dot11RFType = 8;
-			else {
-				DEBUG_ERR("Invalid RF type, set Zebra as default\n");
-				priv->pmib->dot11RFEntry.dot11RFType = 7;
-			}
-#elif defined(RTL8192E)
-			/*FIXME 8192e win driver assigns a fixed value, should be auto detect*/
-			priv->pmib->dot11RFEntry.dot11RFType = _11BGN_RF_8256_;
-#endif
-
-			memcpy(p, priv->EE_Mac, MACADDRLEN);
-#ifdef 	__KERNEL__
-			rtl8190_set_hwaddr(priv->dev, (void *)&addr);
-#else
-			rtl8190_set_hwaddr(priv->dev, (void *)p);
-#endif
-			memcpy(priv->pmib->dot11RFEntry.pwrlevelCCK, priv->EE_TxPower_CCK, MAX_CCK_CHANNEL_NUM);
-			memcpy(priv->pmib->dot11RFEntry.pwrlevelOFDM, priv->EE_TxPower_OFDM, MAX_OFDM_CHANNEL_NUM);
-		}
-#endif
 #endif //RTL8192SU_EFUSE
 
 #ifdef DFS
@@ -4958,17 +3511,9 @@ __IRAM int xmit_entry2(struct sk_buff *pkt, struct net_device * pnetdev)
 
 
 
-#if !defined(RTL8192SU)
-#ifdef CONFIG_RTL_KERNEL_MIPS16_WLAN
-__NOMIPS16
-#endif
-static int MDL_DEVINIT rtl8190_init_one(struct pci_dev *pdev,
-                  const struct pci_device_id *ent, struct _device_info_ *wdev, int vap_idx)
-#else
 static int MDL_DEVINIT rtl8190_init_one(
                   struct usb_device *pdev,
                   const struct usb_device_id *ent, struct _device_info_ *wdev, int vap_idx)
-#endif //!RTL8192SU 
 {
     static struct net_device *dev;
     static struct rtl8190_priv *priv;
@@ -4979,9 +3524,6 @@ static int MDL_DEVINIT rtl8190_init_one(
 	static DOT11_QUEUE				*wapiEvent_queue;	
 #endif
 	static struct rtl8190_hw		*phw;
-#if !defined(RTL8192SU)
-	static struct rtl8190_tx_desc_info		*ptxdesc;
-#endif
 	static struct wlan_hdr_poll	*pwlan_hdr_poll;
 	static struct wlanllc_hdr_poll	*pwlanllc_hdr_poll;
 	static struct wlanbuf_poll		*pwlanbuf_poll;
@@ -5022,16 +3564,6 @@ static int MDL_DEVINIT rtl8190_init_one(
 
 
 
-#ifdef CONFIG_NET_PCI
-#ifndef CONFIG_RTL865X
-    static u8 cache_size;
-#endif
-    static u16 pci_command;
-#ifndef USE_IO_OPS
-    static u32 pciaddr;
-#endif
-	static u32 pmem_len;
-#endif
 
 #ifdef WDS
 	static int wds_num;
@@ -5054,9 +3586,6 @@ static int MDL_DEVINIT rtl8190_init_one(
 	wapiEvent_queue = NULL;
 #endif
 	phw = NULL;
-#if !defined(RTL8192SU)
-	ptxdesc = NULL;
-#endif
 	pwlan_hdr_poll = NULL;
 	pwlanllc_hdr_poll = NULL;
 	pwlanbuf_poll = NULL;
@@ -5080,15 +3609,6 @@ static int MDL_DEVINIT rtl8190_init_one(
 	}
 #endif
 
-#ifdef CONFIG_NET_PCI
-#ifndef CONFIG_RTL865X
-    cache_size=0;
-#endif
-#ifndef USE_IO_OPS
-    pciaddr=0;
-#endif
-	pmem_len;
-#endif
 
 
 	pshare = NULL;	// david
@@ -5157,9 +3677,6 @@ static int MDL_DEVINIT rtl8190_init_one(
 		}
 #endif
 		memset((void *)phw, 0, sizeof(struct rtl8190_hw));
-#if !defined(RTL8192SU)
-		ptxdesc = &phw->tx_info;
-#endif		
 
 #if defined(PRIV_STA_BUF) || defined(RTL867X_DMEM_ENABLE)
 		pshare = &shared_info;
@@ -5282,11 +3799,7 @@ static int MDL_DEVINIT rtl8190_init_one(
 #endif
 #ifdef MBSSID
 		if (vap_idx >= 0)
-#ifdef CONFIG_RTL8671
 			sprintf(dev->name, "%s-vap%d", wdev->priv->dev->name, vap_idx);
-#else
-			sprintf(dev->name, "%s-va%d", wdev->priv->dev->name, vap_idx);
-#endif
 #endif
 	}
 	else
@@ -5323,11 +3836,9 @@ static int MDL_DEVINIT rtl8190_init_one(
 #if defined(CONFIG_RTK_MESH) && defined(_MESH_ACL_ENABLE_)	// below code copy above ACL code
 	priv->pmesh_acl_poll = pmesh_acl_poll;
 #endif
-#ifdef RTL8192SU
 	sema_init(&priv->wx_sem,1);
 	priv->udev = pdev;
 	priv->rx_urb=NULL;	
-#endif
 
 #if defined(UNIVERSAL_REPEATER) || defined(MBSSID)
 	if (wdev->priv) {
@@ -5350,9 +3861,6 @@ static int MDL_DEVINIT rtl8190_init_one(
 	{
 		priv->pshare = pshare;	// david
 		priv->pshare->phw = phw;
-#if !defined(RTL8192SU)
-		priv->pshare->pdesc_info = ptxdesc;
-#else
 #ifdef RTL867X_DMEM_ENABLE
 	priv->pshare->fw_IMEM_buf=NULL;
 	priv->pshare->fw_EMEM_buf=NULL;
@@ -5361,24 +3869,17 @@ static int MDL_DEVINIT rtl8190_init_one(
 	priv->pshare->mac_reg_buf=NULL;
 	priv->pshare->phy_reg_buf=NULL;
 #endif
-#endif		
 		priv->pshare->pwlan_hdr_poll = pwlan_hdr_poll;
 		priv->pshare->pwlanllc_hdr_poll = pwlanllc_hdr_poll;
 		priv->pshare->pwlanbuf_poll = pwlanbuf_poll;
 		priv->pshare->pwlanicv_poll = pwlanicv_poll;
 		priv->pshare->pwlanmic_poll = pwlanmic_poll;
 		wdev->priv = priv;
-#ifdef __KERNEL__
 		spin_lock_init(&priv->pshare->lock);
-#endif
 
 #ifdef CONFIG_RTK_MESH
 		spin_lock_init(&priv->pshare->lock_queue);
 		spin_lock_init(&priv->pshare->lock_Rreq);
-#endif
-#ifdef CONFIG_NET_PCI
-		if (((wdev->type >> TYPE_SHIFT) & TYPE_MASK) == TYPE_PCI_BIOS)
-			priv->pshare->pdev = pdev;
 #endif
 		priv->pshare->type = wdev->type;
 
@@ -5389,16 +3890,12 @@ static int MDL_DEVINIT rtl8190_init_one(
 		priv->pshare->have_hw_mic = 0;
 #endif
 #else
-#ifdef CONFIG_RTL8671
 		priv->pshare->have_hw_mic = 1;//tylo, 8672 has GDMA engine
 		if(priv->pshare->have_hw_mic!=0)
 		{
 			//#define REG32(reg)	*(volatile unsigned int*)(reg) 
 			REG32(0xb800330c) |= 0x00000400;	//enable GDMA engine
 		}
-#else
-		priv->pshare->have_hw_mic = 0;
-#endif
 #endif
 
 //		priv->pshare->is_giga_exist  = is_giga_board();
@@ -5413,112 +3910,6 @@ static int MDL_DEVINIT rtl8190_init_one(
 		goto register_driver;
 	}
 #endif
-#ifdef CONFIG_NET_PCI
-	if (((wdev->type >> TYPE_SHIFT) & TYPE_MASK) == TYPE_PCI_BIOS)
-	{
-#ifdef CONFIG_RTL865X
-		rc = 0;
-#else
-		rc = pci_enable_device(pdev);
-		if (rc)
-			goto err_out_free;
-#ifndef USE_IO_OPS
-		rc = pci_request_regions(pdev, DRV_NAME);
-#endif
-#endif
-		if (rc)
-			goto err_out_disable;
-
-		if (pdev->irq < 2) {
-			rc = -EIO;
-#ifdef __LINUX_2_6__
-			printk(KERN_ERR "invalid irq (%d) for pci dev\n", pdev->irq);
-#else
-			printk(KERN_ERR "invalid irq (%d) for pci dev %s\n", pdev->irq, pdev->slot_name);
-#endif
-			goto err_out_res;
-		}
-
-#ifdef USE_IO_OPS
-		{
-			unsigned long pio_start, pio_len, pio_flags;
-
-			pio_start = (unsigned long)pci_resource_start(pdev, 0);
-			pio_len = (unsigned long)pci_resource_len(pdev, 0);
-			pio_flags = (unsigned long)pci_resource_flags(pdev, 0);
-
-			if (!(pio_flags & IORESOURCE_IO)) {
-				rc = -EIO;
-#ifdef __LINUX_2_6__
-				printk(KERN_ERR "pci: region #0 not a PIO resource, aborting\n");
-#else
-				printk(KERN_ERR "%s: region #0 not a PIO resource, aborting\n", pdev->slot_name);
-#endif
-				goto err_out_res;
-			}
-
-			if (!request_region(pio_start, pio_len, DRV_NAME)) {
-				rc = -EIO;
-				printk(KERN_ERR "request_region failed!\n");
-				goto err_out_res;
-			}
-
-			if (pio_len < RTL8190_REGS_SIZE) {
-				rc = -EIO;
-#ifdef __LINUX_2_6__
-				printk(KERN_ERR "PIO resource (%lx) too small on pci dev\n", pio_len);
-#else
-				printk(KERN_ERR "PIO resource (%lx) too small on pci dev %s\n", pio_len, pdev->slot_name);
-#endif
-				goto err_out_res;
-			}
-
-			dev->base_addr = pio_start;
-			priv->pshare->ioaddr = pio_start; // device I/O address
-		}
-#else
-#ifdef IO_MAPPING
-		pciaddr = pci_resource_start(pdev, 0);
-#else
-		pciaddr = pci_resource_start(pdev, 1);
-#endif
-		if (!pciaddr) {
-			rc = -EIO;
-#ifdef __LINUX_2_6__
-			printk(KERN_ERR "no MMIO resource for pci dev");
-#else
-			printk(KERN_ERR "no MMIO resource for pci dev %s\n", pdev->slot_name);
-#endif
-			goto err_out_res;
-		}
-
-		if ((pmem_len = pci_resource_len(pdev, 1)) < RTL8190_REGS_SIZE) {
-			rc = -EIO;
-#ifdef __LINUX_2_6__
-			printk(KERN_ERR "MMIO resource () too small on pci dev\n");
-#else
-			printk(KERN_ERR "MMIO resource (%lx) too small on pci dev %s\n", (unsigned long)pmem_len, pdev->slot_name);
-#endif
-			goto err_out_res;
-		}
-
-		regs = ioremap_nocache(pciaddr, pmem_len);
-		if (!regs) {
-			rc = -EIO;
-#ifdef __LINUX_2_6__
-			printk(KERN_ERR "Cannot map PCI MMIO () on pci dev \n");
-#else
-			printk(KERN_ERR "Cannot map PCI MMIO (%lx@%lx) on pci dev %s\n", (unsigned long)pmem_len, (long)pciaddr, pdev->slot_name);
-#endif
-			goto err_out_res;
-		}
-
-		dev->base_addr = (unsigned long)regs;
-		priv->pshare->ioaddr = (UINT)regs;
-#endif // USE_IO_OPS
-	}
-	else
-#endif
 	{
 		regs = (void *)wdev->base_addr;
 		dev->base_addr = (unsigned long)wdev->base_addr;
@@ -5530,13 +3921,7 @@ static int MDL_DEVINIT rtl8190_init_one(
 
 			_DEBUG_INFO("INIT PCI config space directly\n");
 
-#if !defined(CONFIG_NET_PCI) && defined(CONFIG_RTL8196B) && !defined(RTL8192SU)
-			rtl8196b_pci_reset(wdev->conf_addr);
-#endif
 
-#if !defined(CONFIG_RTL8671) && !defined(CONFIG_RTL8196B)
-			*(volatile unsigned long *)(BRIDGE_REG) = *(volatile unsigned long *)(BRIDGE_REG) & (~BIT(21));
-#endif
 
 			{
 				u32 vendor_deivce_id, config_base;
@@ -5544,11 +3929,7 @@ static int MDL_DEVINIT rtl8190_init_one(
 				vendor_deivce_id = *((volatile unsigned long *)(config_base+0));
 				//printk("vendor_deivce_id=%x\n", vendor_deivce_id);
 				if (vendor_deivce_id !=
-#if defined(RTL8192E) || defined(RTL8192SE) || defined(RTL8192SU)
 						((unsigned long)((0x8192<<16)|PCI_VENDOR_ID_REALTEK)))
-#elif defined(RTL8190)
-						((unsigned long)((0x8190<<16)|PCI_VENDOR_ID_REALTEK)))
-#endif
 				{
 					_DEBUG_ERR("vendor_deivce_id=%x not match\n", vendor_deivce_id);
 					rc = -EIO;
@@ -5565,26 +3946,15 @@ static int MDL_DEVINIT rtl8190_init_one(
 			*((volatile unsigned short *)PCI_CONFIG_LATENCY) = 0x2000;
 			for(i=0; i<1000000; i++);
 			//DEBUG_INFO("...latency = 0x%08lx\n", *((volatile unsigned long *)PCI_CONFIG_LATENCY));
-#if defined(RTL8192SE) || defined(RTL8192SU)
 			force_stop_wlan_hw();
-#endif
 		}
 	}
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
 #if defined(UNIVERSAL_REPEATER) || defined(MBSSID)
 	if (IS_ROOT_INTERFACE(priv))
 #endif
 		rtl8192se_ePhyInit(priv);
-#endif
 
-#ifdef CONFIG_NET_PCI
-	if (((wdev->type >> TYPE_SHIFT) & TYPE_MASK) == TYPE_PCI_BIOS) {
-		dev->irq = pdev->irq;
-		pci_set_drvdata(pdev, dev);
-	}
-	else
-#endif
 	{
 		dev->irq = wdev->irq;
 	}
@@ -5608,9 +3978,7 @@ register_driver:
 	dev->get_stats = rtl8190_get_stats;
 	dev->do_ioctl = rtl8190_ioctl;
 	dev->set_mac_address = rtl8190_set_hwaddr;
-#ifdef CONFIG_RTL8671
 	dev->priv_flags = IFF_DOMAIN_WLAN;
-#endif
 
 	rc = register_netdev(dev);
 	if (rc)
@@ -5624,13 +3992,11 @@ register_driver:
 	}
 #endif
 
-#ifdef CONFIG_RTL8671
 	// Added by Mason Yu
 	// MBSSID Port Mapping
 	wlanDev[wlanDevNum].dev_pointer = dev;
 	wlanDev[wlanDevNum].dev_ifgrp_member = 0;
 	wlanDevNum++;
-#endif
 
 #if defined(UNIVERSAL_REPEATER) || defined(MBSSID)
 	if (GET_ROOT_PRIV(priv) == NULL)  // is root interface
@@ -5656,42 +4022,9 @@ register_driver:
 	if (GET_ROOT_PRIV(priv) == NULL)  // is root interface
 #endif
 	{
-#ifdef CONFIG_NET_PCI
-		if (((wdev->type >> TYPE_SHIFT) & TYPE_MASK) == TYPE_PCI_BIOS) {
-#ifndef CONFIG_RTL865X
-			if (cache_size != SMP_CACHE_BYTES) {
-//	        	printk(KERN_INFO "%s: PCI cache line size set incorrectly "
-//	               "(%i bytes) by BIOS/FW, ", dev->name, cache_size);
-		        if (cache_size > SMP_CACHE_BYTES)
-	    	        printk("expecting %i\n", SMP_CACHE_BYTES);
-	        	else {
-	            	printk("correcting to %i\n", SMP_CACHE_BYTES);
-		            pci_write_config_byte(pdev, PCI_CACHE_LINE_SIZE,
-	                          SMP_CACHE_BYTES >> 2);
-	    	    }
-		    }
-
-	    	/* enable busmastering and memory-write-invalidate */
-		    pci_read_config_word(pdev, PCI_COMMAND, &pci_command);
-#else
-			pci_read_config_word(pdev, PCI_COMMAND, &pci_command);
-			//Always ignore Parity error
-			if (pci_command & PCI_COMMAND_PARITY) {
-				pci_command &= ~PCI_COMMAND_PARITY;
-				pci_write_config_word(pdev, PCI_COMMAND, pci_command);
-			}
-#endif
-	    	if (!(pci_command & PCI_COMMAND_INVALIDATE)) {
-	        	pci_command |= PCI_COMMAND_INVALIDATE;
-		        pci_write_config_word(pdev, PCI_COMMAND, pci_command);
-	    	}
-		    pci_set_master(pdev);
-		}
-#endif
 	}
 
 #ifdef _INCLUDE_PROC_FS_
-#ifdef __KERNEL__
 	rtl8190_proc_init(dev);
 #ifdef PERF_DUMP
 	{
@@ -5704,7 +4037,6 @@ register_driver:
     	    res->write_proc = flush_perf_dump;
 	    }
 	}
-#endif
 #endif
 #endif
 
@@ -5733,9 +4065,7 @@ register_driver:
 		    dev->hard_start_xmit = rtl8190_start_xmit;
 		    dev->get_stats = rtl8190_get_stats;
 		    dev->set_mac_address = rtl8190_set_hwaddr;
-#ifdef CONFIG_RTL8671
 			dev->priv_flags = IFF_DOMAIN_WLAN;
-#endif
 
 			priv->wds_dev[i] = dev;
 			strcpy(dev->name, baseDevName);
@@ -5771,9 +4101,7 @@ register_driver:
 			dev->set_mac_address = rtl8190_set_hwaddr;
 			dev->do_ioctl = rtl8190_ioctl;
 
-#ifdef CONFIG_RTL8671
 			dev->priv_flags = IFF_DOMAIN_WLAN;
-#endif
 
 			priv->mesh_dev = dev; // NO priv zone dev
 			strcpy(dev->name, baseDevName);
@@ -5921,11 +4249,6 @@ register_driver:
 		page_ptr = (unsigned char *)KSEG1ADDR(page_ptr);
 #else
 
-#ifdef CONFIG_NET_PCI
-		if (IS_PCIBIOS_TYPE)
-			page_ptr = pci_alloc_consistent(priv->pshare->pdev, DESC_DMA_PAGE_SIZE, (dma_addr_t *)&phw->ring_dma_addr);
-		else
-#endif
 		{
 #ifdef __DRAYTEK_OS__
 		page_ptr = rtl8185_malloc(DESC_DMA_PAGE_SIZE, 1);	// allocate non-cache buffer
@@ -5979,8 +4302,6 @@ register_driver:
 			}
 			priv->pshare->tx_pool_idx=0;
 #endif
-#ifdef RTL8192SU
-#ifdef CONFIG_RTL8671	//cathy, 090617
 			init_timer(&priv->poll_usb_timer);
 			priv->poll_usb_timer.data = (unsigned long) priv;
 			priv->poll_usb_timer.function = usb_poll_func;
@@ -5990,8 +4311,6 @@ register_driver:
 			priv->led_urb = usb_alloc_urb(0, GFP_ATOMIC);
 #endif
 			global_rtl8190_priv=priv;
-#endif
-#endif
 #ifdef RTL8192SU_EFUSE
 		//ReadEfuse8192SU(priv);		
 		initMPmib(priv);
@@ -6001,37 +4320,13 @@ register_driver:
 	INIT_LIST_HEAD(&priv->asoc_list); // init assoc_list first because webs may get sta_num even it is not open,
 																// and it will cause exception if it is not init, david+2008-03-05
 	return 0;
-#ifdef RTL8192SU
 goto err_out_dev; //just for fix warning message
-#endif
 err_out_dev:
 
 	unregister_netdev(dev);
 
 err_out_iomap:
 
-#ifdef CONFIG_NET_PCI
-	if (((wdev->type >> TYPE_SHIFT) & TYPE_MASK) == TYPE_PCI_BIOS) {
-#ifndef USE_IO_OPS
-	    iounmap(regs);
-#endif
-	}
-
-err_out_res:
-
-	if (((wdev->type >> TYPE_SHIFT) & TYPE_MASK) == TYPE_PCI_BIOS) {
-#ifdef USE_IO_OPS
-		release_region(dev->base_addr, pci_resource_len(pdev, 0));
-#else
-	    pci_release_regions(pdev);
-#endif
-	}
-
-err_out_disable:
-
-	if (((wdev->type >> TYPE_SHIFT) & TYPE_MASK) == TYPE_PCI_BIOS)
-	    pci_disable_device(pdev);
-#endif // CONFIG_NET_PCI
 
 err_out_free:
 
@@ -6134,58 +4429,12 @@ err_out_free:
 	if(priv->led_urb)
 		usb_free_urb(priv->led_urb);
 #endif
-#ifdef __LINUX_2_6__
 	free_netdev(dev);
-#else
-    kfree(dev);
-#endif
     wdev->priv = NULL;
     return rc;
 }
 
 
-#ifdef CONFIG_RTL_STP
-static int rtl_pseudo_dev_set_hwaddr(struct net_device *dev, void *addr)
-{
-	unsigned long flags;
-	int i;
-	unsigned char *p;
-
-	p = ((struct sockaddr *)addr)->sa_data;
- 	local_irq_save(flags);
-	for (i = 0; i<MACADDRLEN; ++i) {
-		dev->dev_addr[i] = p[i];
-	}
-	local_irq_restore(flags);
-	return SUCCESS;
-}
-
-
-void rtl_pseudo_dev_init(void* priv)
-{
-	struct net_device *dev;
-
-/*	printk("[%s][%d] priv of %s\n", __FUNCTION__, __LINE__, ((struct rtl8190_priv*)priv)->dev->name);*/
-	dev = alloc_etherdev(0);
-	if (dev == NULL) {
-		printk("alloc_etherdev() pseudo port5 error!\n");
-		return;
-	}
-
-	dev->open = rtl8190_open;
-	dev->stop = rtl8190_close;
-	dev->hard_start_xmit = rtl8190_start_xmit;
-	dev->get_stats = rtl8190_get_stats;
-	dev->set_mac_address = rtl_pseudo_dev_set_hwaddr;
-	dev->priv = priv;
-	strcpy(dev->name, "port5");
-	memcpy((char*)dev->dev_addr,"\x00\xe0\x4c\x81\x86\x86", MACADDRLEN);
-	if (register_netdev(dev)) {
-		printk(KERN_ERR "register_netdev() wds error!\n");
-	}
-	rtl865x_wlanIF_Init(dev);
-}
-#endif
 
 
 #if defined(__DRAYTEK_OS__) && defined(WDS)
@@ -6212,85 +4461,6 @@ int rtl8190_add_wds(struct net_device *dev, struct net_device *wds_dev, unsigned
 #endif
 
 
-#ifdef CONFIG_NET_PCI
-static int MDL_DEVINIT rtl8190_init_pci(struct pci_dev *pdev, const struct pci_device_id *ent)
-{
-	static int dev_num=0;
-	int ret;
-#ifdef MBSSID
-	int i;
-#endif
-
-#ifdef RTL8190_VARIABLE_USED_DMEM
-	/* For D-MEM allocation system's initialization : It would before ALL processes */
-	rtl8190_dmem_init();
-#endif
-
-	if(dev_num >= (sizeof(wlan_device)/sizeof(struct _device_info_))){
-		printk("PCI device %d can't be support\n", dev_num);
-		return -1;
-	}
-	else {
-		ret = rtl8190_init_one(pdev, ent, &wlan_device[dev_num++], -1);
-#ifdef UNIVERSAL_REPEATER
-		if (ret == 0) {
-			ret = rtl8190_init_one(pdev, ent, &wlan_device[--dev_num], -1);
-			dev_num++;
-		}
-#endif
-#ifdef MBSSID
-		if (ret == 0) {
-			dev_num--;
-			for (i=0; i<RTL8190_NUM_VWLAN; i++) {
-				ret = rtl8190_init_one(pdev, ent, &wlan_device[dev_num], i);
-				if (ret != 0) {
-					printk("Init fail!\n");
-					return ret;
-				}
-			}
-			dev_num++;
-		}
-#endif
-		return ret;
-	}
-}
-
-
-static void MDL_DEVEXIT rtk_remove_one(struct pci_dev *pdev)
-{
-    struct net_device *dev = pci_get_drvdata(pdev);
-    struct rtl8190_priv *priv = dev->priv;
-
-    if (!dev)
-        BUG();
-
-    iounmap((void *)priv->dev->base_addr);
-    pci_release_regions(pdev);
-    pci_disable_device(pdev);
-    pci_set_drvdata(pdev, NULL);
-}
-
-
-static struct pci_device_id MDL_DEVINITDATA rtl8190_pci_tbl[] =
-{
-	{ PCI_VENDOR_ID_REALTEK, 0x8190,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-	{ PCI_VENDOR_ID_REALTEK, 0x8192,
-	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
-
-	{ },
-};
-
-
-MODULE_DEVICE_TABLE(pci, rtl8190_pci_tbl);
-
-static struct pci_driver rtl8190_driver = {
-	name:		DRV_NAME,
-	id_table:	rtl8190_pci_tbl,
-	probe:		rtl8190_init_pci,
-	remove:		__devexit_p(rtk_remove_one),
-};
-#endif // CONFIG_NET_PCI
 
 
 #ifdef CONFIG_WIRELESS_LAN_MODULE
@@ -6301,22 +4471,13 @@ int GetCpuCanSuspend(void)
 }
 #endif
 
-#ifdef RTL8192SU
 int dev_num=0;
-#ifdef __LINUX_2_6__
 static int rtl8192su_usb_probe(struct usb_interface *intf,
 			 const struct usb_device_id *ent) 
-#else
-static void * rtl8192su_usb_probe(struct usb_device *pdev,
-	    		unsigned intf,			
-	    		const struct usb_device_id *ent)
-#endif
 {
 	int ret=0;
 
-#ifdef __LINUX_2_6__
 	struct usb_device *pdev = interface_to_usbdev(intf);
-#endif	
 
 #ifdef MBSSID
 	int i;
@@ -6324,11 +4485,7 @@ static void * rtl8192su_usb_probe(struct usb_device *pdev,
 
 	if(dev_num >= (sizeof(wlan_device)/sizeof(struct _device_info_))){
 		printk("USB device %d can't be support\n", dev_num);
-#ifdef __LINUX_2_6__
 		//return -1;
-#else
-		return NULL;
-#endif
 	}
 	else {
 		ret = rtl8190_init_one(pdev, ent, &wlan_device[dev_num++], -1);
@@ -6345,31 +4502,19 @@ static void * rtl8192su_usb_probe(struct usb_device *pdev,
 				ret = rtl8190_init_one(pdev, ent, &wlan_device[dev_num], i);
 				if (ret != 0) {
 					printk("Init fail!\n");
-#ifdef __LINUX_2_6__					
 					return ret;
-#else
-					return NULL;
-#endif
 				}
 			}
 			dev_num++;
 		}
 #endif
 	}
-#ifdef __LINUX_2_6__
 	return ret;
-#else
-	return &wlan_device[dev_num - 1];
-#endif
 }
 
 static void MDL_EXIT rtl8190_exit (void);
 
-#ifdef __LINUX_2_6__
 static void rtl8192su_usb_disconnect(struct usb_interface *intf)
-#else
-static void rtl8192su_usb_disconnect(struct usb_device *dev, void *handle)
-#endif
 {
 	//printk("FIXME: must unregister ndetdev here!! %s %d\n",__FUNCTION__,__LINE__);
 	rtl8190_exit();
@@ -6404,13 +4549,10 @@ static struct usb_driver rtl8192su_usb_driver = {
 #endif
 };
 
-#endif //RTL8192SU
 
 
 //System identification for CHIP
-#ifdef RTL8192SU
 #undef REG32
-#endif
 #define REG32(reg)	(*(volatile unsigned int *)((unsigned int)reg))
 #define CHIP_OEM_ID	0xb8000000
 #define DDR_SELECT	0xb8000008
@@ -6421,20 +4563,13 @@ int no_ddr_patch;
 
 int MDL_INIT __rtl8190_init(unsigned long base_addr)
 {
-#ifdef CONFIG_NET_PCI
-	int pci_reg=0;
-#endif
 	int rc;
-#if defined(MBSSID) && (!defined(RTL8192SU))
-	int i;
-#endif
 
 #ifdef CONFIG_RTL8196B
 	//System identification for CHIP
 	no_ddr_patch = !((REG32(CHIP_OEM_ID)<C_CUT)&(REG32(DDR_SELECT)&&DDR_BOOT));
 #endif
 
-#ifdef __KERNEL__
 #if defined(EAP_BY_QUEUE) && defined(USE_CHAR_DEV)
 // for module, 2005-12-26 -----------
 	extern struct rtl8190_priv* (*rtl8190_chr_reg_hook)(unsigned int minor, struct rtl8190_chr_priv *priv);
@@ -6455,37 +4590,15 @@ int MDL_INIT __rtl8190_init(unsigned long base_addr)
 	wirelessnet_hook_free_priv_buf = free_rtl8190_priv_buf;
 #endif
 #endif // CONFIG_WIRELESS_LAN_MODULE
-#endif // __KERNEL__
 
 #ifndef GREEN_HILL
-#ifdef CONFIG_RTL8671
 	printk("%s driver version %d.%d.%d (%s - %s)\n", DRV_NAME, DRV_VERSION_H, DRV_VERSION_L, DRV_VERSION_SUBL, DRV_RELDATE, DRV_RELDATE_SUB);
-#else
-	panic_printk("%s driver version %d.%d (%s)\n", DRV_NAME, DRV_VERSION_H, DRV_VERSION_L, DRV_RELDATE);
-#endif
 #endif
 
-#ifdef __KERNEL__
 	for (wlan_index=0; wlan_index<sizeof(wlan_device)/sizeof(struct _device_info_); wlan_index++)
-#else
-	if (wlan_index<sizeof(wlan_device)/sizeof(struct _device_info_))
-#endif
 	{
 		if (((wlan_device[wlan_index].type >> TYPE_SHIFT) & TYPE_MASK) == TYPE_PCI_BIOS) {
-#if !defined(RTL8192SU)
-#ifdef CONFIG_NET_PCI
-			if(!pci_reg){
-				pci_reg=1;
-#ifdef LINUX_2_6_22_
-				pci_register_driver(&rtl8190_driver);
-#else
-				pci_module_init(&rtl8190_driver);
-#endif
-			}
-#endif
-#else
 			usb_register(&rtl8192su_usb_driver);
-#endif //!RTL8192SU
 		}
 		else {
 
@@ -6501,17 +4614,6 @@ int MDL_INIT __rtl8190_init(unsigned long base_addr)
 				rc = rtl8190_init_one(NULL, NULL, &wlan_device[wlan_index], -1);
 #endif
 #ifdef MBSSID
-#if !defined(RTL8192SU)
-			if (rc == 0) {
-				for (i=0; i<RTL8190_NUM_VWLAN; i++) {
-					rc = rtl8190_init_one(NULL, NULL, &wlan_device[wlan_index], i);
-					if (rc != 0) {
-						printk("Init fail! rc=%d\n", rc);
-						break;
-					}
-				}
-			}
-#endif //!RTL8192SU
 #endif
 		}
 
@@ -6520,14 +4622,8 @@ int MDL_INIT __rtl8190_init(unsigned long base_addr)
 			return rc;
 #endif
 
-#ifndef __KERNEL__
-		wlan_index++;
-#endif
 	}
 
-#ifdef CONFIG_RTL_STP
-	rtl_pseudo_dev_init(wlan_device[0].priv);
-#endif
 
 #ifdef _USE_DRAM_
 	{
@@ -6537,10 +4633,8 @@ int MDL_INIT __rtl8190_init(unsigned long base_addr)
 	extern unsigned char *pTkip_Sbox_Lower, *pTkip_Sbox_Upper;
 	extern unsigned char Tkip_Sbox_Lower[256], Tkip_Sbox_Upper[256];
 
-#ifdef CONFIG_RTL8671
 	extern void r3k_enable_DRAM(void);    //6/7/04' hrchen, for 8671 DRAM init
 	r3k_enable_DRAM();    //6/7/04' hrchen, for 8671 DRAM init
-#endif
 
 	en_cipherstream = (unsigned char *)(DRAM_START_ADDR);
 	tx_cipherstream = en_cipherstream;
@@ -6563,7 +4657,6 @@ int MDL_INIT __rtl8190_init(unsigned long base_addr)
 #endif
 #endif
 
-#ifdef __KERNEL__
 #if defined(EAP_BY_QUEUE) && defined(USE_CHAR_DEV)
 // for module, 2005-12-26 -----------
 	rtl8190_chr_reg_hook = rtl8190_chr_reg;
@@ -6571,15 +4664,12 @@ int MDL_INIT __rtl8190_init(unsigned long base_addr)
 //------------------------------------
 	rtl8190_chr_init();
 #endif
-#endif
 
-#ifdef CONFIG_RTL8671
 	//turn off AP LED
 	{
 		unsigned char wlanreg = *(volatile unsigned char *)0xbd30005e;
 		*(volatile unsigned char *)0xbd30005e = (wlanreg | ((1<<5)));
 	}
-#endif
 
 #ifdef PERF_DUMP
 	rtl8651_romeperfInit();
@@ -6601,27 +4691,22 @@ int rtl8190_init(unsigned long base_addr)
 }
 #else // not __DRAYTEK_OS__
 
-#ifdef CONFIG_RTL8671
 void gpioConfig (int gpio_num, int gpio_func);
 void gpioClear(int gpio_num);
 void gpioSet(int gpio_num);
-#endif
 
 int MDL_INIT rtl8190_init(void)
 {
-#ifdef CONFIG_RTL8671
 	gpioConfig(10,2);
 	gpioClear(10);
 	delay_ms(10);
 	gpioSet(10);
-#endif
 
 	return __rtl8190_init(0);
 }
 #endif
 
 
-#ifdef __KERNEL__
 static void MDL_EXIT rtl8190_exit (void)
 {
 	struct net_device *dev;
@@ -6662,11 +4747,7 @@ static void MDL_EXIT rtl8190_exit (void)
 			for (i=0; i<num; i++) {
 				unregister_netdev(wlan_device[idx].priv->wds_dev[i]);
 				wlan_device[idx].priv->wds_dev[i]->priv = NULL;
-#ifdef __LINUX_2_6__
 				free_netdev(wlan_device[idx].priv->wds_dev[i]);
-#else
-				kfree(wlan_device[idx].priv->wds_dev[i]);
-#endif
 			}
 		}
 	}
@@ -6712,11 +4793,7 @@ static void MDL_EXIT rtl8190_exit (void)
 #ifdef INCLUDE_WPA_PSK
 				kfree(vxd_priv->wpa_global_info);
 #endif
-#ifdef __LINUX_2_6__
 				free_netdev(vxd_priv->dev);
-#else
-				kfree(vxd_priv->dev);
-#endif
 				wlan_device[idx].priv->pvxd_priv = NULL;
 			}
 		}
@@ -6748,11 +4825,7 @@ static void MDL_EXIT rtl8190_exit (void)
 #ifdef INCLUDE_WPA_PSK
 					kfree(vap_priv->wpa_global_info);
 #endif
-#ifdef __LINUX_2_6__
 					free_netdev(vap_priv->dev);
-#else
-					kfree(vap_priv->dev);
-#endif
 					wlan_device[idx].priv->pvap_priv[i] = NULL;
 				}
 			}
@@ -6760,9 +4833,6 @@ static void MDL_EXIT rtl8190_exit (void)
 	}
 #endif
 
-#ifdef CONFIG_NET_PCI
-	pci_unregister_driver (&rtl8190_driver);
-#endif
 
 	for (idx=0; idx<sizeof(wlan_device)/sizeof(struct _device_info_); idx++)
 	{
@@ -6772,20 +4842,11 @@ static void MDL_EXIT rtl8190_exit (void)
 		dev = priv->dev;
 
 #ifdef _INCLUDE_PROC_FS_
-#if !defined(RTL8192SU)
-		rtl8190_proc_remove(dev);
-#endif
 #endif
 
 		unregister_netdev(dev);
 
 #ifndef PRIV_STA_BUF
-#ifdef CONFIG_NET_PCI
-		if (IS_PCIBIOS_TYPE)
-			pci_free_consistent(priv->pshare->pdev, DESC_DMA_PAGE_SIZE, (void *)priv->pshare->phw->ring_virt_addr,
-				priv->pshare->phw->ring_dma_addr);
-		else
-#endif
 			kfree((void *)priv->pshare->phw->ring_virt_addr);
 #endif
 
@@ -6835,9 +4896,7 @@ static void MDL_EXIT rtl8190_exit (void)
 		kfree(priv->pshare);	// david
 #endif
 
-#ifdef RTL8192SU
 	rtl8192su_rx_free(priv);
-#endif
 #ifdef SW_LED
 		if(priv->led_dr)
 			kfree(priv->led_dr);
@@ -6846,11 +4905,7 @@ static void MDL_EXIT rtl8190_exit (void)
 		if(priv->led_urb)
 			usb_free_urb(priv->led_urb);
 #endif
-#ifdef __LINUX_2_6__
 		free_netdev(dev);
-#else
-		kfree(dev);
-#endif
 		wlan_device[idx].priv = NULL;
 	}
 
@@ -6863,112 +4918,8 @@ static void MDL_EXIT rtl8190_exit (void)
 	rtl8190_chr_exit();
 #endif
 }
-#else // not __KERNEL__
-void MDL_EXIT rtl8190_exit(void *data)
-{
-	struct net_device *dev = (struct net_device *)data;
-	struct rtl8190_priv *priv = dev->priv;
-	int idx, i;
-
-	for (idx=0; idx<sizeof(wlan_device)/sizeof(struct _device_info_); idx++)
-		if (wlan_device[idx].priv == priv)
-			break;
-
-	if (idx == sizeof(wlan_device)/sizeof(struct _device_info_))
-		return;		// wrong argument!!
-
-#ifdef WDS
-	{
-		int num;
-
-		num = (wlan_device[idx].type >> WDS_SHIFT) & WDS_MASK;
-		for (i=0; i<num; i++) {
-			wlan_device[idx].priv->pmib->dot11WdsInfo.dev[i]->priv = NULL;
-			unregister_netdev(wlan_device[idx].priv->pmib->dot11WdsInfo.dev[i]);
-			kfree(wlan_device[idx].priv->pmib->dot11WdsInfo.dev[i]);
-		}
-	}
-#endif
-
-	unregister_netdev(dev);
-
-#ifdef RTL867X_DMEM_ENABLE
-	if((unsigned int)priv->pmib!=(unsigned int)&mib) kfree(priv->pmib);
-#else
-	kfree(priv->pmib);
-#endif
-
-#ifdef	CONFIG_RTK_MESH
-
-	if(priv->proxy_table)
-	{
-		remove_hash_table(priv->proxy_table);
-		kfree(priv->proxy_table);
-	}
-	if(priv->mesh_rreq_retry_queue)
-	{
-		for (i = 0; i < (1 << priv->mesh_rreq_retry_queue->table_size_power); i++) {
-			if(((struct mesh_rreq_retry_entry*)(priv->mesh_rreq_retry_queue->entry_array[i].data))->ptr)
-				kfree(((struct mesh_rreq_retry_entry*)(priv->mesh_rreq_retry_queue->entry_array[i].data))->ptr);
-		}
-		remove_hash_table(priv->mesh_rreq_retry_queue);
-		kfree(priv->mesh_rreq_retry_queue);
-	}
-
-	// add by chuangch 2007.09.13
-	if(priv->pathsel_table)
-	{
-		remove_hash_table(priv->pathsel_table);
-		kfree(priv->pathsel_table);
-	}
-
-	if(priv->pann_mpp_tb)
-		kfree(priv->pann_mpp_tb);
-
-	kfree(priv->pathsel_queue);
-#ifdef _11s_TEST_MODE_
-	kfree(priv->receiver_queue);
-	for(i=0; i< AODV_RREQ_TABLE_SIZE; i++)
-		del_timer(&priv->pshare->galileo_poll->node[i].data.expire_timer);
-
-	kfree(priv->pshare->galileo_poll);
-#endif
-
-#ifdef	_MESH_ACL_ENABLE_
-	kfree(priv->pmesh_acl_poll);
-#endif
-#endif	// CONFIG_RTK_MESH
-
-	kfree(priv->pevent_queue);
-#ifdef CONFIG_RTL_WAPI_SUPPORT
-	kfree(vxd_priv->wapiEvent_queue);
-#endif
-#ifndef PRIV_STA_BUF
-	kfree((void *)priv->pshare->phw->ring_virt_addr);
-	kfree(priv->pshare->phw);
-	kfree(priv->pshare->pwlan_hdr_poll);
-	kfree(priv->pshare->pwlanllc_hdr_poll);
-	kfree(priv->pshare->pwlanbuf_poll);
-	kfree(priv->pshare->pwlanicv_poll);
-	kfree(priv->pshare->pwlanmic_poll);
-#endif
-	kfree(priv->pwlan_acl_poll);
-	kfree(priv->Eap_packet);
-#ifdef INCLUDE_WPA_PSK
-	kfree(priv->wpa_global_info);
-#endif
-#ifndef PRIV_STA_BUF
-	kfree(priv->pshare);	// david
-#endif
-	kfree(dev);
-	wlan_device[idx].priv = NULL;
-
-	wlan_index--;
-}
-#endif
 
 
-#ifdef __KERNEL__
 #ifdef USE_CHAR_DEV
 struct rtl8190_priv *rtl8190_chr_reg(unsigned int minor, struct rtl8190_chr_priv *priv)
 {
@@ -7048,16 +4999,10 @@ void wpa2_preauth_packet(struct sk_buff	*pskb)
 	// let dsr to free this skb
 }
 #endif // RTL_WPA2_PREAUTH
-#endif // __KERNEL__
 
 
 #ifdef BR_SHORTCUT
-#ifdef __LINUX_2_6__
 __IRAM_FASTEXTDEV
-#else
-__MIPS16
-__IRAM_IN_865X_HI
-#endif
 struct net_device *get_shortcut_dev(unsigned char *da)
 {
 	int i;
@@ -7183,7 +5128,6 @@ void update_fwtbl_asoclst(struct rtl8190_priv *priv, struct stat_info *pstat)
 	unsigned char tmpbuf[16];
 	int i;
 
-#ifdef __KERNEL__
 	struct sk_buff *skb = NULL;
 	struct wlan_ethhdr_t *e_hdr;
 	unsigned char xid_cmd[] = {0, 0, 0xaf, 0x81, 1, 2};
@@ -7227,7 +5171,6 @@ void update_fwtbl_asoclst(struct rtl8190_priv *priv, struct stat_info *pstat)
 #endif
 		}
 	}
-#endif
 
 	// update association lists of the other WLAN interfaces
 	for (i=0; i<sizeof(wlan_device)/sizeof(struct _device_info_); i++) {
@@ -7241,9 +5184,7 @@ void update_fwtbl_asoclst(struct rtl8190_priv *priv, struct stat_info *pstat)
 	}
 
 #ifdef MBSSID
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	if (GET_ROOT(priv)->pmib->miscEntry.vap_enable)
-#endif
 	{
 		for (i=0; i<RTL8190_NUM_VWLAN; i++) {
 			if (priv->pvap_priv[i] && IS_DRV_OPEN(priv->pvap_priv[i]) && (priv->pvap_priv[i] != priv) &&
@@ -7283,16 +5224,6 @@ static int rtl865x_wlanRegistration(struct net_device *dev, int index)
 {
 	struct rtl8190_priv *priv = dev->priv;
 // Can remove
-#if 0
-	char chipVersion[16] = {0};
-
-	GetChipVersion(chipVersion, sizeof(chipVersion), NULL);
-	if (chipVersion[strlen(chipVersion)-1] != 'B')
-	{
-		printk("This driver supports WLAN acceleration only for 865xB chips\n");
-		return -EACCES;
-	}
-#endif
 
 	priv->rtl8650extPortNum = CONFIG_RTL865XB_WLAN1_PORT;
 	priv->WLAN_VLAN_ID = priv->pmib->miscEntry.set_vlanid;
@@ -7346,16 +5277,6 @@ static int rtl865x_wlanUnregistration(struct net_device *dev, int index)
 {
 	struct rtl8190_priv *priv = dev->priv;
 // Can remove
-#if 0
-	char chipVersion[16] = {0};
-
-	GetChipVersion(chipVersion, sizeof(chipVersion), NULL);
-	if (chipVersion[strlen(chipVersion)-1] != 'B')
-	{
-		printk("This driver supports WLAN acceleration only for 865xB chips\n");
-		return -EACCES;
-	}
-#endif
 
 	if ( priv->rtl8650linkNum[index] == 0 )
 	{
@@ -7379,58 +5300,6 @@ static int rtl865x_wlanUnregistration(struct net_device *dev, int index)
 #endif /* CONFIG_RTL865X */
 
 
-#ifdef CONFIG_RTL8671
-#if 0	//use arch/mips/mm
-/*6/7/04 hrchen, invalidate the dcache with a 0->1 transition*/
-
-#ifdef CONFIG_CPU_RLX4181
-int r3k_flush_dcache_range(int a, int b)
-{
-  int garbage_tmp;
-	__asm__ __volatile__(
-                ".set\tnoreorder\n\t"
-                ".set\tnoat\n\t"
-		"mfc0 %0, $20\n\t"
-		"nop\n\t"
-		"nop\n\t"
-		"andi %0, 0xFDFF\n\t"
-		"mtc0 %0, $20\n\t"
-		"nop\n\t"
-		"nop\n\t"
-		"ori %0, 0x200\n\t"
-		"mtc0 %0, $20\n\t"
-		"nop\n\t"
-		"nop\n\t"
-                ".set\tat\n\t"
-                ".set\treorder"
-                : "=r" (garbage_tmp));
-        return 0;
-}
-#else
-int r3k_flush_dcache_range(int a, int b)
-{
-  int garbage_tmp;
-	__asm__ __volatile__(
-                ".set\tnoreorder\n\t"
-                ".set\tnoat\n\t"
-		"mfc0 %0, $20\n\t"
-		"nop\n\t"
-		"nop\n\t"
-		"andi %0, 0xFFFE\n\t"
-		"mtc0 %0, $20\n\t"
-		"nop\n\t"
-		"nop\n\t"
-		"ori %0, 1\n\t"
-		"mtc0 %0, $20\n\t"
-		"nop\n\t"
-		"nop\n\t"
-                ".set\tat\n\t"
-                ".set\treorder"
-                : "=r" (garbage_tmp));
-        return 0;
-}
-#endif
-#endif
 
 #ifdef _USE_DRAM_
 //init DRAM
@@ -7489,14 +5358,9 @@ void r3k_enable_DRAM(void)
                 : "r" (DRAM_START_ADDR+R3K_DRAM_SIZE), "r" (DRAM_START_ADDR));
 }
 #endif // _USE_DRAM_
-#endif // CONFIG_RTL8671
 
 
-#ifdef __KERNEL__
-#ifdef CONFIG_X86
 MODULE_LICENSE("GPL");
-#endif
 module_init(rtl8190_init);
 module_exit(rtl8190_exit);
-#endif
 

@@ -7,24 +7,17 @@
 #ifndef _8190N_HW_H_
 #define _8190N_HW_H_
 
-#ifdef __KERNEL__
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <asm/io.h>
-#endif
 
 #ifdef __DRAYTEK_OS__
 #include <draytek/skbuff.h>
 #endif
 
-#if	defined(RTL8192SE) || defined(RTL8192SU)
 #include "./8192se_reg.h"
-#endif
 #include "./8190n_cfg.h"
 
-#ifndef __KERNEL__
-#include "./sys-support.h"
-#endif
 
 #include "./wifi.h"
 #include "./8190n_phyreg.h"
@@ -36,7 +29,6 @@ typedef unsigned long ULONG;
 
 #define RTL8190_REGS_SIZE        ((0xff + 1) * 16)
 
-#ifdef RTL8192SU
 #define	RTL8192_MTU		1500
 #define	RTL8192_URB_RX_MAX	2500
 #define	RTL8192_URB_TX_MAX	2500
@@ -70,7 +62,6 @@ typedef enum _VERSION_8192S{
 #define	H2CTXCMD_HDR_LEN	8
 #endif
 
-#endif //RTL8192SU
 
 enum _RF_TYPE_	{
 	_11BG_RF_ZEBRA_		= 0x07,
@@ -171,103 +162,6 @@ enum _SCR_CONFIG_ {
 #define ENC_AES			BIT(4)
 #define ENC_WEP104		BIT(4)|BIT(2)//|BIT(5)//FIX for DEFAULT KEY
 
-#if defined(RTL8190) || defined(RTL8192E)
-enum _RTL8190_AP_HW_ {
-	_IDR0_		= 0x0,
-	_PCIF_		= 0x9,		/* PCI Function Register */
-	_9346CR_	= 0x0E,
-	_ANAPAR_	= 0x17,	//NOTE: 8192 only register, for triggering pll on ... joshua
-	_BBGLBRESET_ = 0x20,
-
-	_BSSID_		= 0x2e,
-	_CR_		= 0x37,
-	_SIFS_CCK_	= 0x3c,
-	_SIFS_OFDM_	= 0x3e,
-	_TCR_		= 0x40,
-	_RCR_		= 0x44,
-	_SLOT_		= 0x49,
-	_EIFS_		= 0x4a,
-	_ACKTIMEOUT_ = 0x4c,
-
-	_ACBE_PARM_	= 0x50,		// BE Parameter
-	_ACBK_PARM_	= 0x54,		// BK Parameter
-	_ACVO_PARM_	= 0x58,		// VO Parameter
-	_ACVI_PARM_	= 0x5C,		// VI Parameter
-
-	_BCNTCFG_	= 0x62,
-	_TIMER1_	= 0x68,
-	_TIMER2_	= 0x6c,
-	_BCNITV_	= 0x70,
-	_ATIMWIN_	= 0x72,
-	_DRVERLYINT_ = 0x74,
-	_BCNDMA_	= 0x76,
-
-	_MBIDCAMCFG_	= 0xc0,
-	_MBIDCAMCONTENT_ = 0xc4,
-
-	_IMR_		= 0xF4,		// Interrupt Mask Register
-	_ISR_		= 0xF8,		// Interrupt Status Register
-	_DBS_		= 0xFC,		// Debug Select
-	_TXPOLL_	= 0xFD,		// Transmit Polling
-	_TXPOLL_H_	= 0xFE,
-	_PSR_		= 0xFF,		/* Page Select Register */
-	_CPURST_	= 0x100,	// CPU Reset
-	_BLDTIME_	= 0x124,
-//	_BLDUSER0_	= 0x128,
-//	_BLDUSER1_	= 0x12c,
-	_TXPKTNUM_	= 0x128,
-	_RXPKTNUM_	= 0x130,
-
-	_LED1CFG_	= 0x154,
-	_LED0CFG_	= 0x155,
-
-	_ACM_CTRL_	= 0x171,
-
-	_RQPN1_		= 0x180,
-	_RQPN2_		= 0x184,
-	_RQPN3_		= 0x188,
-
-	_TBDA_		= 0x200,	// Transmit Beacon Desc Addr
-	_THPDA_		= 0x204,	// Transmit High Priority Desc Addr
-	_TCDA_		= 0x208,	// Transmit Command Desc Addr
-	_TMGDA_		= 0x20C,	// Transmit Management Desc Addr
-	_HDA_		= 0x210,	// HCCA Desc Addr
-	_TNPDA_		= 0x214,	// Transmit VO Desc Addr
-	_TLPDA_		= 0x218,	// Transmit VI Desc Addr
-	_TBEDA_		= 0x21C,	// Transmit BE Desc Addr
-	_TBKDA_		= 0x220,	// Transmit BK Desc Addr
-	_RCDSA_		= 0x224,	// Receive Command Desc Addr
-	_RDSAR_		= 0x228,	// Receive Desc Starting Addr
-	_MAR0_		= 0x240,
-	_MAR4_		= 0x244,
-	_MBIDCTRL_		= 0x260,
-	_BWOPMODE_	= 0x300,
-	_MSR_		= 0x303,
-	_RETRYCNT_	= 0x304,
-	_TSFTR_L_	= 0x308,
-	_TSFTR_H_	= 0x30c,
-	_RRSR_		= 0x310,
-	_RATR_POLL_	= 0x318,
-	_RATR0_		= 0x320,
-	_RATR1_		= 0x324,
-	_RATR2_		= 0x328,
-	_RATR3_		= 0x32c,
-	_RATR4_		= 0x330,
-	_RATR5_		= 0x334,
-	_RATR6_		= 0x338,
-	_RATR7_		= 0x33c,
-#ifdef RTL8190
-	_MCS_TXAGC_0_	= 0x340,
-	_MCS_TXAGC_1_	= 0x344,
-	_CCK_TXAGC_		= 0x348,
-#elif defined(RTL8192E)
-	_ISRD_CPU_	= 0x350,
-	_FWIMR_		= 0x354,
-#endif
-	_FWPSR_		= 0x3FF,
-};
-
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 
 enum _RTL8190_AP_HW_ {
 	_RCR_           = RCR,
@@ -313,18 +207,8 @@ enum _RTL8190_AP_HW_ {
 	_RATR6_		= 0x320,			// need to fix
 	_RATR7_		= 0x320,			// need to fix
 };
-#endif
 
 
-#if defined(RTL8190) || defined(RTL8192E)
-enum _AP_SECURITY_REGS_ {
-	_CAMCMD_	= 0xa0,
-	_CAM_W_		= 0xa4,
-	_CAM_R_		= 0xa8,
-	_CAMDBG_	= 0xac,
-	_WPACFG_	= 0xb0,
-};
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 
 enum _AP_SECURITY_REGS_ {
 	_CAMCMD_	= RWCAM,
@@ -334,7 +218,6 @@ enum _AP_SECURITY_REGS_ {
 	_WPACFG_	= SECR,
 };
 
-#endif
 
 enum _RTL8190_DESC_CMD_ {
 	// TX and common
@@ -366,12 +249,6 @@ enum _RTL8190_DESC_CMD_ {
 };
 
 enum _IMR_BITFIELD_90_ {
-#ifdef RTL8190
-	_CPUERR_		= BIT(29),
-#elif defined(RTL8192E)
-	_IllAcess_		= BIT(30),
-	_BTEvent_		= BIT(29),
-#endif
 	_ATIMEND_		= BIT(28),
 	_TBDOK_			= BIT(27),
 	_TBDER_			= BIT(26),
@@ -462,17 +339,8 @@ enum _HW_STATE_		{
 	_HW_STATE_NOLINK_	= 0x0,
 };
 
-#if !defined(RTL8192SE) && !defined(RTL8192SU)
-enum BANDWIDTH_MODE
-{
-	BW_OPMODE_11J	= BIT(0),
-	BW_OPMODE_5G	= BIT(1),
-	BW_OPMODE_20MHZ	= BIT(2)
-};
-#endif
 
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
 enum _FW_REG364_MASK_
 {
 	FW_REG364_DIG	= BIT(0),
@@ -492,7 +360,6 @@ enum _ARFR_TABLE_SET_
 	ARFR_B_ONLY = 6,
 	ARFR_BMC = 7,
 };
-#endif
 
 //----------------------------------------------------------------------------
 //       8139 (CR9346) 9346 command register bits (offset 0x50, 1 byte)
@@ -552,7 +419,6 @@ enum _ARFR_TABLE_SET_
 #define EEPROM_FLAG_10MC            BIT(0)
 #define EEPROM_FLAG_100MC           BIT(1)
 
-#ifdef RTL8192SU
 #ifdef RTL8192SU_EFUSE
 //----------------------------------------------------------------------------
 //       8192S EEROM and Compatible E-Fuse definition. Added by Roger, 2008.10.21.
@@ -595,12 +461,7 @@ enum _ARFR_TABLE_SET_
 #else
 #define MAX_RX_URB 128
 #endif
-#ifdef CONFIG_RTL8671
 #define WIFI_MAX_RX_NUM	(MAX_RX_URB + 128 - 1)	//cathy, urb + nic tx ring size
-#endif
-#if !defined(CONFIG_RTL8671)
-#define NET_SKB_PAD 128
-#endif
 #define RX_DMA_SHIFT NET_SKB_PAD
 
 //#define RX_ALLOC_SIZE CONFIG_RTL867X_PREALLOCATE_SKB_SIZE
@@ -610,15 +471,7 @@ enum _ARFR_TABLE_SET_
 #endif
 #define RX_URB_SIZE (RX_ALLOC_SIZE-sizeof(struct rx_frinfo))
 
-#endif
 
-#ifdef RTL8192E
-#define EEPROM_RFInd_PowerDiff                  0x28
-#define EEPROM_ThermalMeter                     0x29
-#define EEPROM_TxPwDiff_CrystalCap              0x2A    //0x2A~0x2B
-#define EEPROM_TxPwIndex_CCK                    0x2C    //0x2C~0x39
-#define EEPROM_TxPwIndex_OFDM_24G       0x3A    //0x3A~0x47
-#endif
 
 
 //----------------------------------------------------------------------------
@@ -640,7 +493,7 @@ struct rx_desc {
 	volatile unsigned int	rsvd0;
 	volatile unsigned int	rsvd1;
 	volatile unsigned int	paddr;
-#elif defined(RTL8192SE) || defined(RTL8192SU)
+#else
 	volatile unsigned int	Dword0;
 	volatile unsigned int	Dword1;
 	volatile unsigned int	Dword2;
@@ -706,9 +559,7 @@ struct rx_frinfo {
 	unsigned char		sw_dec;
 	unsigned char		faggr;
 	unsigned char		paggr;
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	unsigned int		physt;
-#endif
 #if defined(UNIVERSAL_REPEATER) || defined(MBSSID)
 	unsigned char		is_br_mgnt;	 // is a broadcast management frame (beacon and probe-rsp)
 #endif
@@ -742,7 +593,7 @@ struct tx_desc {
 	volatile unsigned int	rsvd0;
 	volatile unsigned int	rsvd1;
 	volatile unsigned int	rsvd2;
-#elif defined(RTL8192SE) || defined(RTL8192SU)
+#else
 	volatile unsigned int Dword0;
 	volatile unsigned int Dword1;
 	volatile unsigned int Dword2;
@@ -751,22 +602,11 @@ struct tx_desc {
 	volatile unsigned int Dword5;
 	volatile unsigned int Dword6;
 	volatile unsigned int Dword7;
-#if !defined(RTL8192SU)
-	volatile unsigned int Dword8;  //TxBufferAddr; pcie
-	volatile unsigned int Dword9;  //NextTxDescAddress; pcie
-
-	// 2008/05/15 MH Because PCIE HW memory R/W 4K limit. And now,  our descriptor
-	// size is 40 bytes. If you use more than 102 descriptor( 103*40>4096), HW will execute
-	// memoryR/W CRC error. And then all DMA fetch will fail. We must decrease descriptor
-	// number or enlarge descriptor size as 64 bytes.
-	unsigned int		Reserve_Pass_92S_PCIE_MM_Limit[6];
-#endif	
 #endif
 
 };
 
 struct tx_desc_info {
-#ifdef RTL8192SU
 	unsigned int		hdr_type;
 	unsigned int		type;    //frame type!!!
 	unsigned int		enc_type;
@@ -776,11 +616,6 @@ struct tx_desc_info {
 	void				*penc;
 	void				*purb;
 	unsigned char		last_seg;
-#else
-	unsigned int		type;
-	unsigned int		paddr;
-	void				*pframe;
-#endif
 
 	unsigned int		len;
 	struct stat_info	*pstat;
@@ -832,10 +667,8 @@ typedef struct _BB_REGISTER_DEFINITION {
 									//		0xc84~0xc87,0xc8c~0xc8f, 0xc94~0xc97, 0xc9c~0xc9f [16 bytes]
 	unsigned int rfLSSIReadBack; 	//LSSI RF readback data
 									//		0x8a0~0x8af [16 bytes]
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	unsigned int rfLSSIReadBack_92S_PI;	//LSSI RF readback data
 										//		0x8b8~0x8bc [8 bytes]
-#endif
 }BB_REGISTER_DEFINITION_T, *PBB_REGISTER_DEFINITION_T;
 
 
@@ -845,22 +678,10 @@ typedef struct _BB_REGISTER_DEFINITION {
 						 NUM_CMD_DESC *(sizeof(struct tx_desc))) +\
 						 6 * (sizeof(struct tx_desc))
 
-#ifndef __KERNEL__
-#define DESC_DMA_PAGE_SIZE ((DESC_DMA_SIZE + (PAGE_SIZE - 1)))
-#else
 //#define DESC_DMA_PAGE_SIZE ((DESC_DMA_SIZE + (2*PAGE_SIZE - 1)) & (~(PAGE_SIZE - 1)))
 #define DESC_DMA_PAGE_SIZE ((DESC_DMA_SIZE + PAGE_SIZE))
-#endif
 
 struct rtl8190_tx_desc_info {
-#if !defined(RTL8192SU)
-	struct tx_desc_info	tx_info0[NUM_TX_DESC];
-	struct tx_desc_info	tx_info1[NUM_TX_DESC];
-	struct tx_desc_info	tx_info2[NUM_TX_DESC];
-	struct tx_desc_info	tx_info3[NUM_TX_DESC];
-	struct tx_desc_info	tx_info4[NUM_TX_DESC];
-	struct tx_desc_info	tx_info5[NUM_TX_DESC];
-#endif	
 };
 
 struct rtl8190_hw {
@@ -884,58 +705,13 @@ struct rtl8190_hw {
 #endif
 	struct	rx_desc			*rx_descL;
 	unsigned long			rx_ring_addr;
-#if !defined(RTL8192SU)
-	struct	rx_desc_info	rx_infoL[NUM_RX_DESC];
-#endif
 
 	/* For TX DMA Synchronization */
 	unsigned long	rx_descL_dma_addr[NUM_RX_DESC];
 
-#ifdef RTL8192SU
 	struct tx_desc	*tx_descB;
 	unsigned long	tx_descB_dma_addr[NUM_TX_DESC];
 	unsigned long	tx_ringB_addr;
-#else
-	unsigned int	txhead0;
-	unsigned int	txhead1;
-	unsigned int	txhead2;
-	unsigned int	txhead3;
-	unsigned int	txhead4;
-	unsigned int	txhead5;
-
-	unsigned int	txtail0;
-	unsigned int	txtail1;
-	unsigned int	txtail2;
-	unsigned int	txtail3;
-	unsigned int	txtail4;
-	unsigned int	txtail5;
-
-	struct tx_desc	*tx_desc0;
-	struct tx_desc	*tx_desc1;
-	struct tx_desc	*tx_desc2;
-	struct tx_desc	*tx_desc3;
-	struct tx_desc	*tx_desc4;
-	struct tx_desc	*tx_desc5;
-	struct tx_desc	*tx_descB;
-
-	/* For TX DMA Synchronization */
-	unsigned long	tx_desc0_dma_addr[NUM_TX_DESC];
-	unsigned long	tx_desc1_dma_addr[NUM_TX_DESC];
-	unsigned long	tx_desc2_dma_addr[NUM_TX_DESC];
-	unsigned long	tx_desc3_dma_addr[NUM_TX_DESC];
-	unsigned long	tx_desc4_dma_addr[NUM_TX_DESC];
-	unsigned long	tx_desc5_dma_addr[NUM_TX_DESC];
-	unsigned long	tx_descB_dma_addr[NUM_TX_DESC];
-
-	unsigned long	tx_ring0_addr;
-	unsigned long	tx_ring1_addr;
-	unsigned long	tx_ring2_addr;
-	unsigned long	tx_ring3_addr;
-	unsigned long	tx_ring4_addr;
-	unsigned long	tx_ring5_addr;
-	unsigned long	tx_ringB_addr;
-
-#endif	//RTL8192SU
 	unsigned int		cur_rxcmd;
 	struct rx_desc		*rxcmd_desc;
 	unsigned long		rxcmd_ring_addr;
@@ -948,15 +724,8 @@ struct rtl8190_hw {
 	unsigned long		txcmd_desc_dma_addr[NUM_CMD_DESC];
 	unsigned long		txcmd_ring_addr;
 
-#if defined(RTL8190) || defined(RTL8192E)
-	unsigned int				MCSTxAgc0;
-	unsigned int				MCSTxAgc1;
-	unsigned int				CCKTxAgc;
-	unsigned char				MCSTxAgcOffset[8];
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 	unsigned char				MCSTxAgcOffset[16];
 	unsigned char				OFDMTxAgcOffset[8];
-#endif
 
 	unsigned int				NumTotalRFPath;
 	/*PHY related*/
@@ -972,9 +741,7 @@ struct rtl8190_hw {
 	unsigned char				CCKTxAgc_enhanced;
 
 	// dynamic CCK CCA enhance by rssi
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	unsigned char				CCK_CCA_enhanced;
-#endif
 
 	// for Multicast Rx dynamic mechanism
 	unsigned char				rxmlcst_rssi;
@@ -993,19 +760,7 @@ struct rtl8190_hw {
 	unsigned char				lower_tx_power;
 
 	// Tx power tracking
-#if defined(RTL8190) || defined(RTL8192E)
-	unsigned char				tpt_inited;
-	unsigned char				tpt_ofdm_swing_idx;
-	unsigned char				tpt_cck_swing_idx;
-	unsigned char				tpt_tssi_total;
-	unsigned char				tpt_tssi_num;
-	unsigned char				tpt_tssi_waiting;
-	unsigned char				tpt_tracking_num;
-#endif
 	struct timer_list			tpt_timer;
-#if !defined(RTL8192SU)
-	struct rtl8190_tx_desc_info 	tx_info;
-#endif	
 };
 
 //1-------------------------------------------------------------------
@@ -1112,14 +867,12 @@ typedef struct _RT_8192S_FIRMWARE_HDR {//8-byte alinment required
 
 #define	RT_8192S_FIRMWARE_HDR_SIZE	32
 
-#ifdef RTL8192SU
 #define	HCISEL_USBAP	130 //0x82
 #define RFCONFIG_1T2R	18 //0x12
 #define RFCONFIG_2T2R	34 //0x22
 #define USBEP_FOUR		4
 #define USBEP_SIX		6
 #define	BCNOFFLOAD_FW	2
-#endif
 
 enum _RTL8192SE_TX_DESC_ {
 	// TX cmd desc
@@ -1374,61 +1127,12 @@ static __inline__ struct sk_buff *get_skb_frlist(struct list_head *list,unsigned
 
 	return	((struct rx_frinfo *)pobj)->pskb;
 }
-#if !defined(RTL8192SU)
-
-static __inline__ int get_txhead(struct rtl8190_hw *phw, int q_num)
-{
-	return *(int *)((unsigned int)&(phw->txhead0) + sizeof(int)*q_num);
-}
-
-static __inline__ int get_txtail(struct rtl8190_hw *phw, int q_num)
-{
-	return *(int *)((unsigned int)&(phw->txtail0) + sizeof(int)*q_num);
-}
-
-static __inline__ int *get_txhead_addr(struct rtl8190_hw *phw, int q_num)
-{
-	return (int *)((unsigned int)&(phw->txhead0) + sizeof(int)*q_num);
-}
-
-static __inline__ int *get_txtail_addr(struct rtl8190_hw *phw, int q_num)
-{
-	return (int *)((unsigned int)&(phw->txtail0) + sizeof(int)*q_num);
-}
-
-static __inline__ struct tx_desc *get_txdesc(struct rtl8190_hw *phw, int q_num)
-{
-	return (struct tx_desc *)(*(unsigned int *)((unsigned int)&(phw->tx_desc0) + sizeof(struct tx_desc *)*q_num));
-}
-
-static __inline__ struct tx_desc_info *get_txdesc_info(struct rtl8190_tx_desc_info*pdesc, int q_num)
-{
-	return (struct tx_desc_info *)((unsigned int)(pdesc->tx_info0) + sizeof(struct tx_desc_info)*q_num*NUM_TX_DESC);
-}
-
-static __inline__ unsigned int *get_txdma_addr(struct rtl8190_hw *phw, int q_num)
-{
-	return (unsigned int *)((unsigned int)&(phw->tx_desc0_dma_addr) + (sizeof(unsigned long)*q_num*NUM_TX_DESC));
-}
-
-
-#endif//!RTL8192SU
 
 #define RTL8190_REGS_SIZE	((0xff + 1) * 16)		//16 pages
 
-#if defined(RTL8190) || defined(RTL8192E)
-
-#define LoadPktSize	1024
-
-#elif defined(RTL8192SE)
-
-#define LoadPktSize 32000
-
-#elif defined(RTL8192SU)
 
 #define LoadPktSize 24000
 
-#endif
 
 typedef enum _HW90_BLOCK {
 	HW90_BLOCK_MAC		= 0,
@@ -1450,11 +1154,9 @@ typedef	enum _FW_LOAD_FILE {
 	BOOT = 0,
 	MAIN = 1,
 	DATA = 2,
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	LOAD_IMEM = 3,
 	LOAD_EMEM = 4,
 	LOAD_DMEM = 5,
-#endif
 } FW_LOAD_FILE;
 
 typedef enum _PHY_REG_FILE {
@@ -1602,7 +1304,6 @@ typedef struct _Phy_OFDM_Rx_Status_Report_8190
 	unsigned char	csi_target_X[2];
 	unsigned char	sigevm;
 	unsigned char	max_ex_pwr;
-#if defined(RTL8192SE) || defined(RTL8192SU)
 #ifdef	_LITTLE_ENDIAN_
 	unsigned char ex_intf_flg:1;
 	unsigned char sgi_en:1;
@@ -1613,10 +1314,6 @@ typedef struct _Phy_OFDM_Rx_Status_Report_8190
 	unsigned char rxsc:2;
 	unsigned char sgi_en:1;
 	unsigned char ex_intf_flg:1;
-#endif
-#else	// RTL8190, RTL8192E
-	unsigned char	sgi_en;
-	unsigned char	rxsc_sgien_exflg;
 #endif
 } PHY_STS_OFDM_8190_T;
 
@@ -1787,10 +1484,8 @@ enum _8190_CPU_RESET_BITFIELD_ {
 #define internalUsedGDMACNR (0x000000C0)
 #endif // _ASICREGS_H
 
-#ifdef RTL8192SU
 #define	MAX_FIRMWARE_CODE_SIZE	64000 // Firmware Local buffer size.
 #define USB_HWDESC_HEADER_LEN sizeof(struct tx_desc)
-#endif
 
 //----------------------------------------------------------------------------
 // 8192S EFUSE

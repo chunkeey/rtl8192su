@@ -4,13 +4,9 @@
 //sc_yang
 //#include <openssl/md5.h>
 
-#ifdef __KERNEL__
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
-#else
-#include <string.h>
-#endif
 
 #include "./8190n_cfg.h"
 
@@ -634,10 +630,6 @@ enum
 #endif
 #define SHA1HashSize 20
 
-#ifndef __KERNEL__
-	typedef unsigned int uint32_t;
-	typedef unsigned char uint8_t;
-#endif
 typedef unsigned short	int_least16_t;
 /*
  *  This structure will hold context information for the SHA-1
@@ -1112,10 +1104,6 @@ hmac_sha1(unsigned char *text, int text_len, unsigned char *key,
  */
 
 //#include <stdint.h>
-#ifndef __KERNEL__
-#include <stdio.h>
-#include <string.h>
-#endif
 //#include "sha1.h"
 
 /*

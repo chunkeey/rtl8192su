@@ -6,16 +6,11 @@
 
 #define _8190N_TKIP_C_
 
-#ifdef __KERNEL__
 #include <linux/module.h>
 #include <asm/byteorder.h>
-#endif
 
 #include "./8190n_cfg.h"
 
-#ifndef __KERNEL__
-#include "./sys-support.h"
-#endif
 
 #include "./8190n.h"
 #include "./ieee802_mib.h"
@@ -77,74 +72,6 @@ void debug_out(unsigned char *label, unsigned char *data, int data_length)
 }
 
 
-#if 0
-static __inline__ unsigned long int rotr(int bits, unsigned long int a)
-{
-	unsigned long int c,d,e,f,g;
-    c = (0x0001 << bits)-1;
-    d = ~c;
-
-    e = (a & d) >> bits;
-    f = (a & c) << (32 - bits);
-
-    g = e | f;
-
-    return (g & 0xffffffff );
-}
-
-
-static __inline__ unsigned long int rotl(int bits, unsigned long int a)
-{
-	unsigned long int c,d,e,f,g;
-    c = (0x0001 << (32-bits))-1;
-    d = ~c;
-
-    e = (a & c) << bits;
-    f = (a & d) >> (32 - bits);
-
-    g = e | f;
-
-    return (g & 0xffffffff );
-}
-
-
-static __inline__ unsigned long int xswap(unsigned long int in)
-{
-	unsigned long int a,b,c,d,out;
-
-    a = in & 0xff;
-    b = (in >> 8) & 0xff;
-    c = (in >> 16) & 0xff;
-    d = (in >> 24) & 0xff;
-
-    out = 0;
-    out |= c << 24;
-    out |= d << 16;
-    out |= a << 8;
-    out |= b;
-
-    return out;
-}
-
-
-static __inline__ void block_function(
-                    unsigned long int l,
-                    unsigned long int r,
-                    unsigned long int *l_out,
-                    unsigned long int *r_out)
-{
-    r = r ^ rotl(17,l);
-    l = (l + r);
-    r = r ^ xswap(l);
-    l = (l + r);
-    r = r ^ rotl(3,l);
-    l = (l + r);
-    r = r ^ rotr(2,l);
-	l = (l + r);
-    *l_out = l;
-    *r_out = r;
-}
-#endif
 
 // __IRAM_IN_865X
 void michael(
@@ -184,11 +111,6 @@ void michael(
 			d = hdr[3+(block<<2)];
 			m = a + (b << 8) + (c << 16) + (d << 24);
 			l = l ^ m;
-#if 0
-			block_function(l,r,&l_out,&r_out);
-			l = l_out;
-			r = r_out;
-#endif
 			block_function(l,r);
 		}
 
@@ -205,11 +127,6 @@ void michael(
 			d = llc[3+(block<<2)];
 			m = a + (b << 8) + (c << 16) + (d << 24);
 			l = l ^ m;
-#if 0
-			block_function(l,r,&l_out,&r_out);
-			l = l_out;
-			r = r_out;
-#endif
 			block_function(l,r);
 		}
 
@@ -221,10 +138,8 @@ void michael(
 	{
 		
 		rtl_cache_sync_wback(priv, (unsigned int)message, (num_blocks*4), PCI_DMA_TODEVICE);				
-		#ifdef CONFIG_RTL8671
 		unsigned long flags;
 		spin_lock_irqsave(&gdma_lock, flags);
-		#endif
 		*(volatile unsigned int *)GDMACNR  = 0;
 		*(volatile unsigned int *)GDMACNR  = GDMA_ENABLE;
 		*(volatile unsigned int *)GDMAIMR  = 0;
@@ -237,7 +152,6 @@ void michael(
 		*(volatile unsigned int *)GDMADBL0 = 0;
 		wmb();
 		*(volatile unsigned int *)GDMACNR  = GDMA_ENABLE|GDMA_POLL|GDMA_MIC|internalUsedGDMACNR;
-#ifdef CONFIG_RTL8671
 		{
 			//tylo, copy gdma-mic data to frame
 			int delay = 18;
@@ -262,7 +176,6 @@ void michael(
 			*(volatile unsigned int *)GDMACNR  = 0;
 		}		
 		spin_unlock_irqrestore(&gdma_lock, flags);
-#endif
 		
 	}
 	else
@@ -275,11 +188,6 @@ void michael(
 			d = message[3+(block<<2)];
 			m = a + (b << 8) + (c << 16) + (d << 24);
 			l = l ^ m;
-#if 0
-			block_function(l,r,&l_out,&r_out);
-			l = l_out;
-			r = r_out;
-#endif
 			block_function(l,r);
 		}
 
@@ -669,9 +577,6 @@ void rc4_frag_encrypt(
    ((val8>>1)&0x08) | ((val8>>3)&0x04) | ((val8>>5)&0x02) | ((val8>>7)&0x01) )
 #define CRC32_POLY 0x04c11db7
 
-#if !defined(RTL8192SE) && !defined(RTL8192SU)
-__DRAM_IN_865X 
-#endif
 static unsigned long crc32_table[256];
 
 void init_crc32_table(void)
@@ -754,17 +659,10 @@ void tkip_icv(unsigned char *picv, unsigned char *frag1, unsigned int frag1_len,
 	if (frag2)
 		crc = crc32_frag(~crc, frag2, frag2_len);
 
-#if defined(CONFIG_X86)
     *(unsigned char *)picv=*((unsigned char *)pcrc);
     *(unsigned char *)(picv+1)=*((unsigned char *)pcrc+1);
     *(unsigned char *)(picv+2)=*((unsigned char *)pcrc+2);
     *(unsigned char *)(picv+3)=*((unsigned char *)pcrc+3);
-#else
-	*(unsigned char *)picv=*((unsigned char *)pcrc+3);
-    *(unsigned char *)(picv+1)=*((unsigned char *)pcrc+2);
-    *(unsigned char *)(picv+2)=*((unsigned char *)pcrc+1);
-    *(unsigned char *)(picv+3)=*((unsigned char *)pcrc);
-#endif
 }
 
 
@@ -1342,9 +1240,7 @@ int tkip_rx_mic(struct rtl8190_priv *priv, unsigned char *pframe, unsigned char 
 	pbuf[len+5] = 0x00;
 	pbuf[len+6] = 0x00;
 	pbuf[len+7] = 0x00;
-	#ifdef CONFIG_RTL8671
 	rtl_cache_sync_wback(priv, (unsigned int)&pbuf[len], 8, PCI_DMA_TODEVICE);		
-	#endif
 	num_blocks = (16 + len + 5)/4;  // 8 is for snap_llc length = 8
 	if ((16 + len + 5) & (4-1))
 		num_blocks++;
@@ -1355,26 +1251,6 @@ int tkip_rx_mic(struct rtl8190_priv *priv, unsigned char *pframe, unsigned char 
 		register unsigned long int l,r;
 
 		michael(priv, mickey, hdr, pbuf, pbuf+8, (num_blocks << 2), tkipmic);
-#ifndef CONFIG_RTL8671 //tylo, disable for gdma-memcpy
-		if (no_wait)
-			return FALSE;
-
-		do {
-			delay_us(60);
-		} while ((*(volatile unsigned int *)GDMAISR & GDMA_COMPIP) == 0);
-
-		l = *(volatile unsigned int *)GDMAICVL;
-		r = *(volatile unsigned int *)GDMAICVR;
-
-		tkipmic[0] = (unsigned char)(l & 0xff);
-		tkipmic[1] = (unsigned char)((l >> 8) & 0xff);
-		tkipmic[2] = (unsigned char)((l >> 16) & 0xff);
-		tkipmic[3] = (unsigned char)((l >> 24) & 0xff);
-		tkipmic[4] = (unsigned char)(r & 0xff);
-		tkipmic[5] = (unsigned char)((r >> 8) & 0xff);
-		tkipmic[6] = (unsigned char)((r >> 16) & 0xff);
-		tkipmic[7] = (unsigned char)((r >> 24) & 0xff);
-#endif		
 	}
 	else
 		michael(priv, mickey, hdr, pbuf, pbuf+8, (num_blocks << 2), tkipmic);

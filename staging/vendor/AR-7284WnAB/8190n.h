@@ -7,13 +7,11 @@
 #ifndef	_8190N_H_
 #define _8190N_H_
 
-#ifdef __KERNEL__
 #include <linux/interrupt.h>
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
-#endif
 
 #ifdef __DRAYTEK_OS__
 #include <draytek/softimer.h>
@@ -23,9 +21,6 @@
 
 #include "./8190n_cfg.h"
 
-#ifndef __KERNEL__
-#include "./sys-support.h"
-#endif
 
 #ifdef SUPPORT_SNMP_MIB
 #include "./8190n_mib.h"
@@ -40,9 +35,7 @@
 #endif
 #define SUCCESS		1
 #define FAIL		0
-#ifdef RTL8192SU
 #define LOADFW_FAIL (-2)
-#endif
 
 #if defined(USE_RTL8186_SDK) || !defined(PKT_PROCESSOR)
 typedef unsigned char	UINT8;
@@ -107,11 +100,7 @@ typedef signed int		INT;
 #define FG_AGGRE_MSDU_MIDDLE		6
 #define FG_AGGRE_MSDU_LAST			7
 
-#if defined(RTL8192E) || defined(RTL8192SE) ||defined(RTL8192SU)
 	#define MANAGEMENT_AID			0	//for 8192 AID reducing issue
-#elif defined(RTL8190)
-	#define MANAGEMENT_AID			7
-#endif
 
 enum wifi_state {
 	WIFI_NULL_STATE		=	0x00000000,
@@ -192,9 +181,7 @@ enum Realtek_capability_IE_bitmap {
 #ifdef RTK_WOW
 	RTK_CAP_IE_USE_WOW		= 0x08,
 #endif
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	RTK_CAP_IE_WLAN_8192SE	= 0x20,
-#endif
 	RTK_CAP_IE_AP_CLEINT		= 0x80,
 };
 
@@ -265,7 +252,6 @@ enum _ANTENNA_ {
 	ANTENNA_ABCD	= 0xF
 };
 
-#ifdef RTL8192SU
 
 #ifdef USE_RTL8186_SDK
 	typedef int bool;
@@ -377,7 +363,6 @@ typedef struct _RT_TX_LOCAL_BUFFER{
 	RT_LIST_ENTRY		List;
 	SHARED_MEMORY		Buffer;
 }RT_TX_LOCAL_BUFFER, *PRT_TX_LOCAL_BUFFER;
-#endif
 
 struct pkt_queue {
 	struct sk_buff	*pSkb[NUM_TXPKT_QUEUE];
@@ -426,9 +411,6 @@ __PACK struct wlan_hdr {
 
 struct wlan_hdrnode {
 	struct list_head	list;
-#if	defined(RTL8190) || defined(RTL8192E)
-	struct FWtemplate	fwinfo;
-#endif
 	struct wlan_hdr		hdr;
 };
 
@@ -452,9 +434,6 @@ __PACK struct wlanllc_hdr {
 
 struct wlanllc_node {
 	struct list_head	list;
-#if	defined(RTL8190) || defined(RTL8192E)
-	struct FWtemplate	fwinfo;
-#endif
 	struct wlanllc_hdr	hdr;
 
 #ifdef CONFIG_RTK_MESH
@@ -652,27 +631,6 @@ struct stat_info {
 	unsigned int		beacon_num;
 #endif
 
-#ifdef RTL8190
-	// for rate adaptive
-	unsigned int		upper_tx_rate;
-	unsigned int		cur_rate_tx_pkts;
-	unsigned int		cur_rate_retry_cnt;
-	unsigned int		cur_rate_tx_fail;
-	unsigned int		hi_rate_tx_pkts;
-	unsigned int		hi_rate_retry_cnt;
-	unsigned int		hi_rate_tx_fail;
-	unsigned int		last_dwngrade_probation_tx_cnt[DWNGRADE_PROBATION_TIME];
-	unsigned int		last_dwngrade_probation_retry_cnt[DWNGRADE_PROBATION_TIME];
-	unsigned int		last_dwngrade_probation_tx_fail_cnt[DWNGRADE_PROBATION_TIME];
-	unsigned int		last_upgrade_probation_tx_cnt[UPGRADE_PROBATION_TIME];
-	unsigned int		last_upgrade_probation_retry_cnt[UPGRADE_PROBATION_TIME];
-	unsigned int		last_upgrade_probation_tx_fail_cnt[UPGRADE_PROBATION_TIME];
-	unsigned short		upgrade_probation_idx;
-	unsigned short		dwngrade_probation_idx;
-	unsigned short		try_rate_idx;
-	unsigned char		high_rssi_state;
-	unsigned char		not_ch_rate_by_rssi;
-#endif
 
 #ifdef TX_SHORTCUT
 	struct tx_insn		txcfg;
@@ -681,19 +639,14 @@ struct stat_info {
 	struct tx_desc		hwdesc2;
 	struct tx_desc_info	swdesc1;
 	struct tx_desc_info	swdesc2;
-#ifdef RTL8192SU
 	struct tx_insn		txcfg_short;
 	struct tx_desc		hwdesc3;
 	struct tx_desc		hwdesc4;
 	struct tx_desc_info	swdesc3;
-#endif
 	int 				protection;
 	int					sc_keyid;
 	struct wlan_ethhdr_t	ethhdr;
 	unsigned char		pktpri;
-#if	defined(RTL8190) || defined(RTL8192E)
-	struct FWtemplate	fw_bckp;
-#endif
 #endif
 	unsigned long setCamTime;	  //cathy, to resolve that hw setting is too slow in tkip mode
 
@@ -759,9 +712,7 @@ struct stat_info {
 	unsigned char		rssi_level;
 	unsigned char		is_rtl8190_sta;
 	unsigned char		is_rtl8190_apclient;
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	unsigned char		is_rtl8192s_sta;
-#endif
 	unsigned char		is_broadcom_sta;
 	unsigned char		is_marvell_sta;
 	unsigned char		is_intel_sta;
@@ -796,9 +747,6 @@ struct stat_info {
 	// bcm old 11n chipset iot debug, and TXOP enlarge
 	unsigned int		current_tx_bytes;
 	unsigned int		current_rx_bytes;
-#if defined(RTL8190) || defined(RTL8192E)
-	unsigned int		rx_rate_bitmap;
-#endif
 
 	// 11n ap AES debug
 	unsigned char		is_fw_matching_sta;
@@ -831,9 +779,6 @@ struct stat_info {
 #endif
 
 	struct reorder_ctrl_entry	rc_entry[8];
-#if defined(RTL8190) || defined(RTL8192E)
-	unsigned int		is_legacy_encrpt;
-#endif
 
 #ifdef  SUPPORT_TX_MCAST2UNI
 	int					ipmc_num;
@@ -885,9 +830,7 @@ struct extra_stats {
 	unsigned long		rx_data_drops;
 	unsigned long		beacon_ok;
 	unsigned long		beacon_er;
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	unsigned long 		beaconQ_sts;
-#endif
 #if defined(CONFIG_RTL8196B_TR) || defined(CONFIG_RTL8190_THROUGHPUT) || defined(CONFIG_RTL865X_AC) || defined(CONFIG_RTL865X_KLD) || defined(CONFIG_RTL8196B_KLD)
 	unsigned long		tx_peak;
 	unsigned long		rx_peak;
@@ -900,7 +843,6 @@ struct extra_stats {
 	unsigned long		rx_rdu;
 	unsigned long		freeskb_err;
 	unsigned long		reused_skb;
-#ifdef RTL8192SU
 #ifdef 	LOOPBACK_NORMAL_TX_MODE	
 	unsigned long		loopback_TX_cnt;
 #endif
@@ -909,7 +851,6 @@ struct extra_stats {
 	unsigned long		mgt_pkt_cnt;
 	unsigned long		normal_pkt_cnt;
 	unsigned long		nonTxSC_pkt_cnt;
-#endif
 #endif
 };
 
@@ -940,7 +881,6 @@ struct stat_info_cache {
 };
 
 struct rf_finetune_var {
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	unsigned char		ofdm_1ss_oneAnt;// for 2T2R
 	unsigned char		pathB_1T; // for 1T2R, 1T1R
 #ifdef EXT_ANT_DVRY
@@ -948,7 +888,6 @@ struct rf_finetune_var {
 	unsigned char		ext_ad_Ttry;
 	unsigned char		ext_ad_Ts;
 	unsigned char		ExtAntDvry;
-#endif
 #endif
 	unsigned char		rssi_dump;
 	unsigned char		rxfifoO;
@@ -967,13 +906,6 @@ struct rf_finetune_var {
 	unsigned char		rssi_expire_to;
 
 	// bcm old 11n chipset iot debug
-#if defined(RTL8190) || defined(RTL8192E)
-	unsigned char		fsync_func_on;
-	unsigned char		fsync_mcs_th;
-	unsigned char		fsync_rssi_th;
-	unsigned char		mcs_ignore_upper;
-	unsigned char		mcs_ignore_lower;
-#endif
 
 	unsigned char		mlcstRxIgUpperBound;
 
@@ -1056,9 +988,6 @@ struct rf_finetune_var {
 	unsigned char		txPowerPlus_mcs_14;
 	unsigned char		txPowerPlus_mcs_15;
 #endif
-#if !defined(RTL8192SU)
-	unsigned char		rootFwBeacon;		// use FW to send beacon
-#endif
 };
 
 
@@ -1090,9 +1019,7 @@ enum {
 enum {
 	DRV_STATE_INIT	 = 1,	/* driver has been init */
 	DRV_STATE_OPEN	= 2,	/* driver is opened */
-#ifdef RTL8192SU
 	DRV_STATE_CLOSE	= 4,	/* driver is closing */
-#endif
 #ifdef UNIVERSAL_REPEATER
 	DRV_STATE_VXD_INIT = 4,	/* vxd driver has been opened */
 	DRV_STATE_VXD_AP_STARTED	= 8, /* vxd ap has been started */
@@ -1174,15 +1101,10 @@ struct priv_shared_info {
 	pid_t					wlanwapi_pid;
 #endif
 
-#ifdef CONFIG_NET_PCI
-	struct pci_dev			*pdev;
-#endif
 
-#ifdef __KERNEL__
 	struct tasklet_struct	rx_tasklet;
 	struct tasklet_struct	tx_tasklet;
 	struct tasklet_struct	oneSec_tasklet;
-#endif
 
 	struct wlan_hdr_poll	*pwlan_hdr_poll;
 	struct list_head		wlan_hdrlist;
@@ -1200,9 +1122,6 @@ struct priv_shared_info {
 	struct list_head		wlanmic_list;
 
 	struct rtl8190_hw		*phw;
-#if !defined(RTL8192SU)
-	struct rtl8190_tx_desc_info 	*pdesc_info;
-#endif	
 	unsigned int			have_hw_mic;
 
 	struct aid_obj			*aidarray[NUM_STAT];
@@ -1212,17 +1131,6 @@ struct priv_shared_info {
 	struct list_head		galileo_list;
 #endif
 
-#if defined(RTL8190) || defined(RTL8192E)
-	unsigned char			fw_boot_buf[FW_BOOT_SIZE];
-	unsigned char			fw_main_buf[FW_MAIN_SIZE];
-	unsigned char			fw_data_buf[FW_DATA_SIZE];
-	unsigned char			agc_tab_buf[AGC_TAB_SIZE];
-	unsigned char			mac_reg_buf[MAC_REG_SIZE];
-	unsigned char			phy_reg_buf[PHY_REG_SIZE];
-	unsigned short			fw_boot_len;
-	unsigned short			fw_main_len;
-	unsigned short			fw_data_len;
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 
 #ifdef RTL867X_DMEM_ENABLE
 	unsigned char			*fw_IMEM_buf;
@@ -1260,19 +1168,13 @@ struct priv_shared_info {
 	unsigned short			hw_init_num;
 	unsigned char			last_reinit;
 #endif
-#endif
 
-#ifdef __KERNEL__
 	spinlock_t				lock;
-#endif
 
 	// for RF fine tune
 	struct rf_finetune_var	rf_ft_var;
 
 	// bcm old 11n chipset iot debug
-#if defined(RTL8190) || defined(RTL8192E)
-	unsigned int			fsync_refine_on; 	// 0=default, 1=late
-#endif
 
 	// TXOP enlarge
 	unsigned int			txop_enlarge;	// 0=no txop, 1=half txop enlarged, 2=full txop enlarged
@@ -1307,17 +1209,10 @@ struct priv_shared_info {
 	// for Tx power control
 	unsigned char			working_channel;
 	unsigned char			use_default_para;
-#if defined(RTL8190) || defined(RTL8192E)
-	unsigned char			legacyOFDM_pwrdiff;
-	signed char				channelAC_pwrdiff;
-	unsigned char			bw_pwrdiff_sign;
-	unsigned char			bw_pwrdiff_ofst;
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 	unsigned char			legacyOFDM_pwrdiff_A;
 	unsigned char			legacyOFDM_pwrdiff_B;
 	signed char				channelAB_pwrdiff;
 	unsigned char			min_ampdu_spacing;
-#endif
 
 	/*********************************************************
 	 * from here on, data will be clear in rtl8190_init_sw() *
@@ -1364,12 +1259,8 @@ struct priv_shared_info {
 	unsigned char			mp_antenna_rx;
 	unsigned char			mp_txpwr_cck;
 	unsigned char			mp_txpwr_ofdm;
-#if	defined(RTL8190)
-	unsigned char			mp_txpwr_mcs;
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 	unsigned char			mp_txpwr_mcs_1ss;
 	unsigned char			mp_txpwr_mcs_2ss;
-#endif
 	void 					*skb_pool_ptr;
 	struct sk_buff 			*skb_pool[NUM_MP_SKB];
 	int						skb_head;
@@ -1405,13 +1296,11 @@ struct priv_shared_info {
 	unsigned char			*txcmd_buf;
 	unsigned long			cmdbuf_phyaddr;
 	unsigned long			InterruptMask;
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	unsigned long			InterruptMaskExt;
 	unsigned int			rx_rpt_ofdm;
 	unsigned int			rx_rpt_cck;
 	unsigned int			rx_rpt_ht;
 	unsigned int			successive_bb_hang;
-#endif
 
 	unsigned long			rxFiFoO_pre;
 
@@ -1443,12 +1332,10 @@ struct priv_shared_info {
 
 	unsigned int			set_led_in_progress;
 
-#if	defined(RTL8192SE) || defined(RTL8192SU)
 	struct stat_info		*CurPstat; // for tx desc break field
 	unsigned int			has_2r_sta; // Used when AP is 2T2R. bitmap of 2R aid
 	int						has_triggered_rx_tasklet;
 	int						has_triggered_tx_tasklet;
-#endif
 
 #if defined(RTL8192E) || defined(STA_EXT)
 	unsigned char			fw_free_space;
@@ -1462,7 +1349,6 @@ struct priv_shared_info {
 	struct stat_info		*EXT_AD_pstat;
 #endif
 
-#ifdef RTL8192SU
 	// RF and BB access related synchronization flags.
 	bool			bChangeBBInProgress; // BaseBand RW is still in progress.
 	bool			bChangeRFInProgress; // RF RW is still in progress.
@@ -1486,7 +1372,6 @@ struct priv_shared_info {
 	unsigned long       tmpTCR;
 	unsigned char		drop_pkt;
 	//unsigned long       mp_pkt_txcnt;
-#endif
 #endif
 	unsigned char 	IC_Class;
 };
@@ -1539,10 +1424,8 @@ struct rtl8190_priv {
 #endif
 #ifdef MBSSID
 	struct rtl8190_priv		*pvap_priv[4];	// ptr of private structure of vap interface
-#ifdef RTL8192SU
 	struct sk_buff			*amsdu_skb;
 	unsigned int			amsdu_pkt_remain_size;
-#endif
 	short					vap_id;
 	short					vap_init_seq;
 #endif
@@ -1632,7 +1515,6 @@ struct rtl8190_priv {
 	unsigned long			wapiMCastKeyUpdateCnt;
 #endif
 
-#ifdef RTL8192SU
 	struct usb_device		*udev;
 	struct urb				**rx_urb;
 	struct semaphore		wx_sem;
@@ -1650,16 +1532,13 @@ struct rtl8190_priv {
 	unsigned char			EfuseMap[2][HWSET_MAX_SIZE_92S];
 	unsigned short			EfuseUsedBytes;
 #endif
-#ifdef CONFIG_RTL8671
 	struct timer_list	poll_usb_timer;
 #ifdef SW_LED
 	struct usb_ctrlrequest *led_dr;
 	u8 *led_data;
 	struct urb *led_urb;
 #endif
-#endif
 
-#endif
 
 	/*********************************************************
 	 * from here on, data will be clear in rtl8190_init_sw() *
@@ -1718,20 +1597,11 @@ struct rtl8190_priv {
 	unsigned int			ht_legacy_sta_num;
 	unsigned int			ht_protection;
 	unsigned int			dc_th_current_state;
-#if !defined(RTL8192SE) && !defined(RTL8192SU)
-	// bcm old 11n chipset iot debug
-	struct stat_info 		*fsync_monitor_pstat;
-	struct timer_list		fsync_timer;
-#endif
 
 	// to avoid add RAtid fail
 	struct timer_list		add_RATid_timer;
 
 	// to avoid client mode assoc fail with TKIP/AES
-#if defined(RTL8190) && defined(CLIENT_MODE)
-	unsigned int			clnt_asoc_wait_count;
-	unsigned int 			issueAssoc;
-#endif
 
 	unsigned short			timoffset;
 	unsigned char			dtimcount;
@@ -1791,10 +1661,6 @@ struct rtl8190_priv {
 	unsigned int			dual_band;
 	unsigned int			supported_rates_alt;
 	unsigned int			basic_rates_alt;
-#if defined(RTL8190) || defined(RTL8192E)
-	int 					is_wep_tkip_encypt;
-	unsigned char			mac_4965[6];
-#endif
 #endif
 
 	int						authModeToggle;		// auth mode toggle referred when auto-auth mode is set under client mode, david
@@ -1811,9 +1677,7 @@ struct rtl8190_priv {
 
 #ifdef SEMI_QOS
 	unsigned char			BE_switch_to_VI;
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	unsigned int			BE_wifi_EDCA_enhance;
-#endif
 #endif
 
 #ifdef WIFI_11N_2040_COEXIST
@@ -2016,9 +1880,7 @@ struct rtl8190_priv {
 	int 							stop_tx_mcast2uni;
 #endif
 
-#ifdef RTL8192SU
 	atomic_t				tx_pending[0x10];//UART_PRIORITY+1
-#endif
 };
 
 struct rtl8190_chr_priv {
@@ -2073,11 +1935,7 @@ struct rtl8190_chr_priv {
 
 #define SSID2SCAN_LEN	((GET_MIB(priv))->dot11StationConfigEntry.dot11SSIDtoScanLen)
 
-#if !defined(RTL8192SU)
-#define RX_BUF_LEN		((GET_MIB(priv))->dot11nConfigEntry.dot11nAMSDURecvMax?(MAX_RX_BUF_LEN):(MIN_RX_BUF_LEN))
-#else
 #define RX_BUF_LEN		RX_ALLOC_SIZE
-#endif
 
 
 #ifdef SEMI_QOS
@@ -2138,9 +1996,7 @@ struct rtl8190_chr_priv {
 	} while(0)
 
 #define IS_DRV_OPEN(priv) ((priv==NULL) ? 0 : ((priv->drv_state & DRV_STATE_OPEN) ? 1 : 0))
-#ifdef RTL8192SU
 #define IS_DRV_CLOSE(priv) ((priv==NULL) ? 0 : ((priv->drv_state & DRV_STATE_CLOSE) ? 1 : 0))
-#endif
 
 #if defined(UNIVERSAL_REPEATER) || defined(MBSSID)
 #define GET_ROOT_PRIV(priv)			(priv->proot_priv)
@@ -2249,30 +2105,12 @@ struct rtl8190_chr_priv {
 	extern register_usb_pkt_cnt_fn register_usb_hook;
 #endif
 
-#ifdef MERGE_FW
-	// The following symbles are defined in arch/mips/ld.script.in.*
-	extern char __fw_start[], __fw_end[], __AGC_TAB_start[], __AGC_TAB_end[];
-	extern char	__phy_reg_start[], __phy_reg_end[], __MACPHY_REG_start[], __MACPHY_REG_end[];
-	extern char __radio_a_start[], __radio_a_end[], __radio_b_start[], __radio_b_end[];
-#ifdef HIGH_POWER_EXT_PA
-	extern char __radio_a_hp_start[], __radio_a_hp_end[];
-#endif
-	extern char __PHY_REG_PG_start[], __PHY_REG_PG_end[];
-	extern char __PHY_to1T2R_start[], __PHY_to1T2R_end[];
-	extern char __PHY_to1T2R_b_start[], __PHY_to1T2R_b_end[];
-	extern char __PHY_to1T1R_start[], __PHY_to1T1R_end[];
-	extern char __PHY_to1T1R_b_start[], __PHY_to1T1R_b_end[];
-#if (defined(RTL8192SE)||defined(RTL8192SU)) && defined(MP_TEST)
-	extern char __phy_reg_MP_start[], __phy_reg_MP_end[];
-#endif
-#endif
 
 #ifdef CONFIG_RTK_VLAN_SUPPORT
 extern int  rx_vlan_process(struct net_device *dev, struct VlanConfig *info, struct sk_buff *skb);
 extern int  tx_vlan_process(struct net_device *dev, struct VlanConfig *info, struct sk_buff *skb, int wlan_pri);
 #endif
 
-#ifdef RTL8192SU
 typedef enum{
 	BULK_PRIORITY = 0x01,
 	//RSVD0,
@@ -2302,7 +2140,6 @@ struct usb_priv
 	int buffer_length;
 	int index;
 };
-#endif //RTL8192SU
 
 #endif // _8190N_H_
 

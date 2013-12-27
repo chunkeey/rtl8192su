@@ -1,6 +1,5 @@
 #define _8190N_FILE_C_
 
-#ifdef __KERNEL__
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -9,7 +8,6 @@
 #include <linux/fs.h>
 #include <linux/fcntl.h>
 #include <asm/uaccess.h>
-#endif
 
 
 //Joshua

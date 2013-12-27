@@ -6,15 +6,10 @@
 
 #define _8190N_AES_C_
 
-#ifdef __KERNEL__
 #include <asm/byteorder.h>
-#endif
 
 #include "./8190n_cfg.h"
 
-#ifndef __KERNEL__
-#include "./sys-support.h"
-#endif
 
 #include "./8190n.h"
 #include "./ieee802_mib.h"

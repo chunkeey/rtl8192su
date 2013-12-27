@@ -7,11 +7,9 @@
 #ifndef _8190N_UTIL_H_
 #define _8190N_UTIL_H_
 #include <linux/module.h>
-#ifdef __KERNEL__
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/circ_buf.h>
-#endif
 
 #include "./8190n_cfg.h"
 #include "./8190n.h"
@@ -30,20 +28,13 @@
 #define	SAVE_INT_AND_CLI(x)		{ x = save_and_cli(); }
 #define RESTORE_INT(x)			restore_flags(x)
 #else
-#ifdef __LINUX_2_6__
 #define SAVE_INT_AND_CLI(x)		{ if (spin_can_lock(&priv->pshare->lock)) spin_lock_irqsave(&priv->pshare->lock, x); else x = 0; }
 #define RESTORE_INT(x)			{ if (x != 0) spin_unlock_irqrestore(&priv->pshare->lock, x); }
-#else
-#define SAVE_INT_AND_CLI(x)		spin_lock_irqsave(&priv->pshare->lock, x)
-#define RESTORE_INT(x)			spin_unlock_irqrestore(&priv->pshare->lock, x)
-#endif
 #endif
 
-#ifdef __LINUX_2_6__
 #ifdef virt_to_bus
 	#undef virt_to_bus
 	#define virt_to_bus			CPHYSADDR
-#endif
 #endif
 
 #ifdef USE_IO_OPS
@@ -77,13 +68,8 @@
 
 #define PAGE_NUM 15
 
-#ifdef __LINUX_2_6__
 	#define IO_TYPE_CAST	(unsigned char *)
-#else
-	#define IO_TYPE_CAST	(unsigned int)
-#endif
 
-#if defined(RTL8192SU)
 #define PATCH_USB_IN_SCHEDULING
 int new_usb_control_msg(struct usb_device *dev, unsigned int pipe, __u8 request, __u8 requesttype, __u16 value, __u16 index, void *data, __u16 size, int timeout);
 #ifdef PATCH_USB_IN_SCHEDULING
@@ -113,238 +99,9 @@ __attribute__((nomips16)) void delay_us(unsigned int t);
 __attribute__((nomips16)) void delay_ms(unsigned int t);
 
 
-#else //!RTL8192SU
-
-extern unsigned char rfc1042_header[WLAN_LLC_HEADER_SIZE];
-
-static __inline__ unsigned char RTL_R8_F(struct rtl8190_priv *priv, unsigned long ioaddr, unsigned int reg)
-{
-	unsigned char val8 = 0;
-#if defined(USE_RTL8186_SDK) && !defined(CONFIG_RTL8196B)
-	int swap[4]={3,2,1,0};
-	int diff = swap[reg&0x3];
-#endif
-
-#ifdef IO_MAPPING
-	unsigned char page = ((unsigned char)(reg >> 8)) & PAGE_NUM;
-	if (priv->pshare->io_mapping && page)
-	{
-		unsigned long x;
-		SAVE_INT_AND_CLI(x);
-
-		writeb(readb(IO_TYPE_CAST(ioaddr + _PSR_)) | page, IO_TYPE_CAST(ioaddr + _PSR_));
-#if defined(USE_RTL8186_SDK) && !defined(CONFIG_RTL8196B)
-		val8 = readb(IO_TYPE_CAST(ioaddr + (((reg&~3)+diff) & 0x000000ff)));
-#else
-		val8 = readb(IO_TYPE_CAST(ioaddr + (reg & 0x000000ff)));
-#endif
-		writeb(readb(IO_TYPE_CAST(ioaddr + _PSR_)) & (~PAGE_NUM), IO_TYPE_CAST(ioaddr + _PSR_));
-
-		RESTORE_INT(x);
-	}
-	else
-#endif
-	{
-#if defined(USE_RTL8186_SDK) && !defined(CONFIG_RTL8196B)
-		val8 = readb(IO_TYPE_CAST(ioaddr + ((reg&~3)+diff)));
-#else
-		val8 = readb(IO_TYPE_CAST(ioaddr + reg));
-#endif
-	}
-
-	return val8;
-}
-
-static __inline__ unsigned short RTL_R16_F(struct rtl8190_priv *priv, unsigned long ioaddr, unsigned int reg)
-{
-	unsigned short val16 = 0;
-#if defined(USE_RTL8186_SDK) && !defined(CONFIG_RTL8196B)
-	int diff = 2-(reg&0x3);
-#endif
-
-#ifdef IO_MAPPING
-	unsigned char page = ((unsigned char)(reg >> 8)) & PAGE_NUM;
-	if (priv->pshare->io_mapping && page)
-	{
-		unsigned long x;
-		SAVE_INT_AND_CLI(x);
-
-		writeb(readb(IO_TYPE_CAST(ioaddr + _PSR_)) | page, IO_TYPE_CAST(ioaddr + _PSR_));
-#if defined(USE_RTL8186_SDK) && !defined(CONFIG_RTL8196B)
-		val16 = readw(IO_TYPE_CAST(ioaddr + (((reg&~3) + diff) & 0x000000ff)));
-#else
-		val16 = readw(IO_TYPE_CAST(ioaddr + (reg & 0x000000ff)));
-#endif
-		writeb(readb(IO_TYPE_CAST(ioaddr + _PSR_)) & (~PAGE_NUM), IO_TYPE_CAST(ioaddr + _PSR_));
-
-		RESTORE_INT(x);
-	}
-	else
-#endif
-	{
-#if defined(USE_RTL8186_SDK) && !defined(CONFIG_RTL8196B)
-		val16 = readw(IO_TYPE_CAST(ioaddr + ((reg&~3) + diff)));
-#else
-		val16 = readw(IO_TYPE_CAST(ioaddr + reg));
-#endif
-	}
 
 #ifdef CHECK_SWAP
-	if (priv->pshare->type & ACCESS_SWAP_IO)
-		val16 = le16_to_cpu(val16);
-#endif
-
-	return val16;
-}
-
-static __inline__ unsigned int RTL_R32_F(struct rtl8190_priv *priv, unsigned long ioaddr, unsigned int reg)
-{
-	unsigned int val32 = 0;
-
-#ifdef IO_MAPPING
-	unsigned char page = ((unsigned char)(reg >> 8)) & PAGE_NUM;
-	if (priv->pshare->io_mapping && page)
-	{
-		unsigned long x;
-		SAVE_INT_AND_CLI(x);
-
-		writeb(readb(IO_TYPE_CAST(ioaddr + _PSR_)) | page, IO_TYPE_CAST(ioaddr + _PSR_));
-		val32 = readl(IO_TYPE_CAST(ioaddr + (reg & 0x000000ff)));
-		writeb(readb(IO_TYPE_CAST(ioaddr + _PSR_)) & (~PAGE_NUM), IO_TYPE_CAST(ioaddr + _PSR_));
-
-		RESTORE_INT(x);
-	}
-	else
-#endif
-	{
-		val32 = readl(IO_TYPE_CAST(ioaddr + reg));
-	}
-
-#ifdef CHECK_SWAP
-	if (priv->pshare->type & ACCESS_SWAP_IO)
-		val32 = le32_to_cpu(val32);
-#endif
-
-	return val32;
-}
-
-static __inline__ void RTL_W8_F(struct rtl8190_priv *priv, unsigned long ioaddr, unsigned int reg, unsigned char val8)
-{
-#ifdef IO_MAPPING
-	unsigned char page = ((unsigned char)(reg >> 8)) & PAGE_NUM;
-	if (priv->pshare->io_mapping && page)
-	{
-		unsigned long x;
-		SAVE_INT_AND_CLI(x);
-
-		writeb(readb(IO_TYPE_CAST(ioaddr + _PSR_)) | page, IO_TYPE_CAST(ioaddr + _PSR_));
-		writeb(val8, IO_TYPE_CAST(ioaddr + (reg & 0x000000ff)));
-		writeb(readb(IO_TYPE_CAST(ioaddr + _PSR_)) & (~PAGE_NUM), IO_TYPE_CAST(ioaddr + _PSR_));
-
-		RESTORE_INT(x);
-	}
-	else
-#endif
-	{
-		writeb(val8, IO_TYPE_CAST(ioaddr + reg));
-	}
-}
-
-static __inline__ void RTL_W16_F(struct rtl8190_priv *priv, unsigned long ioaddr, unsigned int reg, unsigned short val16)
-{
-	unsigned short val16_n = val16;
-#ifdef IO_MAPPING
-	unsigned char page;
-#endif
-
-#ifdef CHECK_SWAP
-	if (priv->pshare->type & ACCESS_SWAP_IO)
-		val16_n = cpu_to_le16(val16);
-#endif
-
-#ifdef IO_MAPPING
-	page = ((unsigned char)(reg >> 8)) & PAGE_NUM;
-	if (priv->pshare->io_mapping && page)
-	{
-		unsigned long x;
-		SAVE_INT_AND_CLI(x);
-
-		writeb(readb(IO_TYPE_CAST(ioaddr + _PSR_)) | page, IO_TYPE_CAST(ioaddr + _PSR_));
-		writew(val16_n, IO_TYPE_CAST(ioaddr + (reg & 0x000000ff)));
-		writeb(readb(IO_TYPE_CAST(ioaddr + _PSR_)) & (~PAGE_NUM), IO_TYPE_CAST(ioaddr + _PSR_));
-
-		RESTORE_INT(x);
-	}
-	else
-#endif
-	{
-		writew(val16_n, IO_TYPE_CAST(ioaddr + reg));
-	}
-}
-
-static __inline__ void RTL_W32_F(struct rtl8190_priv *priv, unsigned long ioaddr, unsigned int reg, unsigned int val32)
-{
-	unsigned int val32_n = val32;
-#ifdef IO_MAPPING
-	unsigned char page;
-#endif
-
-#ifdef CHECK_SWAP
-	if (priv->pshare->type & ACCESS_SWAP_IO)
-		val32_n = cpu_to_le32(val32);
-#endif
-
-#ifdef IO_MAPPING
-	page = ((unsigned char)(reg >> 8)) & PAGE_NUM;
-	if (priv->pshare->io_mapping && page)
-	{
-		unsigned long x;
-		SAVE_INT_AND_CLI(x);
-
-		writeb(readb(IO_TYPE_CAST(ioaddr + _PSR_)) | page, IO_TYPE_CAST(ioaddr + _PSR_));
-		writel(val32_n, IO_TYPE_CAST(ioaddr + (reg & 0x000000ff)));
-		writeb(readb(IO_TYPE_CAST(ioaddr + _PSR_)) & (~PAGE_NUM), IO_TYPE_CAST(ioaddr + _PSR_));
-
-		RESTORE_INT(x);
-	}
-	else
-#endif
-	{
-		writel(val32_n, IO_TYPE_CAST(ioaddr + reg));
-	}
-}
-
-#define RTL_R8(reg)		\
-	(RTL_R8_F(priv, ioaddr, reg))
-
-#define RTL_R16(reg)	\
-	(RTL_R16_F(priv, ioaddr, reg))
-
-#define RTL_R32(reg)	\
-	(RTL_R32_F(priv, ioaddr, reg))
-
-#define RTL_W8(reg, val8)	\
-	do { \
-		RTL_W8_F(priv, ioaddr, reg, val8); \
-	} while (0)
-
-#define RTL_W16(reg, val16)	\
-	do { \
-		RTL_W16_F(priv, ioaddr, reg, val16); \
-	} while (0)
-
-#define RTL_W32(reg, val32)	\
-	do { \
-		RTL_W32_F(priv, ioaddr, reg, val32) ; \
-	} while (0)
-#endif //RTL8192SU
-
-#ifdef CHECK_SWAP
-#if defined(DISABLE_UNALIGN_TRAP) && defined(CONFIG_ENABLE_MIPS16)
-#define get_desc(val)	((priv->pshare->type & ACCESS_SWAP_MEM) ? swap32((u32 *)&(val)) : val)
-#else
 #define get_desc(val)	((priv->pshare->type & ACCESS_SWAP_MEM) ? le32_to_cpu(val) : val)
-#endif
 #define set_desc(val)	((priv->pshare->type & ACCESS_SWAP_MEM) ? cpu_to_le32(val) : val)
 #else
 #define get_desc(val)	(val)
@@ -360,27 +117,7 @@ static __inline__ void RTL_W32_F(struct rtl8190_priv *priv, unsigned long ioaddr
 
 #define UINT32_DIFF(a, b)		((a >= b)? (a - b):(0xffffffff - b + a + 1))
 
-#if !defined(RTL8192SU)
-static __inline__ struct list_head *dequeue_frame(struct rtl8190_priv *priv, struct list_head *head)
-{
-	unsigned long flags;
-	struct list_head *pnext;
-
-	if (list_empty(head))
-		return (void *)NULL;
-
-	SAVE_INT_AND_CLI(flags);
-
-	pnext = head->next;
-	list_del_init(pnext);
-
-	RESTORE_INT(flags);
-
-	return pnext;
-}
-#else
 struct list_head *dequeue_frame(struct rtl8190_priv *priv, struct list_head *head);
-#endif
 
 static __inline__ int wifi_mac_hash(unsigned char *mac)
 {
@@ -400,11 +137,7 @@ static __inline__ int wifi_mac_hash(unsigned char *mac)
 
 static __inline__ struct rx_frinfo *get_pfrinfo(struct sk_buff *pskb)
 {
-#if !defined(RTL8192SU)
-	return (struct rx_frinfo *)((unsigned long)(pskb->data) - sizeof(struct rx_frinfo));
-#else
 	return (struct rx_frinfo *)((unsigned long)(pskb->end) - sizeof(struct rx_frinfo));
-#endif
 }
 
 static __inline__ struct sk_buff *get_pskb(struct rx_frinfo *pfrinfo)
@@ -412,14 +145,7 @@ static __inline__ struct sk_buff *get_pskb(struct rx_frinfo *pfrinfo)
 	return (pfrinfo->pskb);
 }
 
-#if !defined(RTL8192SU)
-static __inline__ UINT8 *get_pframe(struct rx_frinfo *pfrinfo)
-{
-	return (UINT8 *)((UINT)(pfrinfo->pskb->data));
-}
-#else
 UINT8 *get_pframe(struct rx_frinfo *pfrinfo);
-#endif
 
 static __inline__ UINT8	get_hdrlen(struct rtl8190_priv *priv, UINT8 *pframe)
 {
@@ -491,9 +217,6 @@ static __inline__ UINT8	get_hdrlen(struct rtl8190_priv *priv, UINT8 *pframe)
 	}
 }
 
-#ifdef CONFIG_NET_PCI
-#define IS_PCIBIOS_TYPE		(((priv->pshare->type >> TYPE_SHIFT) & TYPE_MASK) == TYPE_PCI_BIOS)
-#endif
 
 #define rtl_atomic_inc(ptr_atomic_t)	atomic_inc(ptr_atomic_t)
 #define rtl_atomic_dec(ptr_atomic_t)	atomic_dec(ptr_atomic_t)
@@ -541,37 +264,8 @@ static __inline__ struct sk_buff *rtl_dev_alloc_rxRing_skb(	struct rtl8190_priv 
 
 // Allocate net device socket buffer
 
-#if !defined(RTL8192SU)
-static __inline__ struct sk_buff *rtl_dev_alloc_skb(struct rtl8190_priv *priv,
-				unsigned int length, int flag, int could_alloc_from_kerenl)
-{
-	struct sk_buff *skb = NULL;
-
-//	skb = dev_alloc_skb(length);
-	extern  struct sk_buff *alloc_skb_from_queue(struct rtl8190_priv *priv);
-
-	skb = alloc_skb_from_queue(priv);
-
-	if (skb == NULL && could_alloc_from_kerenl)
-		skb = dev_alloc_skb(length);
-
-#ifdef RTL8190_FASTEXTDEV_FUNCALL
-	rtl865x_extDev_pktFromProtocolStack(skb);
-#endif
-
-#ifdef ENABLE_RTL_SKB_STATS
-	if (flag & (_SKB_TX_ | _SKB_TX_IRQ_))
-		rtl_atomic_inc(&priv->rtl_tx_skb_cnt);
-	else
-		rtl_atomic_inc(&priv->rtl_rx_skb_cnt);
-#endif
-
-	return skb;
-}
-#else
 struct sk_buff *rtl_dev_alloc_skb(struct rtl8190_priv *priv,
 				unsigned int length, int flag, int could_alloc_from_kerenl);
-#endif //!RTL8192SU
 
 #ifdef RTL8190_FASTEXTDEV_FUNCALL
 /*
@@ -610,26 +304,7 @@ static __inline__ void rtl_actually_kfree_skb(struct rtl8190_priv *priv, struct 
 #endif /* RTL8190_FASTEXTDEV_FUNCALL */
 
 // Free net device socket buffer
-#if !defined(RTL8192SU)
-static __inline__ void rtl_kfree_skb(struct rtl8190_priv *priv, struct sk_buff *skb, int flag)
-{
-#ifdef ENABLE_RTL_SKB_STATS
-	if (flag & (_SKB_TX_ | _SKB_TX_IRQ_))
-		rtl_atomic_dec(&priv->rtl_tx_skb_cnt);
-	else
-		rtl_atomic_dec(&priv->rtl_rx_skb_cnt);
-#endif
-
-#ifdef RTL8190_FASTEXTDEV_FUNCALL
-	/* Do NOT actually free Fast Extension Device's mbuf if it is from RX Ring */
-	rtl865x_extDev_kfree_skb(skb, FALSE);
-#else
-	dev_kfree_skb_any(skb);
-#endif //RTL8190_FASTEXTDEV_FUNCALL
-}
-#else
 void rtl_kfree_skb(struct rtl8190_priv *priv, struct sk_buff *skb, int flag);
-#endif
 
 static __inline__ int is_CCK_rate(unsigned char rate)
 {
@@ -667,70 +342,29 @@ static __inline__ int is_MCS_2SS_rate(unsigned char rate)
 static __inline__ void rtl_cache_sync_wback(struct rtl8190_priv *priv, unsigned int start,
 				unsigned int size, int direction)
 {
-#ifdef __LINUX_2_6__
 #if defined(CACHE_WRITEBACK) && defined(RTL8192SU)
 	dma_cache_wback_inv((unsigned long)start, size);
 	return;
 #endif
-#ifndef CONFIG_X86	//joshua
-		start = CPHYSADDR(start);
-#endif
-#endif
-#ifdef CONFIG_NET_PCI
-		if (IS_PCIBIOS_TYPE) {
-#ifdef __LINUX_2_6__
-			pci_dma_sync_single_for_cpu(priv->pshare->pdev, start, size, direction);
-#else
-			pci_dma_sync_single(priv->pshare->pdev, start, size, direction);
-#endif
-		}
-		else
-			dma_cache_wback_inv((unsigned long)bus_to_virt(start), size);
-#else
 		dma_cache_wback_inv((unsigned long)bus_to_virt(start), size);
-#endif
 }
 
 
 static __inline__ unsigned long get_physical_addr(struct rtl8190_priv *priv, void *ptr,
 				unsigned int size, int direction)
 {
-#if defined(CONFIG_NET_PCI) && !defined(USE_RTL8186_SDK)
-	if (IS_PCIBIOS_TYPE)
-		return pci_map_single(priv->pshare->pdev, ptr, size, direction);
-	else
-#endif
 		return virt_to_bus(ptr);
 }
 
 
 static __inline__ int get_rf_mimo_mode(struct rtl8190_priv *priv)
 {
-#if defined(RTL8190) || defined(RTL8192E)
-	if (GET_HW(priv)->MIMO_TR_hw_support == MIMO_1T2R) {
-		if (GET_MIB(priv)->dot11RFEntry.MIMO_TR_mode == MIMO_1T1R)
-			return MIMO_1T1R;
-		else
-			return MIMO_1T2R;
-	}
-	else {	// 2 rtl8256 chips on board
-		if (GET_MIB(priv)->dot11RFEntry.MIMO_TR_mode == MIMO_1T1R)
-			return MIMO_1T1R;
-		else if (GET_MIB(priv)->dot11RFEntry.MIMO_TR_mode == MIMO_1T2R)
-			return MIMO_1T2R;
-		else if (GET_MIB(priv)->dot11RFEntry.MIMO_TR_mode == MIMO_2T2R)
-			return MIMO_2T2R;
-		else
-			return MIMO_2T4R;
-	}
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 	if (GET_MIB(priv)->dot11RFEntry.MIMO_TR_mode == MIMO_1T2R)
 		return MIMO_1T2R;
 	else if(GET_MIB(priv)->dot11RFEntry.MIMO_TR_mode == MIMO_1T1R)
 		return MIMO_1T1R;
 	else
 		return MIMO_2T2R;
-#endif
 }
 
 
@@ -806,19 +440,12 @@ static __inline__ unsigned char get_cck_swing_idx(unsigned int bandwidth, unsign
 }
 
 
-#ifdef RTL8192SE
-#define CIRC_CNT_RTK(head,tail,size)	((head>=tail)?(head-tail):(size-tail+head))
-#define CIRC_SPACE_RTK(head,tail,size)	CIRC_CNT_RTK((tail),((head)+1),(size))
-#else
 #define CIRC_CNT_RTK(head,tail,size)	CIRC_CNT(head,tail,size)
 #define CIRC_SPACE_RTK(head,tail,size)	CIRC_SPACE(head,tail,size)
-#endif
 
-#ifdef RTL8192SU
 void OR_EQUAL(volatile unsigned int *addr,unsigned int val);
 void AND_EQUAL(volatile unsigned int *addr,unsigned int val);
 void SET_EQUAL(volatile unsigned int *addr,unsigned int val);
-#endif
 
 
 #endif // _8190N_UTIL_H_

@@ -407,21 +407,6 @@ int mib_get(struct rtl8190_priv *priv, char *oid, unsigned char *data, int *pLen
 			break;
 	}
 
-#if 0
-	{
-		int i;
-		printk("name=%s, val_type=%d, len=%d", mib->name, *pVal_type, *pLen);
-		if (*pVal_type == VAL_STR)
-			printk(", val=%s\n", data);
-		else {
-			printk(", val=");
-			for (i=0; i<*pLen; i++) {
-				printk("%02x ", data[i]);
-			}
-			printk("\n");
-		}
-	}
-#endif
 	*pLen += 1;
 	return 1;
 }
