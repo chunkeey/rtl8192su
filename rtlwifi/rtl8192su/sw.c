@@ -180,7 +180,6 @@ static struct rtl_hal_ops rtl8192su_hal_ops = {
 	.scan_operation_backup = rtl92s_phy_scan_operation_backup,
 	.set_rf_power_state = rtl92s_phy_set_rf_power_state,
 	.led_control = rtl92su_led_control,
-	.get_desc = rtl92se_get_desc,
 
 	.enable_hw_sec = rtl92s_enable_hw_security_config,
 	.set_key = rtl92s_set_key,
@@ -192,13 +191,11 @@ static struct rtl_hal_ops rtl8192su_hal_ops = {
 	.get_rfreg = rtl92s_phy_query_rf_reg,
 	.set_rfreg = rtl92s_phy_set_rf_reg,
 
-	.query_rx_desc = rtl92se_rx_query_desc,
+	.query_rx_desc = rtl92su_rx_query_desc,
 
-	.fill_tx_desc = rtl92se_tx_fill_desc,
-	.cmd_send_packet = rtl92se_cmd_send_packet,
-	.fill_tx_cmddesc = rtl92se_tx_fill_cmddesc,
-	.set_desc = rtl92se_set_desc,
-	.tx_polling = rtl92se_tx_polling,
+	.fill_tx_desc = rtl92su_tx_fill_desc,
+	.cmd_send_packet = rtl92su_cmd_send_packet,
+	.fill_tx_cmddesc = rtl92su_tx_fill_cmddesc,
 
 	.enable_interrupt = rtl92su_enable_interrupt,
 	.disable_interrupt = rtl92su_disable_interrupt,
@@ -210,7 +207,7 @@ static struct rtl_mod_params rtl92su_mod_params = {
 	.inactiveps = false,
 	.swctrl_lps = false,
 	.fwctrl_lps = false,
-	.debug = DBG_EMERG,
+	.debug = DBG_TRACE,
 };
 
 static struct rtl_hal_usbint_cfg rtl92su_interface_cfg = {
