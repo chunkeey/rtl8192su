@@ -92,6 +92,14 @@ void rtl92s_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 }
 EXPORT_SYMBOL_GPL(rtl92s_get_hw_reg);
 
+void rtl92s_set_mac_addr(struct ieee80211_hw *hw, const u8 *addr)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	rtl_write_dword(rtlpriv, REG_MACID, *((u32 *)addr));
+	rtl_write_word(rtlpriv, REG_MACID + 4, *((u16 *)(addr + 4)));
+}
+EXPORT_SYMBOL_GPL(rtl92s_set_mac_addr);
+
 void rtl92s_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -102,8 +110,7 @@ void rtl92s_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 
 	switch (variable) {
 	case HW_VAR_ETHER_ADDR:{
-			rtl_write_dword(rtlpriv, IDR0, ((u32 *)(val))[0]);
-			rtl_write_word(rtlpriv, IDR4, ((u16 *)(val + 4))[0]);
+			rtl92s_set_mac_addr(hw, val);
 			break;
 		}
 	case HW_VAR_BASIC_RATE:{
