@@ -41,6 +41,7 @@
 #include "sw.h"
 #include "trx.h"
 #include "led.h"
+#include "debugfs.h"
 
 #include <linux/module.h>
 
@@ -139,12 +140,16 @@ static int rtl92su_init_sw_vars(struct ieee80211_hw *hw)
 		return err;
 	}
 
+	rtl8192su_register_debugfs(hw);
+
 	return err;
 }
 
 static void rtl92su_deinit_sw_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
+	rtl8192su_unregister_debugfs(hw);
 
 	if (rtlpriv->rtlhal.pfirmware) {
 		vfree(rtlpriv->rtlhal.pfirmware);

@@ -44,6 +44,17 @@ config RTL8192SU
 
 	If you choose to build it as a module, it will be called rtl8192su
 
+config RTL8192SU_DEBUGFS
+	bool "R92SU Debugfs Support"
+	depends on RTL8192SU && DEBUG_FS
+	default n
+	help
+	 Export several driver and device internals to user space
+	 via debugfs. Be be advised: writing random data in
+	 "hw_iowrite" might damage the device.
+
+	 Say N, unless you have a good reason.
+
 config RTL8192DE
 	tristate "Realtek RTL8192DE/RTL8188DE PCIe Wireless Network Adapter"
 	depends on PCI

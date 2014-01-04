@@ -1876,6 +1876,23 @@ struct rtl_works {
 	struct work_struct fill_h2c_cmd;
 };
 
+enum r92su_mem_type_t {
+	R92SU_8,
+	R92SU_16,
+	R92SU_32,
+
+	/* last entry */
+	__MAX_R92SU_MEM_TYPE
+};
+
+struct r92su_debug_mem_rbe {
+	u32 reg;
+	u32 value;
+	enum r92su_mem_type_t type;
+};
+
+#define R92SU_DEBUG_RING_SIZE			64
+
 struct rtl_debug {
 	u32 dbgp_type[DBGP_TYPE_MAX];
 	int global_debuglevel;
@@ -1884,6 +1901,11 @@ struct rtl_debug {
 	/* add for proc debug */
 	struct proc_dir_entry *proc_dir;
 	char proc_name[20];
+
+	struct dentry *dfs;
+
+	struct r92su_debug_mem_rbe ring[R92SU_DEBUG_RING_SIZE];
+	unsigned int ring_head, ring_tail, ring_len;
 };
 
 #define MIMO_PS_STATIC			0
