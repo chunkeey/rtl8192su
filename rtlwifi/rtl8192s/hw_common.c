@@ -785,13 +785,22 @@ void rtl92s_read_chip_version(struct ieee80211_hw *hw)
 
 	rtlhal->version = (rtl_read_dword(rtlpriv, PMC_FSM) & 0xf8000) >> 15;
 	pr_info("Chip version 0x%x\n", rtlhal->version);
+
+	switch (rtlpriv->rtlhal.interface) {
+	case INTF_USB:
+		rtlpriv->rtlhal.hw_type = HARDWARE_TYPE_RTL8192SU;
+		break;
+	case INTF_PCI:
+		rtlpriv->rtlhal.hw_type = HARDWARE_TYPE_RTL8192SE;
+		break;
+	}
 }
 EXPORT_SYMBOL_GPL(rtl92s_read_chip_version);
 
 static void _rtl92s_read_adapter_info(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
+	struct rtl_efuse *rtlefuse = rtl_efuse(rtlpriv);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	u16 i, usvalue;
 	u16	eeprom_id;
@@ -1093,11 +1102,11 @@ static void _rtl92s_read_adapter_info(struct ieee80211_hw *hw)
 	tempval = hwinfo[EEPROM_BOARDTYPE];
 	/* Change RF type definition */
 	if (tempval == 0)
-		rtlphy->rf_type = RF_2T2R;
+		rtlphy->rf_type = RF_1T1R;
 	else if (tempval == 1)
 		rtlphy->rf_type = RF_1T2R;
 	else if (tempval == 2)
-		rtlphy->rf_type = RF_1T2R;
+		rtlphy->rf_type = RF_2T2R;
 	else if (tempval == 3)
 		rtlphy->rf_type = RF_1T1R;
 
