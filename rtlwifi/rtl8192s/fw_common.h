@@ -42,13 +42,15 @@ enum rtl8192s_hci_type {
 };
 
 #define RTL8190_MAX_FIRMWARE_CODE_SIZE		64000
-#define RTL8190_MAX_RAW_FIRMWARE_CODE_SIZE	90000
 #define RTL8190_CPU_START_OFFSET		0x80
 /* Firmware Local buffer size. 64k */
 #define	MAX_FIRMWARE_CODE_SIZE			0xFF00
 
 #define	RT_8192S_FIRMWARE_HDR_SIZE		80
 #define RT_8192S_FIRMWARE_HDR_EXCLUDE_PRI_SIZE	32
+
+#define RTL8190_MAX_RAW_FIRMWARE_CODE_SIZE	(64000 * 2 + \
+						 MAX_FIRMWARE_CODE_SIZE)
 
 /* support till 64 bit bus width OS */
 #define MAX_DEV_ADDR_SIZE			8
