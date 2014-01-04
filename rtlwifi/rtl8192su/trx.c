@@ -324,7 +324,7 @@ static void _rtl92se_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	rtl_process_phyinfo(hw, tmp_buf, pstats);
 }
 
-bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
+bool rtl92su_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 			   struct ieee80211_rx_status *rx_status, u8 *pdesc,
 			   struct sk_buff *skb)
 {
@@ -407,7 +407,7 @@ bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 	return true;
 }
 
-void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
+void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 		struct ieee80211_hdr *hdr, u8 *pdesc_tx,
 		struct ieee80211_tx_info *info,
 		struct ieee80211_sta *sta,
@@ -518,7 +518,7 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 		/*DWORD 0*/
 		SET_TX_DESC_LINIP(pdesc, 0);
 		SET_TX_DESC_OFFSET(pdesc, 32);
-		SET_TX_DESC_PKT_SIZE(pdesc, (u16) skb->len);
+		SET_TX_DESC_PKT_SIZE(pdesc, (u16) skb->len - RTL_TX_HEADER_SIZE);
 
 		/*DWORD 1*/
 		SET_TX_DESC_RA_BRSR_ID(pdesc, ptcb_desc->ratr_index);
@@ -570,14 +570,15 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 	/*DWORD 0 */
 	SET_TX_DESC_FIRST_SEG(pdesc, (firstseg ? 1 : 0));
 	SET_TX_DESC_LAST_SEG(pdesc, (lastseg ? 1 : 0));
+	SET_TX_DESC_OWN(pdesc, 1);
 
 	/* DWORD 7 */
-	SET_TX_DESC_TX_BUFFER_SIZE(pdesc, (u16) skb->len);
+	SET_TX_DESC_TX_BUFFER_SIZE(pdesc, (u16) (skb->len - RTL_TX_HEADER_SIZE));
 
 	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
 }
 
-void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
+void rtl92su_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 	bool firstseg, bool lastseg, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -593,7 +594,7 @@ void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 		SET_TX_DESC_LINIP(pdesc, tcb_desc->last_inipkt);
 
 		/* 92SU need not to set TX packet size when firmware download */
-		SET_TX_DESC_PKT_SIZE(pdesc, (u16)(skb->len));
+		SET_TX_DESC_PKT_SIZE(pdesc, (u16)(skb->len - RTL_TX_HEADER_SIZE));
 	} else { /* H2C Command Desc format (Host TXCMD) */
 		/* 92SE must set as 1 for firmware download HW DMA error */
 		SET_TX_DESC_FIRST_SEG(pdesc, 1);
@@ -602,7 +603,7 @@ void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 		SET_TX_DESC_OFFSET(pdesc, 0x20);
 
 		/* Buffer size + command header */
-		SET_TX_DESC_PKT_SIZE(pdesc, (u16)(skb->len));
+		SET_TX_DESC_PKT_SIZE(pdesc, (u16)(skb->len - RTL_TX_HEADER_SIZE));
 		/* Fixed queue of H2C command */
 		SET_TX_DESC_QUEUE_SEL(pdesc, 0x13);
 
@@ -612,90 +613,13 @@ void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 	}
 }
 
-void rtl92se_set_desc(u8 *pdesc, bool istx, u8 desc_name, u8 *val)
-{
-	if (istx) {
-		switch (desc_name) {
-		case HW_DESC_OWN:
-			wmb();
-			SET_TX_DESC_OWN(pdesc, 1);
-			break;
-		case HW_DESC_TX_NEXTDESC_ADDR:
-			SET_TX_DESC_NEXT_DESC_ADDRESS(pdesc, *(u32 *) val);
-			break;
-		default:
-			RT_ASSERT(false, "ERR txdesc :%d not process\n",
-				  desc_name);
-			break;
-		}
-	} else {
-		switch (desc_name) {
-		case HW_DESC_RXOWN:
-			wmb();
-			SET_RX_STATUS_DESC_OWN(pdesc, 1);
-			break;
-		case HW_DESC_RXBUFF_ADDR:
-			SET_RX_STATUS__DESC_BUFF_ADDR(pdesc, *(u32 *) val);
-			break;
-		case HW_DESC_RXPKT_LEN:
-			SET_RX_STATUS_DESC_PKT_LEN(pdesc, *(u32 *) val);
-			break;
-		case HW_DESC_RXERO:
-			SET_RX_STATUS_DESC_EOR(pdesc, 1);
-			break;
-		default:
-			RT_ASSERT(false, "ERR rxdesc :%d not process\n",
-				  desc_name);
-			break;
-		}
-	}
-}
-
-u32 rtl92se_get_desc(u8 *desc, bool istx, u8 desc_name)
-{
-	u32 ret = 0;
-
-	if (istx) {
-		switch (desc_name) {
-		case HW_DESC_OWN:
-			ret = GET_TX_DESC_OWN(desc);
-			break;
-		case HW_DESC_TXBUFF_ADDR:
-			ret = GET_TX_DESC_TX_BUFFER_ADDRESS(desc);
-			break;
-		default:
-			RT_ASSERT(false, "ERR txdesc :%d not process\n",
-				  desc_name);
-			break;
-		}
-	} else {
-		switch (desc_name) {
-		case HW_DESC_OWN:
-			ret = GET_RX_STATUS_DESC_OWN(desc);
-			break;
-		case HW_DESC_RXPKT_LEN:
-			ret = GET_RX_STATUS_DESC_PKT_LEN(desc);
-			break;
-		default:
-			RT_ASSERT(false, "ERR rxdesc :%d not process\n",
-				  desc_name);
-			break;
-		}
-	}
-	return ret;
-}
-
-void rtl92se_tx_polling(struct ieee80211_hw *hw, u8 hw_queue)
-{
-}
-
 static void _rtl92s_cmd_complete(struct urb *urb)
 {
 	struct sk_buff *skb = urb->context;
 	dev_kfree_skb_irq(skb);
 }
 
-bool rtl92se_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb)
+bool rtl92su_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_tcb_desc *tcb_desc;

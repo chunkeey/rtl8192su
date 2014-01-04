@@ -34,20 +34,17 @@
 #define RTL92S_NUM_RX_URBS			8
 #define RTL92SU_SIZE_MAX_RX_BUFFER		9100
 
-void rtl92se_tx_fill_desc(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
+void rtl92su_tx_fill_desc(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 			  u8 *pdesc, struct ieee80211_tx_info *info,
 			  struct ieee80211_sta *sta,
 			  struct sk_buff *skb, u8 hw_queue,
 			  struct rtl_tcb_desc *ptcb_desc);
-void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc, bool firstseg,
+void rtl92su_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc, bool firstseg,
 			     bool lastseg, struct sk_buff *skb);
-bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
+bool rtl92su_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 			   struct ieee80211_rx_status *rx_status, u8 *pdesc,
 			   struct sk_buff *skb);
-void rtl92se_set_desc(u8 *pdesc, bool istx, u8 desc_name, u8 *val);
-u32 rtl92se_get_desc(u8 *pdesc, bool istx, u8 desc_name);
-void rtl92se_tx_polling(struct ieee80211_hw *hw, u8 hw_queue);
-bool rtl92se_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb);
+bool rtl92su_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb);
 int rtl92su_endpoint_mapping(struct ieee80211_hw *hw);
 u16 rtl92su_mq_to_hwq(__le16 fc, u16 mac80211_queue_index);
 
