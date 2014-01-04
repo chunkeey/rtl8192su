@@ -288,6 +288,17 @@
 /* 0x102500A0h ~ 0x1025015Fh FIFO Control */
 /* ----------------------------------------------------- */
 #define REG_RQPN			(RTL8712_FIFOCTRL_ + 0x00)
+#define	REG_RQPN1			(RTL8712_FIFOCTRL_ + 0x00)
+#define	REG_RQPN2			(RTL8712_FIFOCTRL_ + 0x01)
+#define	REG_RQPN3			(RTL8712_FIFOCTRL_ + 0x02)
+#define	REG_RQPN4			(RTL8712_FIFOCTRL_ + 0x03)
+#define	REG_RQPN5			(RTL8712_FIFOCTRL_ + 0x04)
+#define	REG_RQPN6			(RTL8712_FIFOCTRL_ + 0x05)
+#define	REG_RQPN7			(RTL8712_FIFOCTRL_ + 0x06)
+#define	REG_RQPN8			(RTL8712_FIFOCTRL_ + 0x07)
+#define	REG_RQPN9			(RTL8712_FIFOCTRL_ + 0x08)
+#define	REG_RQPN10			(RTL8712_FIFOCTRL_ + 0x09)
+#define	REG_LD_RQPN			(RTL8712_FIFOCTRL_ + 0x0B)
 #define REG_RXFF_BNDY			(RTL8712_FIFOCTRL_ + 0x0C)
 #define REG_RXRPT_BNDY			(RTL8712_FIFOCTRL_ + 0x10)
 #define REG_TXPKTBUF_PGBNDY		(RTL8712_FIFOCTRL_ + 0x14)
@@ -580,7 +591,7 @@
 #define REG_HIMR			(RTL8712_INTERRUPT_ + 0x08)
 
 /* ----------------------------------------------------- */
-/* 0x10250310h ~ 0x1025035Fh Debug */
+/* 0x10250310h ~ 0x1025036Fh Test Mode and Debug Control Registers */
 /* ----------------------------------------------------- */
 #define REG_BIST			(RTL8712_DEBUGCTRL_ + 0x00)
 #define REG_DBS				(RTL8712_DEBUGCTRL_ + 0x04)
@@ -602,9 +613,19 @@
 #define REG_TRXPKTBUF_DBG_DATA		(RTL8712_DEBUGCTRL_ + 0x30)
 #define REG_TRXPKTBUF_DBG_CTRL		(RTL8712_DEBUGCTRL_ + 0x38)
 #define REG_DPLL_MON			(RTL8712_DEBUGCTRL_ + 0x3A)
+#define	REG_CBUS_ERR_ADDR		(RTL8712_DEBUGCTRL_ + 0x40)
+#define	REG_CBUS_ERR_CMD		(RTL8712_DEBUGCTRL_ + 0x44)
+#define	REG_CBUS_ERR_DATA_L		(RTL8712_DEBUGCTRL_ + 0x48)
+#define	REG_CBUS_ERR_DATA_H		(RTL8712_DEBUGCTRL_ + 0x4C)
+#define	REG_USB_SIE_INTF_ADDR		(RTL8712_DEBUGCTRL_ + 0x50)
+#define	REG_USB_SIE_INTF_WD		(RTL8712_DEBUGCTRL_ + 0x51)
+#define	REG_USB_SIE_INTF_RD		(RTL8712_DEBUGCTRL_ + 0x52)
+#define	REG_USB_SIE_INTF_CTRL		(RTL8712_DEBUGCTRL_ + 0x53)
+#define REG_LBUS_MON_ADDR		(RTL8712_DEBUGCTRL_ + 0x54)
+#define REG_LBUS_ADDR_MASK		(RTL8712_DEBUGCTRL_ + 0x58)
 
 /* ----------------------------------------------------- */
-/* 0x10250310h ~ 0x1025035Fh IO Command Control */
+/* 0x10250370h ~ 0x102503FFh IO Command Control */
 /* ----------------------------------------------------- */
 #define REG_IOCMD_CTRL			(RTL8712_IOCMD_ + 0x00)
 #define REG_IOCMD_DATA			(RTL8712_IOCMD_ + 0x04)

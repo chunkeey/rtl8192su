@@ -466,7 +466,7 @@ u32 rtl8192semac_2t_array[MAC_2T_ARRAYLENGTH] = {
 	0x17f, 0x0000000b,
 	0x236, 0x0000000c,
 	0x503, 0x00000022,
-	0x560, 0x00000000,
+	0x560, 0x00000009,
 };
 
 u32 rtl8192seagctab_array[AGCTAB_ARRAYLENGTH] = {

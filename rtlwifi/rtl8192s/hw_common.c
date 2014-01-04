@@ -508,13 +508,13 @@ bool rtl92s_halset_sysclk(struct ieee80211_hw *hw, u16 clk_set)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u16 clk;
-	u8 tries = 100;
+	u8 tries = 10;
 	bool result;
 
 	rtl_write_word(rtlpriv, REG_SYS_CLKR, clk_set);
 
 	/* Wait until the MAC is synchronized. */
-	udelay(400);
+	mdelay(20);
 
 	/* Check if it is set ready. */
 	clk = rtl_read_word(rtlpriv, SYS_CLKR);
@@ -522,7 +522,7 @@ bool rtl92s_halset_sysclk(struct ieee80211_hw *hw, u16 clk_set)
 
 	if (!(clk_set & (SYS_SWHW_SEL | SYS_FWHW_SEL))) {
 		do {
-			udelay(10);
+			msleep(20);
 
 			clk = rtl_read_word(rtlpriv, SYS_CLKR);
 			if ((clk & SYS_SWHW_SEL))
@@ -641,27 +641,63 @@ void rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	u8 u1btmp;
+	u16 tmpu2b;
+
+
+	if (IS_HARDWARE_TYPE_8192SU(rtlhal)) {
+		rtl_write_word(rtlpriv, REG_CR, 0x0);
+		rtl_write_byte(rtlpriv, REG_RF_CTRL, 0x00);
+		/* Turn off BB */
+		msleep(20);
+
+		/* Turn off MAC */
+		/* Switch Control Path */
+		rtl_write_byte(rtlpriv, REG_SYS_CLKR+1, 0x38);
+		rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN+1, 0x70);
+		/* Enable Loader Data Keep */
+		rtl_write_byte(rtlpriv, REG_PMC_FSM, 0x06);
+		/* Isolation signals from CORE, PLL */
+		rtl_write_byte(rtlpriv, REG_SYS_ISO_CTRL, 0xF9);
+		/* Enable EFUSE 1.2V */
+		rtl_write_byte(rtlpriv, REG_SYS_ISO_CTRL+1, 0xe8);
+		/* Disable AFE PLL. */
+		rtl_write_byte(rtlpriv, REG_AFE_PLL_CTRL, 0x00);
+		/* Disable A15V */
+		rtl_write_byte(rtlpriv, REG_LDOA15_CTRL, 0x54);
+		/* Disable E-Fuse 1.2V */
+		rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN+1, 0x50);
+		/* Disable LDO12(for CE) */
+		rtl_write_byte(rtlpriv, REG_LDOV12D_CTRL, 0x24);
+		/* Disable AFE BG&MB */
+		rtl_write_byte(rtlpriv, REG_AFE_MISC, 0x30);
+		/* Option for Disable 1.6V LDO. */
+		/* Disable 1.6V LDO */
+		rtl_write_byte(rtlpriv, REG_SPS0_CTRL, 0x56);
+		/* Set SW PFM */
+		rtl_write_byte(rtlpriv, REG_SPS0_CTRL+1, 0x43);
+		return;
+	}
 
 	if (rtlhal->driver_going2unload)
 		rtl_write_byte(rtlpriv, 0x560, 0x0);
 
 	/* Power save for BB/RF */
-	u1btmp = rtl_read_byte(rtlpriv, LDOV12D_CTRL);
+	u1btmp = rtl_read_byte(rtlpriv, REG_LDOV12D_CTRL);
 	u1btmp |= BIT(0);
-	rtl_write_byte(rtlpriv, LDOV12D_CTRL, u1btmp);
-	rtl_write_byte(rtlpriv, SPS1_CTRL, 0x0);
-	rtl_write_byte(rtlpriv, TXPAUSE, 0xFF);
-	rtl_write_word(rtlpriv, CMDR, 0x57FC);
+	rtl_write_byte(rtlpriv, REG_LDOV12D_CTRL, u1btmp);
+	rtl_write_byte(rtlpriv, REG_SPS1_CTRL, 0x0);
+	rtl_write_byte(rtlpriv, REG_TXPAUSE, 0xFF);
+	rtl_write_word(rtlpriv, REG_CR, 0x57FC);
 	udelay(100);
-	rtl_write_word(rtlpriv, CMDR, 0x77FC);
+	rtl_write_word(rtlpriv, REG_CR, 0x77FC);
 	rtl_write_byte(rtlpriv, PHY_CCA, 0x0);
 	udelay(10);
-	rtl_write_word(rtlpriv, CMDR, 0x37FC);
+	rtl_write_word(rtlpriv, REG_CR, 0x37FC);
 	udelay(10);
-	rtl_write_word(rtlpriv, CMDR, 0x77FC);
+	rtl_write_word(rtlpriv, REG_CR, 0x77FC);
 	udelay(10);
-	rtl_write_word(rtlpriv, CMDR, 0x57FC);
-	rtl_write_word(rtlpriv, CMDR, 0x0000);
+	rtl_write_word(rtlpriv, REG_CR, 0x57FC);
+	rtl_write_word(rtlpriv, REG_CR, 0x0000);
 
 	if (rtlhal->driver_going2unload) {
 		u1btmp = rtl_read_byte(rtlpriv, (REG_SYS_FUNC_EN + 1));
@@ -669,15 +705,15 @@ void rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw)
 		rtl_write_byte(rtlpriv, REG_SYS_FUNC_EN + 1, u1btmp);
 	}
 
-	u1btmp = rtl_read_byte(rtlpriv, (SYS_CLKR + 1));
+	/* After switch control path. register after page1 will be invisible.
+	 * We can not do any IO for register>0x40. After resume&MACIO reset,
+	 * we need to remember previous reg content. */
+	tmpu2b = rtl_read_word(rtlpriv, REG_SYS_CLKR);
+	if (tmpu2b & SYS_FWHW_SEL) {
+		tmpu2b &= ~(SYS_SWHW_SEL | SYS_FWHW_SEL);
 
-	/* Add description. After switch control path. register
-	 * after page1 will be invisible. We can not do any IO
-	 * for register>0x40. After resume&MACIO reset, we need
-	 * to remember previous reg content. */
-	if (u1btmp & BIT(7)) {
-		u1btmp &= ~(BIT(6) | BIT(7));
-		if (!rtl92s_halset_sysclk(hw, u1btmp)) {
+		/* Set failed, return to prevent hang. */
+		if (!rtl92s_halset_sysclk(hw, tmpu2b)) {
 			pr_err("Switch ctrl path fail\n");
 			return;
 		}
@@ -698,11 +734,11 @@ void rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw)
 		rtl_write_byte(rtlpriv, 0x03, 0xF9);
 	}
 
-	rtl_write_byte(rtlpriv, SYS_CLKR + 1, 0x70);
-	rtl_write_byte(rtlpriv, AFE_PLL_CTRL + 1, 0x68);
-	rtl_write_byte(rtlpriv,  AFE_PLL_CTRL, 0x00);
-	rtl_write_byte(rtlpriv, LDOA15_CTRL, 0x34);
-	rtl_write_byte(rtlpriv, AFE_XTAL_CTRL, 0x0E);
+	rtl_write_byte(rtlpriv, REG_SYS_CLKR + 1, 0x70);
+	rtl_write_byte(rtlpriv, REG_AFE_PLL_CTRL + 1, 0x68);
+	rtl_write_byte(rtlpriv, REG_AFE_PLL_CTRL, 0x00);
+	rtl_write_byte(rtlpriv, REG_LDOA15_CTRL, 0x34);
+	rtl_write_byte(rtlpriv, REG_AFE_XTAL_CTRL, 0x0E);
 	RT_SET_PS_LEVEL(ppsc, RT_RF_OFF_LEVL_HALT_NIC);
 }
 EXPORT_SYMBOL_GPL(rtl92s_phy_set_rfhalt);

@@ -50,13 +50,22 @@ static u32 _rtl92s_phy_calculate_bit_shift(u32 bitmask)
 	return i;
 }
 
+static void _rtl92su_phy_bb_ready(struct rtl_priv *rtlpriv)
+{
+	unsigned int pollingcount = 100;
+	do {
+		/* Make sure that access could be done. */
+		if ((rtl_read_byte(rtlpriv, REG_PHY_REG_RPT) & BIT(0)) == 0)
+			break;
+	} while (--pollingcount);
+}
+
 u32 rtl92s_phy_query_bb_reg(struct ieee80211_hw *hw, u32 regaddr, u32 bitmask)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u32 returnvalue = 0, originalvalue, bitshift;
 
-	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE, "regaddr(%#x), bitmask(%#x)\n",
-		 regaddr, bitmask);
+	_rtl92su_phy_bb_ready(rtlpriv);
 
 	originalvalue = rtl_read_dword(rtlpriv, regaddr);
 	bitshift = _rtl92s_phy_calculate_bit_shift(bitmask);
@@ -64,9 +73,7 @@ u32 rtl92s_phy_query_bb_reg(struct ieee80211_hw *hw, u32 regaddr, u32 bitmask)
 
 	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE, "BBR MASK=0x%x Addr[0x%x]=0x%x\n",
 		 bitmask, regaddr, originalvalue);
-
 	return returnvalue;
-
 }
 EXPORT_SYMBOL_GPL(rtl92s_phy_query_bb_reg);
 
@@ -86,6 +93,8 @@ void rtl92s_phy_set_bb_reg(struct ieee80211_hw *hw, u32 regaddr, u32 bitmask,
 		data = ((originalvalue & (~bitmask)) | (data << bitshift));
 	}
 
+	_rtl92su_phy_bb_ready(rtlpriv);
+
 	rtl_write_dword(rtlpriv, regaddr, data);
 
 	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE,
@@ -95,10 +104,9 @@ void rtl92s_phy_set_bb_reg(struct ieee80211_hw *hw, u32 regaddr, u32 bitmask,
 }
 EXPORT_SYMBOL_GPL(rtl92s_phy_set_bb_reg);
 
-static u32 _rtl92s_phy_rf_serial_read(struct ieee80211_hw *hw,
+static u32 _rtl92se_phy_rf_serial_read(struct ieee80211_hw *hw,
 				      enum radio_path rfpath, u32 offset)
 {
-
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct bb_reg_def *pphyreg = &rtlphy->phyreg_def[rfpath];
@@ -141,22 +149,58 @@ static u32 _rtl92s_phy_rf_serial_read(struct ieee80211_hw *hw,
 
 	if (rfpi_enable)
 		retvalue = rtl_get_bbreg(hw, pphyreg->rf_rbpi,
-					 BLSSI_READBACK_DATA);
+					BLSSI_READBACK_DATA);
 	else
 		retvalue = rtl_get_bbreg(hw, pphyreg->rf_rb,
-					 BLSSI_READBACK_DATA);
-
-	retvalue = rtl_get_bbreg(hw, pphyreg->rf_rb,
-				 BLSSI_READBACK_DATA);
+					BLSSI_READBACK_DATA);
+	retvalue = rtl_get_bbreg(hw, pphyreg->rf_rb, BLSSI_READBACK_DATA);
 
 	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE, "RFR-%d Addr[0x%x]=0x%x\n",
 		 rfpath, pphyreg->rf_rb, retvalue);
-
 	return retvalue;
-
 }
 
-static void _rtl92s_phy_rf_serial_write(struct ieee80211_hw *hw,
+static void _rtl92su_phy_rf_serial_ready(struct rtl_priv *rtlpriv)
+{
+	unsigned int pollingcount = 100;
+
+	do {
+		/* Make sure that access could be done. */
+		if (rtl_read_dword(rtlpriv, REG_RF_BB_CMD_ADDR) == 0)
+			break;
+	} while (--pollingcount);
+}
+
+static u32 _rtl92su_phy_rf_serial_read(struct ieee80211_hw *hw,
+				       enum radio_path rfpath, u32 offset)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	offset &= 0x3f;
+
+	rtl_write_dword(rtlpriv, REG_RF_BB_CMD_ADDR, 0xF0000002 |
+                        (offset << 8) | (rfpath << 16));
+	_rtl92su_phy_rf_serial_ready(rtlpriv);
+
+	return rtl_read_dword(rtlpriv, REG_RF_BB_CMD_DATA);
+}
+
+static u32 _rtl92s_phy_rf_serial_read(struct ieee80211_hw *hw,
+				       enum radio_path rfpath, u32 offset)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
+
+
+	if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
+	  return _rtl92se_phy_rf_serial_read(hw, rfpath, offset);
+	} else if (IS_HARDWARE_TYPE_8192SU(rtlhal)) {
+		return _rtl92su_phy_rf_serial_read(hw, rfpath, offset);
+	} else {
+		return WARN_ON(-EINVAL);
+	}
+}
+
+static void _rtl92se_phy_rf_serial_write(struct ieee80211_hw *hw,
 					enum radio_path rfpath, u32 offset,
 					u32 data)
 {
@@ -168,14 +212,39 @@ static void _rtl92s_phy_rf_serial_write(struct ieee80211_hw *hw,
 
 	offset &= 0x3f;
 	newoffset = offset;
-
 	data_and_addr = ((newoffset << 20) | (data & 0x000fffff)) & 0x0fffffff;
 	rtl_set_bbreg(hw, pphyreg->rf3wire_offset, MASKDWORD, data_and_addr);
-
 	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE, "RFW-%d Addr[0x%x]=0x%x\n",
 		 rfpath, pphyreg->rf3wire_offset, data_and_addr);
 }
 
+static void _rtl92su_phy_rf_serial_write(struct ieee80211_hw *hw,
+					enum radio_path rfpath, u32 offset,
+					u32 data)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
+	rtl_write_dword(rtlpriv, REG_RF_BB_CMD_DATA, data);
+	rtl_write_dword(rtlpriv, REG_RF_BB_CMD_ADDR, 0xF0000003 |
+			(offset << 8) | (rfpath << 16));
+	_rtl92su_phy_rf_serial_ready(rtlpriv);
+}
+
+static void _rtl92s_phy_rf_serial_write(struct ieee80211_hw *hw,
+					enum radio_path rfpath, u32 offset,
+					u32 data)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
+
+	if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
+		_rtl92se_phy_rf_serial_write(hw, rfpath, offset, data);
+	} else if (IS_HARDWARE_TYPE_8192SU(rtlhal)) {
+		_rtl92su_phy_rf_serial_write(hw, rfpath, offset, data);
+	} else {
+		WARN_ON(-EINVAL);
+	}
+}
 
 u32 rtl92s_phy_query_rf_reg(struct ieee80211_hw *hw, enum radio_path rfpath,
 			    u32 regaddr, u32 bitmask)
@@ -207,8 +276,12 @@ void rtl92s_phy_set_rf_reg(struct ieee80211_hw *hw, enum radio_path rfpath,
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	u32 original_value, bitshift;
 
-	if (!((rtlphy->rf_pathmap >> rfpath) & 0x1))
+	if (!((rtlphy->rf_pathmap >> rfpath) & 0x1)) {
+		RT_TRACE(rtlpriv, COMP_RF, DBG_LOUD,
+			 "Ignore regaddr(%#x), bitmask(%#x), data(%#x), rfpath(%#x) - wrong rf path\n",
+			 regaddr, bitmask, data, rfpath);
 		return;
+	}
 
 	RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE,
 		 "regaddr(%#x), bitmask(%#x), data(%#x), rfpath(%#x)\n",
@@ -541,7 +614,7 @@ static void _rtl92se_phy_set_rf_sleep(struct ieee80211_hw *hw)
 
 	/* we should chnge GPIO to input mode
 	 * this will drop away current about 25mA*/
-	rtl92s_gpiobit3_cfg_inputmode(hw);
+	//rtl92s_gpiobit3_cfg_inputmode(hw);
 }
 
 bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
@@ -1143,7 +1216,6 @@ bool rtl92s_phy_bb_config(struct ieee80211_hw *hw)
 	/* Config BB and AGC */
 	rtstatus = _rtl92s_phy_bb_config_parafile(hw);
 
-
 	/* Check BB/RF confiuration setting. */
 	/* We only need to configure RF which is turned on. */
 	path1 = (u8)(rtl92s_phy_query_bb_reg(hw, RFPGA0_TXINFO, 0xf));
@@ -1294,20 +1366,21 @@ EXPORT_SYMBOL_GPL(rtl92s_phy_set_txpower);
 void rtl92s_phy_chk_fwcmd_iodone(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u16 pollingcnt = 10000;
+	u16 pollingcnt = 100;
 	u32 tmpvalue;
 
 	/* Make sure that CMD IO has be accepted by FW. */
 	do {
-		udelay(10);
-
 		tmpvalue = rtl_read_dword(rtlpriv, WFM5);
 		if (tmpvalue == 0)
 			break;
+		msleep(20);
 	} while (--pollingcnt);
 
-	if (pollingcnt == 0)
+	if (pollingcnt == 0) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Set FW Cmd fail!!\n");
+		WARN_ON(1);
+	}
 }
 EXPORT_SYMBOL_GPL(rtl92s_phy_chk_fwcmd_iodone);
 
