@@ -79,7 +79,7 @@ static ssize_t r92su_debugfs_read(struct file *file, char __user *userbuf,
 	if (!hw)
 		return -ENODEV;
 	rtlpriv = rtl_priv(hw);
-	
+
 	dfops = container_of(file->f_op, struct r92su_debugfs_fops, fops);
 
 	if (!dfops->read)
@@ -104,7 +104,6 @@ static ssize_t r92su_debugfs_read(struct file *file, char __user *userbuf,
 	WARN_ONCE(dfops->read_bufsize && (res_buf != buf),
 		  "failed to write output buffer back to debugfs");
 
-out_free:
 	vfree(res_buf);
 	mutex_unlock(&rtlpriv->locks.conf_mutex);
 	return err;
