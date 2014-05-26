@@ -49,6 +49,13 @@ static u8 _rtl92s_map_hwqueue_to_fwqueue(struct sk_buff *skb, u8 skb_queue)
 	if (ieee80211_is_nullfunc(fc))
 		return QSLT_HIGH;
 
+	/* Kernel commit 1bf4bbb4024dcdab changed EAPOL packets to use
+	 * queue V0 at priority 7; however, the RTL8192SE appears to have
+	 * that queue at priority 6
+	 */
+        if (skb->priority == 7)
+                return QSLT_MGNT;
+
 	return skb->priority;
 }
 
@@ -65,7 +72,7 @@ int rtl92su_endpoint_mapping(struct ieee80211_hw *hw)
 	switch (rtlusb->out_ep_nums) {
 	case 3:
 		ep_map->ep_mapping[RTL_TXQ_BK]	= 0x06;
-		ep_map->ep_mapping[RTL_TXQ_MGT] = 0x06;
+		ep_map->ep_mapping[RTL_TXQ_MGT] = 0x0d;
 		ep_map->ep_mapping[RTL_TXQ_VI]	= 0x04;
 		ep_map->ep_mapping[RTL_TXQ_BCN] = 0x0d;
 		ep_map->ep_mapping[RTL_TXQ_HI]	= 0x0d;
