@@ -371,7 +371,7 @@ int rtl_register_debugfs(struct ieee80211_hw *hw)
 
 #define DEBUGFS_ADD(name)						\
 	debugfs_create_file(#name, rtl_debugfs_##name ##_ops.attr,	\
-			    rtlpriv->dbg.dfs, hw,				\
+			    rtlpriv->dbg.dfs, hw,			\
 			    &rtl_debugfs_##name ## _ops.fops);
 
 	if (!rtlpriv->dbg.dfs)

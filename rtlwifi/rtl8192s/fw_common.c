@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -143,7 +139,7 @@ static uint8_t _rtl92s_get_fw_queue(struct rtl_priv *rtlpriv)
 {
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 
-        if (IS_HARDWARE_TYPE_8192SE(rtlhal))
+	if (IS_HARDWARE_TYPE_8192SE(rtlhal))
 		return TXCMD_QUEUE;
 	else if (IS_HARDWARE_TYPE_8192SU(rtlhal))
 		return RTL_TXQ_VO;
@@ -206,7 +202,7 @@ static bool _rtl92s_firmware_downloadcode(struct ieee80211_hw *hw,
 
 	rtl_write_byte(rtlpriv, TP_POLL, TPPOLL_CQ);
 
-	return true ;
+	return true;
 }
 
 static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
@@ -559,7 +555,7 @@ static bool _rtl92s_firmware_set_h2c_cmd(struct ieee80211_hw *hw, u8 h2c_cmd,
 
 	switch (h2c_cmd) {
 	case FW_H2C_SETPWRMODE:
-		element_id = H2C_SETPWRMODE_CMD ;
+		element_id = H2C_SETPWRMODE_CMD;
 		cmd_len = sizeof(struct h2c_set_pwrmode_parm);
 		break;
 	case FW_H2C_JOINBSSRPT:

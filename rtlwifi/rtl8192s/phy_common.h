@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -97,6 +93,6 @@ void rtl92s_phy_set_txpower(struct ieee80211_hw *hw, u8	channel);
 bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fwcmd_io);
 void rtl92s_phy_chk_fwcmd_iodone(struct ieee80211_hw *hw);
 void rtl92s_phy_set_beacon_hwreg(struct ieee80211_hw *hw, u16 beaconinterval);
-u8 rtl92s_phy_config_rf(struct ieee80211_hw *hw, enum radio_path rfpath) ;
+u8 rtl92s_phy_config_rf(struct ieee80211_hw *hw, enum radio_path rfpath);
 void rtl92s_gpiobit3_cfg_inputmode(struct ieee80211_hw *hw);
 #endif

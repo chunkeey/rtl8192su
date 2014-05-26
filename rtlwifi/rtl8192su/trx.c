@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -53,8 +49,8 @@ static u8 _rtl92s_map_hwqueue_to_fwqueue(struct sk_buff *skb, u8 skb_queue)
 	 * queue V0 at priority 7; however, the RTL8192SE appears to have
 	 * that queue at priority 6
 	 */
-        if (skb->priority == 7)
-                return QSLT_MGNT;
+	if (skb->priority == 7)
+		return QSLT_MGNT;
 
 	return skb->priority;
 }
@@ -498,7 +494,8 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 		/*DWORD 0*/
 		SET_TX_DESC_LINIP(pdesc, 0);
 		SET_TX_DESC_OFFSET(pdesc, 32);
-		SET_TX_DESC_PKT_SIZE(pdesc, (u16) skb->len - RTL_TX_HEADER_SIZE);
+		SET_TX_DESC_PKT_SIZE(pdesc,
+				    (u16)skb->len - RTL_TX_HEADER_SIZE);
 
 		/*DWORD 1*/
 		SET_TX_DESC_RA_BRSR_ID(pdesc, ptcb_desc->ratr_index);
@@ -553,7 +550,8 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 	SET_TX_DESC_OWN(pdesc, 1);
 
 	/* DWORD 7 */
-	SET_TX_DESC_TX_BUFFER_SIZE(pdesc, (u16) (skb->len - RTL_TX_HEADER_SIZE));
+	SET_TX_DESC_TX_BUFFER_SIZE(pdesc,
+				   (u16)(skb->len - RTL_TX_HEADER_SIZE));
 
 	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
 }
@@ -574,7 +572,8 @@ void rtl92su_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 		SET_TX_DESC_LINIP(pdesc, tcb_desc->last_inipkt);
 
 		/* 92SU need not to set TX packet size when firmware download */
-		SET_TX_DESC_PKT_SIZE(pdesc, (u16)(skb->len - RTL_TX_HEADER_SIZE));
+		SET_TX_DESC_PKT_SIZE(pdesc,
+				     (u16)(skb->len - RTL_TX_HEADER_SIZE));
 	} else { /* H2C Command Desc format (Host TXCMD) */
 		/* 92SE must set as 1 for firmware download HW DMA error */
 		SET_TX_DESC_FIRST_SEG(pdesc, 1);
@@ -583,7 +582,8 @@ void rtl92su_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 		SET_TX_DESC_OFFSET(pdesc, 0x20);
 
 		/* Buffer size + command header */
-		SET_TX_DESC_PKT_SIZE(pdesc, (u16)(skb->len - RTL_TX_HEADER_SIZE));
+		SET_TX_DESC_PKT_SIZE(pdesc,
+				     (u16)(skb->len - RTL_TX_HEADER_SIZE));
 		/* Fixed queue of H2C command */
 		SET_TX_DESC_QUEUE_SEL(pdesc, 0x13);
 
@@ -700,25 +700,24 @@ static void _rtl_rx_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 	ieee80211_rx(hw, skb);
 }
 
-// not needed?
-void rtl92su_rx_hdl(struct ieee80211_hw *hw, struct sk_buff * skb)
+void rtl92su_rx_hdl(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	_rtl_rx_process(hw, skb);
 }
 
-void rtl92su_tx_cleanup(struct ieee80211_hw *hw, struct sk_buff  *skb)
+void rtl92su_tx_cleanup(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 }
 
 int rtl92su_tx_post_hdl(struct ieee80211_hw *hw, struct urb *urb,
-                         struct sk_buff *skb)
+			struct sk_buff *skb)
 {
-        return 0;
+	return 0;
 }
 
 struct sk_buff *rtl92su_tx_aggregate_hdl(struct ieee80211_hw *hw,
-                                         struct sk_buff_head *list)
+					 struct sk_buff_head *list)
 {
-        return skb_dequeue(list);
+	return skb_dequeue(list);
 }
 

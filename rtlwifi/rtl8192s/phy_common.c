@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -184,7 +180,7 @@ static u32 _rtl92su_phy_rf_serial_read(struct ieee80211_hw *hw,
 	offset &= 0x3f;
 
 	rtl_write_dword(rtlpriv, REG_RF_BB_CMD_ADDR, 0xF0000002 |
-                        (offset << 8) | (rfpath << 16));
+			(offset << 8) | (rfpath << 16));
 	_rtl92su_phy_rf_serial_ready(rtlpriv);
 
 	return rtl_read_dword(rtlpriv, REG_RF_BB_CMD_DATA);
@@ -196,14 +192,12 @@ static u32 _rtl92s_phy_rf_serial_read(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 
-
-	if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
-	  return _rtl92se_phy_rf_serial_read(hw, rfpath, offset);
-	} else if (IS_HARDWARE_TYPE_8192SU(rtlhal)) {
+	if (IS_HARDWARE_TYPE_8192SE(rtlhal))
+		return _rtl92se_phy_rf_serial_read(hw, rfpath, offset);
+	else if (IS_HARDWARE_TYPE_8192SU(rtlhal))
 		return _rtl92su_phy_rf_serial_read(hw, rfpath, offset);
-	} else {
+	else
 		return WARN_ON(-EINVAL);
-	}
 }
 
 static void _rtl92se_phy_rf_serial_write(struct ieee80211_hw *hw,
@@ -243,13 +237,12 @@ static void _rtl92s_phy_rf_serial_write(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 
-	if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
+	if (IS_HARDWARE_TYPE_8192SE(rtlhal))
 		_rtl92se_phy_rf_serial_write(hw, rfpath, offset, data);
-	} else if (IS_HARDWARE_TYPE_8192SU(rtlhal)) {
+	else if (IS_HARDWARE_TYPE_8192SU(rtlhal))
 		_rtl92su_phy_rf_serial_write(hw, rfpath, offset, data);
-	} else {
+	else
 		WARN_ON(-EINVAL);
-	}
 }
 
 u32 rtl92s_phy_query_rf_reg(struct ieee80211_hw *hw, enum radio_path rfpath,
@@ -618,9 +611,11 @@ static void _rtl92se_phy_set_rf_sleep(struct ieee80211_hw *hw)
 
 	rtl_write_word(rtlpriv, CMDR, 0x57FC);
 
-	/* we should chnge GPIO to input mode
-	 * this will drop away current about 25mA*/
-	//rtl92s_gpiobit3_cfg_inputmode(hw);
+	/* we should change GPIO to input mode
+	 * this will drop away current about 25mA
+	 *
+	 * rtl92s_gpiobit3_cfg_inputmode(hw);
+	 */
 }
 
 bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,

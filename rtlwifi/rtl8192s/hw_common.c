@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -45,7 +41,7 @@ void rtl92s_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-        struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 
 	switch (variable) {
 	case HW_VAR_RCR: {
@@ -430,8 +426,8 @@ out:
 				rtlpriv->dm.current_mrc_switch = bmrc_toset;
 			}
 
-			break;
 		}
+		break;
 	case HW_VAR_FW_LPS_ACTION: {
 		bool enter_fwlps = *((bool *)val);
 		u8 rpwm_val, fw_pwrmode;
@@ -464,7 +460,8 @@ out:
 					HW_VAR_FW_PSMODE_STATUS,
 					(u8 *)(&fw_current_inps));
 		}
-		break; }
+		}
+		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "switch case not processed\n");
@@ -563,7 +560,7 @@ bool rtl92s_rf_onoff_detect(struct ieee80211_hw *hw)
 EXPORT_SYMBOL_GPL(rtl92s_rf_onoff_detect);
 
 int rtl92s_set_media_status(struct ieee80211_hw *hw,
-		            enum nl80211_iftype type)
+			    enum nl80211_iftype type)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 bt_msr = rtl_read_byte(rtlpriv, MSR);

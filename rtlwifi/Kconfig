@@ -5,7 +5,7 @@ menuconfig RTL_CARDS
 	---help---
 	  This option will enable support for the Realtek mac80211-based
 	  wireless drivers. Drivers rtl8192ce, rtl8192cu, rtl8192se,
-	  rtl8192su, rtl8192de, rtl8723ae, rtl8723be, and rtl8188ae 
+	  rtl8192su, rtl8192de, rtl8723ae, rtl8723be, and rtl8188ae
 	  share some common code.
 
 if RTL_CARDS

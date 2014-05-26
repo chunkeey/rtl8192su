@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -209,7 +205,7 @@ struct fw_hdr {
 
 	struct fw_priv fwpriv;
 
-} ;
+};
 
 enum fw_status {
 	FW_STATUS_INIT = 0,
@@ -243,7 +239,7 @@ struct h2c_set_pwrmode_parm {
 	u8 bcn_pass_cnt;
 	/* beacon TO (ms). ¡§=0¡¨ no limit. */
 	u8 bcn_to;
-	u16	bcn_itv;
+	u16 bcn_itv;
 	/* only for VOIP mode. */
 	u8 app_itv;
 	u8 awake_bcn_itvl;
@@ -258,7 +254,7 @@ struct h2c_joinbss_rpt_parm {
 	u8 bssid[6];
 	u16 bcnitv;
 	u16 aid;
-} ;
+};
 
 struct h2c_wpa_ptk {
 	/* EAPOL-Key Key Confirmation Key (KCK) */
@@ -282,7 +278,7 @@ struct h2c_wpa_two_way_parm {
 	u8 pairwise_en_alg;
 	u8 group_en_alg;
 	struct h2c_wpa_ptk wpa_ptk_value;
-} ;
+};
 
 enum h2c_cmd {
 	FW_H2C_SETPWRMODE = 0,

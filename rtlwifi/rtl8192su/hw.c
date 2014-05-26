@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -203,7 +199,7 @@ static int _rtl92su_macconfig_before_fwdownload3(struct ieee80211_hw *hw)
 		tmpu1b = rtl_read_byte(rtlpriv, REG_TCR);
 		if ((tmpu1b & TXDMA_INIT_VALUE) == TXDMA_INIT_VALUE)
 			break;
-		msleep(5);
+		msleep(20);
 	} while (--tries);
 
 	if (tries == 0) {
@@ -212,7 +208,7 @@ static int _rtl92su_macconfig_before_fwdownload3(struct ieee80211_hw *hw)
 			 tmpu1b);
 		tmpu1b = rtl_read_byte(rtlpriv, REG_CR);
 		rtl_write_byte(rtlpriv, REG_CR, tmpu1b & (~TXDMA_EN));
-		msleep(2);
+		msleep(20);
 		/* Reset TxDMA */
 		rtl_write_byte(rtlpriv, REG_CR, tmpu1b | TXDMA_EN);
 	}
@@ -389,7 +385,7 @@ static int _rtl92su_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 		tmpu1b = rtl_read_byte(rtlpriv, REG_TCR);
 		if ((tmpu1b & TXDMA_INIT_VALUE) == TXDMA_INIT_VALUE)
 			break;
-		msleep(5);
+		msleep(20);
 	} while (--tries);
 
 	if (tries == 0) {
@@ -398,7 +394,7 @@ static int _rtl92su_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 			 tmpu1b);
 		tmpu1b = rtl_read_byte(rtlpriv, REG_CR);
 		rtl_write_byte(rtlpriv, REG_CR, tmpu1b & (~TXDMA_EN));
-		msleep(2);
+		msleep(20);
 		/* Reset TxDMA */
 		rtl_write_byte(rtlpriv, REG_CR, tmpu1b | TXDMA_EN);
 	}
@@ -426,7 +422,8 @@ static void _r92su_fw_reg_ready(struct rtl_priv *rtlpriv)
 	} while (delay_count--);
 }
 
-static void _r92su_set_fw_reg(struct rtl_priv *rtlpriv, u32 cmd, u32 val, bool with_val)
+static void _r92su_set_fw_reg(struct rtl_priv *rtlpriv, u32 cmd,
+			      u32 val, bool with_val)
 {
 	_r92su_fw_reg_ready(rtlpriv);
 
@@ -483,9 +480,9 @@ static void _rtl92su_macconfig_after_fwdownload(struct ieee80211_hw *hw)
 	 * tmpu1b = rtl_read_byte(rtlpriv, REG_RXDMA_RXCTRL);
 	 * tmpu1b |= RXDMA_AGG_EN;
 	 * rtl_write_byte(rtlpriv, REG_RXDMA_RXCTRL, tmpu1b);
-         *
-         * NB: rx-streaming is not implemented.
-         */
+	 *
+	 * NB: rx-streaming is not implemented.
+	 */
 
 	rtl_write_byte(rtlpriv, REG_RXDMA_AGG_PG_TH, 0x1);
 
@@ -555,8 +552,8 @@ static void _rtl92su_macconfig_after_fwdownload(struct ieee80211_hw *hw)
 	rtl_write_byte(rtlpriv, REG_RX_DRVINFO_SZ, 4);
 
 	tmpu1b = rtl_read_byte(rtlpriv, REG_LD_RQPN);
-//	tmpu1b |= BIT(6)|BIT(7);
-//	tmpu1b |= BIT(5); /* Only for USBEP_FOUR */
+	/* tmpu1b |= BIT(6)|BIT(7);
+	 * tmpu1b |= BIT(5); // Only for USBEP_FOUR */
 	tmpu1b |= 0xa0;
 	rtl_write_byte(rtlpriv, REG_LD_RQPN, tmpu1b);
 
@@ -645,8 +642,7 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 	rtstatus = rtl92s_download_fw(hw);
 	if (!rtstatus) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-			 "Failed to download FW. Init HW without FW now... "
-			 "Please copy FW into /lib/firmware/rtlwifi\n");
+			 "Failed to download FW. Init HW without FW now... Please copy FW into /lib/firmware/rtlwifi\n");
 		return -ENOENT;
 	}
 
@@ -777,11 +773,10 @@ void rtl92su_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
 	if (rtlpriv->psc.rfpwr_state != ERFON)
 		return;
 
-        if (check_bssid) {
+	if (check_bssid)
 		reg_rcr |= RCR_CBSSID;
-	} else {
+	else
 		reg_rcr &= ~RCR_CBSSID;
-	}
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR,
 				      (u8 *) (&reg_rcr));
 }
@@ -820,7 +815,7 @@ void rtl92su_card_disable(struct ieee80211_hw *hw)
 	enum nl80211_iftype opmode;
 	u8 wait = 30;
 
-        rtlpriv->cfg->ops->led_control(hw, LED_CTL_POWER_OFF);
+	rtlpriv->cfg->ops->led_control(hw, LED_CTL_POWER_OFF);
 	RT_SET_PS_LEVEL(ppsc, RT_RF_OFF_LEVL_HALT_NIC);
 
 	/* this is very important for ips power save */

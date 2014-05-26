@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -291,14 +287,14 @@ static struct usb_device_id rtl92s_usb_ids[] = {
 	{RTL_USB_DEVICE(0x07B8, 0x8188, rtl92su_hal_cfg)},
 	/* ASUS */
 	{RTL_USB_DEVICE(0x0B05, 0x1786, rtl92su_hal_cfg)},
-	{RTL_USB_DEVICE(0x0B05, 0x1791, rtl92su_hal_cfg)}, /* 11n mode disable */
+	{RTL_USB_DEVICE(0x0B05, 0x1791, rtl92su_hal_cfg)}, /* disable 11n */
 	/* Belkin */
 	{RTL_USB_DEVICE(0x050D, 0x945A, rtl92su_hal_cfg)},
 	/* Corega */
 	{RTL_USB_DEVICE(0x07AA, 0x0047, rtl92su_hal_cfg)},
 	/* D-Link */
 	{RTL_USB_DEVICE(0x2001, 0x3306, rtl92su_hal_cfg)},
-	{RTL_USB_DEVICE(0x07D1, 0x3306, rtl92su_hal_cfg)}, /* 11n mode disable */
+	{RTL_USB_DEVICE(0x07D1, 0x3306, rtl92su_hal_cfg)}, /* disable 11n */
 	/* Edimax */
 	{RTL_USB_DEVICE(0x7392, 0x7611, rtl92su_hal_cfg)},
 	/* EnGenius */
@@ -316,7 +312,7 @@ static struct usb_device_id rtl92s_usb_ids[] = {
 	/* Sitecom */
 	{RTL_USB_DEVICE(0x0DF6, 0x0057, rtl92su_hal_cfg)},
 	{RTL_USB_DEVICE(0x0DF6, 0x0045, rtl92su_hal_cfg)},
-	{RTL_USB_DEVICE(0x0DF6, 0x0059, rtl92su_hal_cfg)}, /* 11n mode disable */
+	{RTL_USB_DEVICE(0x0DF6, 0x0059, rtl92su_hal_cfg)}, /* disable 11n */
 	{RTL_USB_DEVICE(0x0DF6, 0x004B, rtl92su_hal_cfg)},
 	{RTL_USB_DEVICE(0x0DF6, 0x005B, rtl92su_hal_cfg)},
 	{RTL_USB_DEVICE(0x0DF6, 0x005D, rtl92su_hal_cfg)},
@@ -339,13 +335,13 @@ static struct usb_device_id rtl92s_usb_ids[] = {
 	{RTL_USB_DEVICE(0x0EB0, 0x9061, rtl92su_hal_cfg)},
 	/* ASUS/EKB */
 	{RTL_USB_DEVICE(0x13D3, 0x3323, rtl92su_hal_cfg)},
-	{RTL_USB_DEVICE(0x13D3, 0x3311, rtl92su_hal_cfg)}, /* 11n mode disable */
+	{RTL_USB_DEVICE(0x13D3, 0x3311, rtl92su_hal_cfg)}, /* disable 11n */
 	{RTL_USB_DEVICE(0x13D3, 0x3342, rtl92su_hal_cfg)},
 	/* ASUS/EKBLenovo */
 	{RTL_USB_DEVICE(0x13D3, 0x3333, rtl92su_hal_cfg)},
 	{RTL_USB_DEVICE(0x13D3, 0x3334, rtl92su_hal_cfg)},
-	{RTL_USB_DEVICE(0x13D3, 0x3335, rtl92su_hal_cfg)}, /* 11n mode disable */
-	{RTL_USB_DEVICE(0x13D3, 0x3336, rtl92su_hal_cfg)}, /* 11n mode disable */
+	{RTL_USB_DEVICE(0x13D3, 0x3335, rtl92su_hal_cfg)}, /* disable 11n */
+	{RTL_USB_DEVICE(0x13D3, 0x3336, rtl92su_hal_cfg)}, /* disable 11n */
 	/* ASUS/Media BOX */
 	{RTL_USB_DEVICE(0x13D3, 0x3309, rtl92su_hal_cfg)},
 	/* Belkin */
@@ -381,8 +377,8 @@ static struct usb_device_id rtl92s_usb_ids[] = {
 	{RTL_USB_DEVICE(0x04F2, 0xAFF5, rtl92su_hal_cfg)},
 	{RTL_USB_DEVICE(0x04F2, 0xAFF6, rtl92su_hal_cfg)},
 	{RTL_USB_DEVICE(0x13D3, 0x3339, rtl92su_hal_cfg)},
-	{RTL_USB_DEVICE(0x13D3, 0x3340, rtl92su_hal_cfg)}, /* 11n mode disable */
-	{RTL_USB_DEVICE(0x13D3, 0x3341, rtl92su_hal_cfg)}, /* 11n mode disable */
+	{RTL_USB_DEVICE(0x13D3, 0x3340, rtl92su_hal_cfg)}, /* disable 11n */
+	{RTL_USB_DEVICE(0x13D3, 0x3341, rtl92su_hal_cfg)}, /* disable 11n */
 	{RTL_USB_DEVICE(0x13D3, 0x3310, rtl92su_hal_cfg)},
 	{RTL_USB_DEVICE(0x13D3, 0x3325, rtl92su_hal_cfg)},
 
