@@ -204,7 +204,7 @@ static struct rtl_mod_params rtl92su_mod_params = {
 	.inactiveps = false,
 	.swctrl_lps = false,
 	.fwctrl_lps = false,
-	.debug = DBG_TRACE,
+	.debug = DBG_EMERG,
 };
 
 static struct rtl_hal_usbint_cfg rtl92su_interface_cfg = {
