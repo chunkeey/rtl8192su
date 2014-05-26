@@ -1118,10 +1118,18 @@ int rtl_usb_probe(struct usb_interface *intf,
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Can't init_sw_vars\n");
 		goto error_out;
 	}
+	err = rtl_register_debugfs(hw);
+	if (err) {
+		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
+			 "Can't initialize debugfs\n");
+		goto error_out;
+	}
 	rtlpriv->cfg->ops->init_sw_leds(hw);
 
 	return 0;
 error_out:
+	rtl_unregister_debugfs(hw);
+
 	rtl_deinit_core(hw);
 	_rtl_usb_io_handler_release(hw);
 	usb_put_dev(udev);
@@ -1156,6 +1164,7 @@ void rtl_usb_disconnect(struct usb_interface *intf)
 	rtl_deinit_core(hw);
 	kfree(rtlpriv->usb_data);
 	rtlpriv->cfg->ops->deinit_sw_leds(hw);
+	rtl_unregister_debugfs(hw);
 	rtlpriv->cfg->ops->deinit_sw_vars(hw);
 	_rtl_usb_io_handler_release(hw);
 	usb_put_dev(rtlusb->udev);

@@ -45,17 +45,6 @@ config RTL8192SU
 
 	If you choose to build it as a module, it will be called rtl8192su
 
-config RTL8192SU_DEBUGFS
-	bool "R92SU Debugfs Support"
-	depends on RTL8192SU && DEBUG_FS
-	default n
-	help
-	 Export several driver and device internals to user space
-	 via debugfs. Be be advised: writing random data in
-	 "hw_iowrite" might damage the device.
-
-	 Say N, unless you have a good reason.
-
 config RTL8192S_COMMON
 	tristate
 	depends on RTL8192SE || RTL8192SU
@@ -140,6 +129,18 @@ config RTLWIFI_DEBUG
 	To use the module option that sets the dynamic-debugging level for,
 	the front-end driver, this parameter must be "Y". For memory-limited
 	systems, choose "N". If in doubt, choose "Y".
+
+config RTLWIFI_DEBUGFS
+	bool "Debugfs Support"
+	depends on RTLWIFI_DEBUG
+	depends on DEBUG_FS
+	default n
+	help
+	 Export several driver and device internals to user space
+	 via debugfs. Be be advised: writing random data in
+	 "hw_iowrite" might damage the device.
+
+	 Say N, unless you have a good reason.
 
 config RTL8192C_COMMON
 	tristate

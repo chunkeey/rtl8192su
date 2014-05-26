@@ -30,6 +30,7 @@
 #ifndef __RTL_WIFI_H__
 #define __RTL_WIFI_H__
 
+#undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/sched.h>
@@ -2130,22 +2131,22 @@ struct rtl_works {
 	struct work_struct fill_h2c_cmd;
 };
 
-enum r92su_mem_type_t {
-	R92SU_8,
-	R92SU_16,
-	R92SU_32,
+enum rtl_mem_type_t {
+	RTL_8,
+	RTL_16,
+	RTL_32,
 
 	/* last entry */
-	__MAX_R92SU_MEM_TYPE
+	__MAX_RTL_MEM_TYPE
 };
 
-struct r92su_debug_mem_rbe {
+struct rtl_debug_mem_rbe {
 	u32 reg;
 	u32 value;
-	enum r92su_mem_type_t type;
+	enum rtl_mem_type_t type;
 };
 
-#define R92SU_DEBUG_RING_SIZE			64
+#define RTL_DEBUG_RING_SIZE			64
 
 struct rtl_debug {
 	u32 dbgp_type[DBGP_TYPE_MAX];
@@ -2156,10 +2157,12 @@ struct rtl_debug {
 	struct proc_dir_entry *proc_dir;
 	char proc_name[20];
 
+#ifdef CONFIG_RTLWIFI_DEBUGFS
 	struct dentry *dfs;
 
-	struct r92su_debug_mem_rbe ring[R92SU_DEBUG_RING_SIZE];
+	struct rtl_debug_mem_rbe ring[RTL_DEBUG_RING_SIZE];
 	unsigned int ring_head, ring_tail, ring_len;
+#endif
 };
 
 #define MIMO_PS_STATIC			0

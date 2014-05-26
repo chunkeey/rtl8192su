@@ -33,6 +33,7 @@
 #include "base.h"
 #include "ps.h"
 #include "efuse.h"
+#include "debug.h"
 #include <linux/export.h>
 #include <linux/kmemleak.h>
 #include <linux/module.h>
@@ -2044,6 +2045,13 @@ int rtl_pci_probe(struct pci_dev *pdev,
 		goto fail3;
 	}
 
+	err = rtl_register_debugfs(hw);
+	if (err) {
+		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
+			 "Can't initialize debugfs\n");
+		err = -ENODEV;
+		goto fail3;
+	}
 	rtlpriv->cfg->ops->init_sw_leds(hw);
 
 	err = sysfs_create_group(&pdev->dev.kobj, &rtl_attribute_group);
@@ -2066,6 +2074,7 @@ int rtl_pci_probe(struct pci_dev *pdev,
 	return 0;
 
 fail3:
+	rtl_unregister_debugfs(hw);
 	rtl_deinit_core(hw);
 
 	if (rtlpriv->io.pci_mem_start != 0)
@@ -2108,6 +2117,8 @@ void rtl_pci_disconnect(struct pci_dev *pdev)
 		rtlpriv->intf_ops->adapter_stop(hw);
 	}
 	rtlpriv->cfg->ops->disable_interrupt(hw);
+
+	rtl_unregister_debugfs(hw);
 
 	/*deinit rfkill */
 	rtl_deinit_rfkill(hw);
