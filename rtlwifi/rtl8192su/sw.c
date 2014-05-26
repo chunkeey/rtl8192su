@@ -200,7 +200,7 @@ static struct rtl_hal_ops rtl8192su_hal_ops = {
 };
 
 static struct rtl_mod_params rtl92su_mod_params = {
-	.sw_crypto = true,
+	.sw_crypto = false,
 	.inactiveps = false,
 	.swctrl_lps = false,
 	.fwctrl_lps = false,
