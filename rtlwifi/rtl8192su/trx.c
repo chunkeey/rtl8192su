@@ -134,7 +134,6 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct phy_sts_cck_8192s_t *cck_buf;
-	struct rtl_ps_ctl *ppsc = rtl_psc(rtlpriv);
 	s8 rx_pwr_all = 0, rx_pwr[4];
 	u8 rf_rx_num = 0, evm, pwdb_all;
 	u8 i, max_spatial_stream;
@@ -150,13 +149,6 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 	if (is_cck) {
 		u8 report, cck_highpwr;
 		cck_buf = (struct phy_sts_cck_8192s_t *)p_drvinfo;
-
-		if (ppsc->rfpwr_state == ERFON)
-			cck_highpwr = (u8) rtl_get_bbreg(hw,
-						RFPGA0_XA_HSSIPARAMETER2,
-						0x200);
-		else
-			cck_highpwr = false;
 
 		if (!cck_highpwr) {
 			u8 cck_agc_rpt = cck_buf->cck_agc_rpt;

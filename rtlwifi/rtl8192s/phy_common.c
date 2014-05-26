@@ -67,7 +67,10 @@ u32 rtl92s_phy_query_bb_reg(struct ieee80211_hw *hw, u32 regaddr, u32 bitmask)
 
 	_rtl92su_phy_bb_ready(rtlpriv);
 
-	originalvalue = rtl_read_dword(rtlpriv, regaddr);
+	rtl_read_dword(rtlpriv, regaddr);
+	_rtl92su_phy_bb_ready(rtlpriv);
+
+	originalvalue = rtl_read_dword(rtlpriv, REG_PHY_REG_DATA);
 	bitshift = _rtl92s_phy_calculate_bit_shift(bitmask);
 	returnvalue = (originalvalue & bitmask) >> bitshift;
 
@@ -88,7 +91,10 @@ void rtl92s_phy_set_bb_reg(struct ieee80211_hw *hw, u32 regaddr, u32 bitmask,
 		 regaddr, bitmask, data);
 
 	if (bitmask != MASKDWORD) {
-		originalvalue = rtl_read_dword(rtlpriv, regaddr);
+		rtl_read_dword(rtlpriv, regaddr);
+		_rtl92su_phy_bb_ready(rtlpriv);
+
+		originalvalue = rtl_read_dword(rtlpriv, REG_PHY_REG_DATA);
 		bitshift = _rtl92s_phy_calculate_bit_shift(bitmask);
 		data = ((originalvalue & (~bitmask)) | (data << bitshift));
 	}
@@ -1239,6 +1245,7 @@ bool rtl92s_phy_bb_config(struct ieee80211_hw *hw)
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_EMERG,
 			 "path1 0x%x, path2 0x%x, pathmap 0x%x\n",
 			 path1, path2, pathmap);
+		rtstatus = false;
 	}
 
 	return rtstatus;
