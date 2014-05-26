@@ -209,30 +209,18 @@ struct Dot11RFEntry {
 	unsigned int	dot11ch_low;
 	unsigned int	dot11ch_hi;
 	unsigned char	pwrlevelCCK[MAX_CCK_CHANNEL_NUM];
-#if defined(CONFIG_RTL8196B) || defined(RTL8192SU)
 	unsigned char	pwrlevelOFDM_1SS[MAX_OFDM_CHANNEL_NUM];
 	unsigned char	pwrlevelOFDM_2SS[MAX_OFDM_CHANNEL_NUM];
-#else
-	unsigned char	pwrlevelOFDM[MAX_OFDM_CHANNEL_NUM];
-#endif
 	unsigned int	defaultAntennaB;
 	unsigned int	dot11DiversitySupport;
 	unsigned int	shortpreamble;
 	unsigned int	chipVersion;
 	unsigned int	disable_ch14_ofdm;
-#if defined(CONFIG_RTL8196B) || defined(RTL8192SU)
 	unsigned int	LOFDM_pwd_A;
 	unsigned int	LOFDM_pwd_B;
 	unsigned int	tssi1;
 	unsigned int	tssi2;
 	unsigned int	ther;
-#else
-	unsigned int	legacyOFDM_pwrdiff;
-	unsigned int	antC_pwrdiff;
-	unsigned int	ther_rfic;
-	unsigned int	crystalCap;
-	unsigned int	bw_pwrdiff;
-#endif
 	unsigned int	MIMO_TR_mode;
 };
 
@@ -336,11 +324,9 @@ struct MiscEntry {
 	unsigned char	lb_da[6];
 	unsigned int	groupID;
 	unsigned int	vap_enable;
-#ifdef 	RTL8192SU
 	unsigned int	num_sta;
 #ifdef RTL8192SU_FWBCN
 	unsigned int	intf_map;
-#endif
 #endif
 	unsigned int	func_off;
 };

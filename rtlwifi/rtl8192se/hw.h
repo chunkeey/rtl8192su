@@ -29,19 +29,6 @@
 #ifndef __REALTEK_PCI92SE_HW_H__
 #define __REALTEK_PCI92SE_HW_H__
 
-#define MSR_LINK_MANAGED   2
-#define MSR_LINK_NONE      0
-#define MSR_LINK_SHIFT     0
-#define MSR_LINK_ADHOC     1
-#define MSR_LINK_MASTER    3
-
-enum WIRELESS_NETWORK_TYPE {
-	WIRELESS_11B = 1,
-	WIRELESS_11G = 2,
-	WIRELESS_11A = 4,
-	WIRELESS_11N = 8
-};
-
 void rtl92se_get_hw_reg(struct ieee80211_hw *hw,
 			u8 variable, u8 *val);
 void rtl92se_read_eeprom_info(struct ieee80211_hw *hw);
@@ -54,7 +41,6 @@ void rtl92se_disable_interrupt(struct ieee80211_hw *hw);
 int rtl92se_set_network_type(struct ieee80211_hw *hw,
 			     enum nl80211_iftype type);
 void rtl92se_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid);
-void rtl92se_set_mac_addr(struct rtl_io *io, const u8 * addr);
 void rtl92se_set_qos(struct ieee80211_hw *hw, int aci);
 void rtl92se_set_beacon_related_registers(struct ieee80211_hw *hw);
 void rtl92se_set_beacon_interval(struct ieee80211_hw *hw);
@@ -74,6 +60,7 @@ void rtl92se_set_key(struct ieee80211_hw *hw,
 		     u8 enc_algo, bool is_wepkey, bool clear_all);
 void rtl92se_suspend(struct ieee80211_hw *hw);
 void rtl92se_resume(struct ieee80211_hw *hw);
+void rtl92se_allow_all_destaddr(struct ieee80211_hw *hw,
+				bool allow_all_da, bool write_into_reg);
 
 #endif
-

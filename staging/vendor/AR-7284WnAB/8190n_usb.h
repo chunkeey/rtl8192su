@@ -2,23 +2,8 @@
 #ifndef _8190N_USB_H_
 #define _8190N_USB_H_
 
-#ifdef CONFIG_RTL8671
 #include "../../core/hcd.h" //(for mips16 __delay issue, must disable)
-#else
-#include "../../usb/hcd-rtl8652.h"
-#endif
 
-#if defined(RTL8192SU) && !defined(__LINUX_2_6__)
-
-#ifndef PATCH_USB_IN_SCHEDULING
-#include "../../usb/hcd.h"
-#endif
-
-#define usb_kill_urb(urb) usb_unlink_urb(urb)
-#define bus_to_hcd(bus) ((struct usb_hcd *) bus->hcpriv)
-#define in_atomic in_interrupt
-
-#endif
 
 #define usb_control_msg new_usb_control_msg
 

@@ -82,9 +82,7 @@ struct rtl8190_chr_priv {
 	struct fasync_struct*	asoc_fasync;	// asynch notification
 };
 
-#ifdef __LINUX_2_6__
 struct module *owner;
-#endif
 
 extern struct rtl8190_priv *rtl8190_chr_reg(unsigned int minor, struct rtl8190_chr_priv *priv);
 extern void rtl8190_chr_unreg(unsigned int minor);
@@ -109,14 +107,10 @@ static int wlanchr_open(struct inode *inode, struct file *filp)
 
 	int minor = MINOR(inode->i_rdev);
 
-#ifdef __LINUX_2_6__
 	if(!try_module_get(owner)) {
 		printk(KERN_ALERT "Module increasing error!!\n");
 		return -ENODEV;
 	}
-#else
-	MOD_INC_USE_COUNT;
-#endif
 
 	if (minor >= MAX_NUM_WLANIF)
 	{
@@ -178,11 +172,7 @@ static int wlanchr_close(struct inode *inode, struct file *filp)
 
 	spin_unlock_irqrestore(&lock, flags);
 
-#ifdef __LINUX_2_6__
 	module_put(owner);
-#else
-	MOD_DEC_USE_COUNT;
-#endif
 
 	DEBUG_OUT("Close wlan_chr dev%d success!\n", minor);
 

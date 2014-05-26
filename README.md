@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This is "a" driver repository for the WIP r92su for any interested developer.
+This is "a" driver repository for the WIP rtl8192su for any interested developer.
 
 To build the driver you will need to have a recent and compatible kernel source.
 

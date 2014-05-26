@@ -6,10 +6,8 @@
 
 #define _8190N_TX_C_
 
-#ifdef __KERNEL__
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#endif
 
 #ifdef __DRAYTEK_OS__
 #include <draytek/wl_dev.h>
@@ -21,13 +19,7 @@
 #include "./8190n_headers.h"
 #include "./8190n_debug.h"
 
-#ifdef RTL867X_CP3
-#include "./romeperf.h"
-#endif
 
-#ifndef __KERNEL__
-#include "./sys-support.h"
-#endif
 
 #ifdef RTL8190_VARIABLE_USED_DMEM
 #include "./8190n_dmem.h"
@@ -51,26 +43,6 @@
 #define TX_AMPDU_BUFFER_MID		4
 #define TX_AMPDU_BUFFER_LAST	5
 
-#if	defined(RTL8190) || defined(RTL8192E)
-#define PRI_TO_QNUM(priority, q_num, wifi_specific) { \
-	if (wifi_specific) { \
-		if ((priority == 0) || (priority == 3)) \
-			q_num = BE_QUEUE; \
-		else if ((priority == 7) || (priority == 6)) \
-			q_num = VO_QUEUE; \
-		else if ((priority == 5) || (priority == 4)) \
-			q_num = VI_QUEUE; \
-		else  \
-			q_num = BK_QUEUE; \
-	} \
-	else { \
-		if (priority == 4 || priority == 5 || priority == 6 || priority == 7) \
-			q_num = VI_QUEUE; \
-		else \
-			q_num = BE_QUEUE; \
-	} \
-}
-#elif	defined(RTL8192SE) || defined(RTL8192SU)
 #define PRI_TO_QNUM(priority, q_num, wifi_specific) { \
 		if ((priority == 0) || (priority == 3)) \
 			q_num = BE_QUEUE; \
@@ -81,7 +53,6 @@
 		else  \
 			q_num = BK_QUEUE; \
 }
-#endif
 
 #ifdef  SUPPORT_TX_MCAST2UNI
 #define IP_MCAST_MAC(mac)	((mac[0]==0x01)&&(mac[1]==0x00)&&(mac[2]==0x5e))
@@ -96,14 +67,12 @@
 
 #endif
 
-#ifdef CONFIG_RTL8671
 extern int enable_IGMP_SNP;
 extern int check_IGMP_report(struct sk_buff *skb);
 extern int check_wlan_mcast_tx(struct sk_buff *skb);
 // MBSSID Port Mapping
 extern struct port_map wlanDev[5];
 extern int g_port_mapping;
-#endif
 
 #if defined(RTL8192E) || defined(STA_EXT)
 extern unsigned short MCS_DATA_RATE[2][2][16];
@@ -133,57 +102,9 @@ static void tkip_fill_encheader(struct rtl8190_priv *priv,
 static void aes_fill_encheader(struct rtl8190_priv *priv,
 			unsigned char *pwlhdr, unsigned int hdrlen, unsigned long keyid);
 
-#if !defined(RTL8192SU)
-static int rtl8190_tx_queueDsr(struct rtl8190_priv *priv, unsigned int txRingIdx);
-#endif
 
 static void rtl8190_tx_restartQueue(struct rtl8190_priv *priv);
 
-#if !defined(RTL8192SU)
-static __inline__ unsigned int GetTxDuration(struct rtl8190_priv *priv, unsigned int tx_rate,
-				unsigned int len, unsigned int shrt)
-{
-	unsigned int dur = 0, Ceiling;
-
-	if (tx_rate==0) {
-		DEBUG_ERR("invalid tx rate. use 1M as default!\n");
-		tx_rate = 2;
-	}
-
-	switch(tx_rate)
-	{
-	case 108:
-	case 96:
-	case 72:
-	case 66:
-	case 48:
-	case 44:
-	case 36:
-	case 24:
-	case 18:
-	case 12:
-		Ceiling = ((16 + (len << 3) + 6) + (tx_rate << 1) - 1) / (tx_rate << 1);
-		if (priv->pmib->dot11BssType.net_work_type & WIRELESS_11G)
-			dur = 16 + 4 + 4 * Ceiling + 4 + 6;
-		else // 11a
-			dur = 16 + 4 + 4 * Ceiling + 4;
-		break;
-	case 22:
-	case 11:
-	case 4:
-		if (shrt)
-			dur = 72 + 24 + ((len << 4) + tx_rate - 1) / tx_rate;
-		else
-			dur = 144 + 48 + ((len << 4) + tx_rate - 1) / tx_rate;
-		break;
-	case 2:
-		dur = 144 + 48 + ((len << 4) + tx_rate - 1) / tx_rate;
-		break;
-	}
-
-	return dur;
-}
-#endif
 
 
 #ifndef CONFIG_RTK_MESH
@@ -193,17 +114,8 @@ unsigned int get_tx_rate(struct rtl8190_priv *priv, struct stat_info *pstat)
 {
 #if defined(RTL8192E) || defined(STA_EXT)
 	if (priv->pmib->dot11StationConfigEntry.autoRate 
-#ifdef RTL8192E
-		&& ((++pstat->try_rate_idx) == TRY_RATE_FREQ)
-#endif
 		&& pstat->remapped_aid < FW_NUM_STAT-1/*!(priv->STA_map & BIT(pstat->aid)*/
 		) { 
-#ifdef RTL8192E
-		pstat->try_rate_idx = 0;
-		if (pstat->upper_tx_rate)
-			return pstat->upper_tx_rate;
-		else
-#endif
 			return pstat->current_tx_rate;
 	}
 	else
@@ -264,11 +176,6 @@ unsigned int get_lowest_tx_rate(struct rtl8190_priv *priv, struct stat_info *pst
 	unsigned int lowest_tx_rate;
 
 	if (priv->pmib->dot11StationConfigEntry.autoRate) {
-#if 0	// unused
-		if ((pstat->high_rssi_state) && is_CCK_rate(tx_rate) && !pstat->not_ch_rate_by_rssi)
-			lowest_tx_rate = tx_rate;
-		else
-#endif
 			lowest_tx_rate = find_rate(priv, pstat, 0, 0);
 	}
 	else
@@ -278,9 +185,7 @@ unsigned int get_lowest_tx_rate(struct rtl8190_priv *priv, struct stat_info *pst
 }
 
 
-#ifdef RTL8192SU
 __IRAM_WIFI_PRI5
-#endif
 void assign_wlanseq(struct rtl8190_hw *phw, unsigned char *pframe, struct stat_info *pstat, struct wifi_mib *pmib
 #ifdef CONFIG_RTK_MESH	// For broadcast data frame via mesh (ex:ARP requst)
 	, unsigned char is_11s
@@ -313,9 +218,6 @@ void assign_wlanseq(struct rtl8190_hw *phw, unsigned char *pframe, struct stat_i
 				printk("Invalid seq num setting for Multicast or Broadcast pkt!!\n");
 		}
 
-#if defined(RTL8190) || defined(RTL8192E)
-		if (!pmib->dot11OperationEntry.wifi_specific)
-#endif
 		{
 			if ((tid == 7) || (tid == 6))
 				phw->VO_pkt_count++;
@@ -377,10 +279,8 @@ static unsigned int get_skb_priority(struct rtl8190_priv *priv, struct sk_buff *
 			else
 				pri = 0;
 		}
-#ifdef RTL8192SU
 		if (pri!=0x7 && pri!=0x5 && pri!=0x1 && pri!=0x0)
 			pri = 0;
-#endif
 		skb->cb[1] = pri;
 
 		return pri;
@@ -504,7 +404,6 @@ legacy_ps:
 	return FALSE;
 }
 
-#ifdef RTL8192SU
 __IRAM_WIFI_PRI5 unsigned int get_TxUrb_Pending_num(struct rtl8190_priv *priv)
 {
 	unsigned int i, tx_pending;
@@ -516,7 +415,6 @@ __IRAM_WIFI_PRI5 unsigned int get_TxUrb_Pending_num(struct rtl8190_priv *priv)
 	}
 	return tx_pending;
 }
-#endif
 
 
 /*        Function to process different situations in TX flow             */
@@ -830,14 +728,7 @@ static void rtl8190_tx_xmitSkbFail(struct rtl8190_priv *priv, struct sk_buff *sk
 #ifdef WDS
 	if (wdsDev)
 	{
-#if defined(RTL8192SU) && defined(CONFIG_ENABLE_MIPS16) //for mips 16	
-#ifdef CONFIG_NETPOLL_TRAP
-		if (!netpoll_trap())
-#endif
-		set_bit(__LINK_STATE_XOFF, &wdsDev->state);
-#else
 		netif_stop_queue(wdsDev);
-#endif
 
 	}
 	else
@@ -847,14 +738,7 @@ static void rtl8190_tx_xmitSkbFail(struct rtl8190_priv *priv, struct sk_buff *sk
 		if (!QOS_ENABLE)
 #endif
 		{
-#if defined(RTL8192SU) && defined(CONFIG_ENABLE_MIPS16) //for mips 16
-#ifdef CONFIG_NETPOLL_TRAP
-			if (!netpoll_trap())
-#endif
-			set_bit(__LINK_STATE_XOFF, &dev->state);
-#else
 			netif_stop_queue(dev);
-#endif
 		}
 	}
 
@@ -877,9 +761,6 @@ static void rtl8190_tx_xmitSkbFail(struct rtl8190_priv *priv, struct sk_buff *sk
 static int rtl8190_tx_slowPath(struct rtl8190_priv *priv, struct sk_buff *skb, struct stat_info *pstat,
 				struct net_device *dev, struct net_device *wdsDev, struct tx_insn *txcfg)
 {
-#ifdef RTL867X_CP3
-	//rtl8651_romeperfEnterPoint(ROMEPERF_INDEX_SLOWSTART );
-#endif
 
 #if defined(CONFIG_RTL_WAPI_SUPPORT)
 	if ((pstat && pstat->wapiInfo
@@ -958,17 +839,11 @@ static int rtl8190_tx_slowPath(struct rtl8190_priv *priv, struct sk_buff *skb, s
 		goto stop_proc;
 	}
 
-#ifdef RTL867X_CP3
-	//rtl8651_romeperfExitPoint(ROMEPERF_INDEX_SLOWSTART );
-#endif
 	/* Reply caller function : process done successfully */
 	return TX_PROCEDURE_CTRL_SUCCESS;
 
 stop_proc:
 
-#ifdef RTL867X_CP3
-	//rtl8651_romeperfExitPoint(ROMEPERF_INDEX_SLOWSTART );
-#endif
 	/* Reply caller function : STOP process */
 	return TX_PROCEDURE_CTRL_STOP;
 }
@@ -986,26 +861,12 @@ int rtl8190_start_xmit_from_cpu(struct sk_buff *skb, struct net_device *dev)
 }
 #endif
 
-#if !defined(RTL8192SU)
-#ifndef __LINUX_2_6__
-__IRAM_IN_865X_HI
-#endif
-#else
 __IRAM_WIFI_PRI5
-#endif
 int rtl8190_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct rtl8190_priv *priv = (struct rtl8190_priv *)dev->priv;
 	unsigned long x;
 	int ret;
-#if 0 //defined PKT_PROCESSOR
-	if((skb->fcpu==0)&&((unsigned int)skb->pptx==0))
-	{
-		printk("nerver happen...\n");
-		dump_all_msg();
-		BUG();
-	}
-#endif
 
 #ifdef RTL8190_FASTEXTDEV_FUNCALL
 	rtl865x_extDev_pktFromProtocolStack(skb);
@@ -1021,9 +882,6 @@ int rtl8190_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 
 #ifdef SUPPORT_TX_AMSDU
-#if defined(RTL8190) || defined(RTL8192E)
-__IRAM_FASTEXTDEV
-#endif
 static int amsdu_xmit(struct rtl8190_priv *priv, struct stat_info *pstat, struct tx_insn *txcfg, int tid,
 				int from_isr, struct net_device *wdsDev, struct net_device *dev)
 {
@@ -1036,12 +894,7 @@ static int amsdu_xmit(struct rtl8190_priv *priv, struct stat_info *pstat, struct
 	txcfg->pstat = pstat;
 	q_num = txcfg->q_num;
 
-#if !defined(RTL8192SU)
-	tx_head = get_txhead_addr(phw, q_num);
-	tx_tail = get_txtail_addr(phw, q_num);
-#else
 	//FIX ME!!
-#endif	
 
 	max_size = pstat->amsdu_level;
 
@@ -1057,18 +910,7 @@ static int amsdu_xmit(struct rtl8190_priv *priv, struct stat_info *pstat, struct
 			if (skb_queue_len(&pstat->amsdu_tx_que[tid]) > 0) {
 				space = CIRC_SPACE_RTK(*tx_head, *tx_tail, NUM_TX_DESC);
 				if (space < 10) {
-#if !defined(RTL8192SU)
-					rtl8190_tx_dsr((unsigned long)priv);
-					space = CIRC_SPACE_RTK(*tx_head, *tx_tail, NUM_TX_DESC);
-					if (space < 10) {
-						// printk("Tx desc not enough for A-MSDU!\n");
-						__skb_queue_head(&pstat->amsdu_tx_que[tid], pskb);
-						RESTORE_INT(flags);
-						return 0;
-					}
-#else
 					//FIX ME!!
-#endif
 				}
 				txcfg->aggre_en = FG_AGGRE_MSDU_FIRST;
 				is_first = 0;
@@ -1260,22 +1102,7 @@ static
 	PRI_TO_QNUM(priority, q_num, priv->pmib->dot11OperationEntry.wifi_specific);
 
 	phw = GET_HW(priv);
-#if !defined(RTL8192SU)
-	tx_head = get_txhead_addr(phw, q_num);
-	tx_tail = get_txtail_addr(phw, q_num);
-
-	cnt = CIRC_CNT_RTK(*tx_head, *tx_tail, NUM_TX_DESC);
-
-#if 0
-	if (cnt <= AMSDU_TX_DESC_TH)
-		return RET_AGGRE_BYPASS;
-#endif
-
-	if (cnt == (NUM_TX_DESC - 1))
-		return RET_AGGRE_DESC_FULL;
-#else
 	//FIX ME!!
-#endif		
 
 #ifdef MESH_AMSDU
 	// Gakki
@@ -1623,27 +1450,13 @@ int mlcst2unicst(struct rtl8190_priv *priv, struct sk_buff *skb)
 		plist = plist->next;
 
 		{
-#if !defined(RTL8192SU)		
-			int *tx_head, *tx_tail, q_num;
-			struct rtl8190_hw	*phw = GET_HW(priv);
-			q_num = pstat->txcfg.q_num;
-			tx_head = get_txhead_addr(phw, q_num);
-			tx_tail = get_txtail_addr(phw, q_num);
-#endif			
 #ifdef CONFIG_RTL865X_ETH_PRIV_SKB			
 			extern	int eth_skb_free_num;
 #endif
 			if (priv->stop_tx_mcast2uni) {
-#if !defined(RTL8192SU)			
-				rtl8190_tx_queueDsr(priv, q_num);
-#endif				
 			
 				if (priv->stop_tx_mcast2uni  == 1 &&
-#if !defined(RTL8192SU)
-						CIRC_SPACE_RTK(*tx_head, *tx_tail, NUM_TX_DESC) > (NUM_TX_DESC*1)/4
-#else
 						(get_TxUrb_Pending_num(priv) <= ((NUM_TX_DESC>>2)+(NUM_TX_DESC>>3)))
-#endif
 				)
 				{
 					priv->stop_tx_mcast2uni = 0;
@@ -1669,11 +1482,7 @@ int mlcst2unicst(struct rtl8190_priv *priv, struct sk_buff *skb)
 				}				
 			}
 			else {
-#if !defined(RTL8192SU)			
-				if (CIRC_SPACE_RTK(*tx_head, *tx_tail, NUM_TX_DESC) < 20)
-#else
 				if (get_TxUrb_Pending_num(priv) > ((NUM_TX_DESC>>1)+(NUM_TX_DESC>>2)))
-#endif
 				{					
 					priv->stop_tx_mcast2uni = 1;
 #if defined(PKT_PROCESSOR) || defined(PRE_ALLOCATE_SKB)
@@ -1734,7 +1543,6 @@ int mlcst2unicst(struct rtl8190_priv *priv, struct sk_buff *skb)
 }
 #endif // TX_SUPPORT_MCAST2U
 
-#ifdef RTL8192SU
 __IRAM_WIFI_PRI5 void rtk8192su_tx_dsr(struct urb *tx_urb)
 {
 	struct tx_desc_info	*pdescinfo = (struct tx_desc_info*)tx_urb->context;
@@ -1744,43 +1552,13 @@ __IRAM_WIFI_PRI5 void rtk8192su_tx_dsr(struct urb *tx_urb)
 	struct rtl8190_hw	*phw=GET_HW(priv);
 //	unsigned int q_num = pdescinfo->q_num;
 
-#if 0 //verify only: show the descriptor length is different with urb transfer buffer length
-	//if((usb_pipeout(tx_urb->pipe))&&(tx_urb->transfer_buffer_length>32)&&((usb_pipeendpoint(tx_urb->pipe)==6)||(usb_pipeendpoint(tx_urb->pipe)==13)))
-	if(tx_urb->transfer_buffer_length>32)
-	{
-		unsigned char *addr=(unsigned int *)(((unsigned int)tx_urb->transfer_buffer)|0xa0000000);
-		unsigned int len=(*(unsigned char*)(addr+1))*256+(*(unsigned char*)(addr));
-#ifdef RTL8192SU_DBG
-		unsigned char offset=(*(unsigned char*)(addr+2));
-		unsigned char padding=((*(unsigned char*)(addr+7))>>2)&0x7f;
-		unsigned short usePage=((len+32)>>8);
-		if (((len+32)&0xff) !=0 )
-			usePage++;
-		priv->pshare->Use_PageNum -= usePage;
-#endif
 
-		//if((len+32!=tx_urb->transfer_buffer_length)&&(len+40 != tx_urb->transfer_buffer_length))
-		if(len+offset+(padding*8)!=tx_urb->transfer_buffer_length)
-		{
-			printk("[cb]buf_len=%x actual=%x iplen=%x_%x ipid=%x_%x urb=%x buf=%x\n",tx_urb->transfer_buffer_length,tx_urb->actual_length,addr[68],addr[69],addr[70],addr[71],(unsigned int)tx_urb,(unsigned int)addr);
-			memDump(tx_urb->transfer_buffer,128,"data");
-			BUG();
-		}
-	}
-#endif 
-
-#ifdef RTL867X_CP3
-rtl8651_romeperfEnterPoint(ROMEPERF_INDEX_8187_TX_ISR );
-#endif
 
 #ifdef WDS
 	//int toWds=0;
 #endif
 	if (!phw)
 	{
-#ifdef RTL867X_CP3
-		rtl8651_romeperfExitPoint(ROMEPERF_INDEX_8187_TX_ISR );
-#endif	
 		return;
 	}
 
@@ -1788,44 +1566,6 @@ rtl8651_romeperfEnterPoint(ROMEPERF_INDEX_8187_TX_ISR );
 		//SAVE_INT_AND_CLI(flags);
 		{
 			{
-#if 0
-				// 1. free header
-				{
-					if (pdescinfo->hdr_type == _SKB_FRAME_TYPE_)
-					{
-						//restart_queue = 1;
-						printk("Bug: header type == _SKB_FRAME_TYPE_\n");
-					}
-					else if (pdescinfo->hdr_type == _PRE_ALLOCMEM_)
-					{
-						//printk("(before)mgtbuf_count=%d\n", priv->pshare->pwlanbuf_poll->count);
-						//release_mgtbuf_to_poll(priv, (UINT8 *)(pdescinfo->phdr));
-						//printk("(after)mgtbuf_count=%d\n", priv->pshare->pwlanbuf_poll->count);
-					}
-					else if (pdescinfo->hdr_type == _PRE_ALLOCHDR_)
-					{
-						//printk("(before)wlan_hdr_poll=%d\n", priv->pshare->pwlan_hdr_poll->count);
-						release_wlanhdr_to_poll(priv, (UINT8 *)(pdescinfo->phdr));
-						//printk("(after)wlan_hdr_poll=%d\n", priv->pshare->pwlan_hdr_poll->count);
-					}
-					else if (pdescinfo->hdr_type == _PRE_ALLOCLLCHDR_)
-					{
-						//printk("(before)wlanllc_hdr_count=%d\n", priv->pshare->pwlanllc_hdr_poll->count);
-						release_wlanllchdr_to_poll(priv, (UINT8 *)(pdescinfo->phdr));
-//						printk("(after)wlanllc_hdr_count=%d\n", priv->pshare->pwlanllc_hdr_poll->count);
-					}
-	 				else if (pdescinfo->hdr_type == _RESERVED_FRAME_TYPE_)
-					{
-						// the chained skb, no need to release memory
-					}
-					else
-					{
-
-					}
-					// for skb buffer free
-					pdescinfo->phdr = NULL;
-				}
-#endif
 				// 2. free frame
 				{
 					if (pdescinfo->type == _SKB_FRAME_TYPE_)
@@ -1933,9 +1673,6 @@ rtl8651_romeperfEnterPoint(ROMEPERF_INDEX_8187_TX_ISR );
 	}
 #endif
 
-#ifdef RTL867X_CP3
-rtl8651_romeperfExitPoint(ROMEPERF_INDEX_8187_TX_ISR );
-#endif
 
 }
 
@@ -2167,7 +1904,6 @@ __IRAM_WIFI_PRI5 unsigned char get_endpoint(struct rtl8190_priv *priv, unsigned 
 	switch(q_num)
 	{
 		case MGNT_QUEUE:	return TxCmd_Bcn_Mgt_Hiht_PRIORITY; break;
-#if 1
 		case BK_QUEUE:
 			return ((priv->pmib->efuseEntry.usb_epnum==USBEP_SIX) ? BK_PRIORITY:BE_PRIORITY);
 			break;
@@ -2180,12 +1916,6 @@ __IRAM_WIFI_PRI5 unsigned char get_endpoint(struct rtl8190_priv *priv, unsigned 
 		case VO_QUEUE:
 			return VO_PRIORITY;
 			break;
-#else
-		case BK_QUEUE:
-		case BE_QUEUE:
-		case VI_QUEUE:
-		case VO_QUEUE:		priv->pshare->EP_be_pkt++; return BE_PRIORITY; break;
-#endif
 		case HIGH_QUEUE:	return TxCmd_Bcn_Mgt_Hiht_PRIORITY; break;
 		case BEACON_QUEUE:	return TxCmd_Bcn_Mgt_Hiht_PRIORITY; break;
 #ifdef RTL8192SU_FWBCN
@@ -2206,20 +1936,7 @@ __IRAM_WIFI_PRI5 int RTL8192SU_submit_urb(struct rtl8190_priv *priv, struct urb 
 	int 			status;
 	unsigned long	flags;
 
-#if 0
-	unsigned char *addr;
-	addr=(unsigned char *)((unsigned int)tx_urb->transfer_buffer|0xa0000000);
-	if(((int)*(unsigned char*)addr+(int)(*(unsigned char*)(addr+1))*256)!=tx_urb->transfer_buffer_length-32)
-	{
-		printk("length is diff , submit len=0x%x\n",tx_urb->transfer_buffer_length-32);
-		memDump(tx_urb->transfer_buffer,64,"pkt");
-	}
-	dma_cache_wback_inv((unsigned long)tx_urb->transfer_buffer,tx_urb->transfer_buffer_length);
-#endif
 
-#ifdef RTL867X_CP3
-rtl8651_romeperfEnterPoint(ROMEPERF_INDEX_USB_SUBMIT_URB_TX );
-#endif
 	SAVE_INT_AND_CLI(flags);
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	status = usb_submit_urb(tx_urb, GFP_ATOMIC);
@@ -2229,9 +1946,6 @@ rtl8651_romeperfEnterPoint(ROMEPERF_INDEX_USB_SUBMIT_URB_TX );
 	RESTORE_INT(flags);
 #ifdef 	LOOPBACK_NORMAL_TX_MODE
 	priv->ext_stats.loopback_TX_cnt++;
-#endif
-#ifdef RTL867X_CP3
-rtl8651_romeperfExitPoint(ROMEPERF_INDEX_USB_SUBMIT_URB_TX );
 #endif
 
 	return status;
@@ -2311,38 +2025,6 @@ allocate_urb:
 		/*------------------------------------------------------------*/
 		//pdesc   	= (struct tx_desc*)(((u8*)tx)+usbTxBugoffset);
 		pdesc   	= (((unsigned char*)tx)+usbTxBugoffset);
-#if 0
-		//printk("[%x][%x]\n", ((unsigned int)pdesc), ((unsigned int)pdesc)&0x3ff);
-		if ((((unsigned int)pdesc)&0x3ff) != 0)
-		{
-			unsigned int pkt_len=(((unsigned int)pdesc)+frLen)-((unsigned int)pdesc);
-			unsigned int over_size=0;
-			//printk("%s, %d\n", __FUNCTION__, __LINE__);
-			//printk("urb_len=%d, usbTxBugoffset=%d, fr_len=%d, pkt_len=%d, [%x]\n", urb_len, usbTxBugoffset, fr_len, pkt_len, (((unsigned int)pdesc)+frLen));
-			//printk("[%x][%x]\n", ((((unsigned int)pdesc)+frLen)&0x00000f00), (((unsigned int)pdesc)&0x00000f00));
-			if ((((((unsigned int)pdesc)+frLen)&0x00000f00)-(((unsigned int)pdesc)&0x00000f00))>= 1024) // over 1k boundary
-			{
-				over_size=(((unsigned int)pdesc)+frLen)&0x3ff;
-				//printk("%s, %d[over_size=%d]\n", __FUNCTION__, __LINE__, over_size);
-				//printk("%s, %d[%d], over_size=%x[%x][%x]\n", __FUNCTION__, __LINE__, pkt_len % 64, over_size, (((unsigned int)pdesc)+frLen),((((unsigned int)pdesc)+frLen)&0x00000f00));
-				if (over_size>=5&&over_size<=7)
-				{
-					//printk("====================\nover 1k boundary!\n");
-					usbTxBugoffset=0;
-					kfree(tx);
-					goto allocate_urb;
-				}
-			}
-
-		}
-		else if ((((unsigned int)(tx))&3) != 0) // 4N
-		{
-			//printk("====================\n4N error!\n");
-			usbTxBugoffset=0;
-			kfree(tx);
-			goto allocate_urb;
-		}
-#endif
 		pdescinfo = kmalloc(sizeof(struct tx_desc_info), GFP_ATOMIC);
 		if(!pdescinfo) return -ENOMEM;
 		memset(pdescinfo, 0, sizeof(struct tx_desc_info));
@@ -2398,21 +2080,6 @@ allocate_urb:
 		txbuff[8]=0xff;
 		txbuff[9]=0xff;
 
-#if 0
-		txbuff[10]=0xff;
-		txbuff[11]=0xff;
-		txbuff[12]=0xff;
-		txbuff[13]=0xff;
-		txbuff[14]=0xff;
-		txbuff[15]=0xff;
-
-		txbuff[16]=0xff;
-		txbuff[17]=0xff;
-		txbuff[18]=0xff;
-		txbuff[19]=0xff;
-		txbuff[20]=0xff;
-		txbuff[21]=0xff;
-#else
 		txbuff[10]=priv->pmib->dot11StationConfigEntry.dot11Bssid[0];
 		txbuff[11]=priv->pmib->dot11StationConfigEntry.dot11Bssid[1];
 		txbuff[12]=priv->pmib->dot11StationConfigEntry.dot11Bssid[2];
@@ -2426,7 +2093,6 @@ allocate_urb:
 		txbuff[19]=priv->pmib->dot11StationConfigEntry.dot11Bssid[3];
 		txbuff[20]=priv->pmib->dot11StationConfigEntry.dot11Bssid[4];
 		txbuff[21]=priv->pmib->dot11StationConfigEntry.dot11Bssid[5];
-#endif
 
 		txbuff[22]=0x00;
 		txbuff[23]=0x00;
@@ -2493,7 +2159,6 @@ allocate_urb:
 			}
 		}
 
-#if 1
 		txbuff[fr_len-15]=0x11;
 		txbuff[fr_len-14]=0x22;
 		txbuff[fr_len-13]=0x33;
@@ -2509,7 +2174,6 @@ allocate_urb:
 		txbuff[fr_len-3]=0xdd;
 		txbuff[fr_len-2]=0xee;
 		txbuff[fr_len-1]=0xff;
-#endif
 		memDump(pdesc, 32, "pdesc");
 		memDump(txbuff, fr_len, "txbuff");
 	}
@@ -2548,15 +2212,7 @@ allocate_urb:
 
 }
 #endif
-#endif	//RTL8192SU
 
-#if	defined(RTL8192SE) || defined(RTL8192SU)
-#if !defined(RTL8192SU)
-#ifndef __LINUX_2_6__
-__MIPS16
-#endif
-__IRAM_FASTEXTDEV
-#endif
 static void rtl8192SE_fill_fwinfo(struct rtl8190_priv *priv, struct tx_insn* txcfg, struct tx_desc  *pdesc, unsigned int frag_idx)
 {
 //	struct FWtemplate *txfw = (struct FWtemplate *)ptxfw;
@@ -2570,9 +2226,6 @@ static void rtl8192SE_fill_fwinfo(struct rtl8190_priv *priv, struct tx_insn* txc
 //	memset(txfw, 0, sizeof(struct FWtemplate)); // initialize to zero
 
 #ifdef MP_TEST
-#if !defined(RTL8192SU)
-	unsigned long ioaddr = priv->pshare->ioaddr;
-#endif
 	if (OPMODE & WIFI_MP_STATE) {
 		if (is_MCS_rate(txcfg->tx_rate)) {	// HT rates
 			txRate = txcfg->tx_rate & 0x7f;
@@ -3082,88 +2735,6 @@ static void rtl8192SU_fill_TxCmd(struct rtl8190_priv *priv, struct tx_insn* txcf
 }
 
 
-#if 0
-void rtl8192SU_signin_fwtxcmd(struct rtl8190_priv *priv, struct tx_insn* txcfg)
-{
-	struct tx_desc  	*pdesc_txcmd;
-	struct tx_desc_info	*pdescinfo;
-	unsigned int 	*tx;
-	int 			status;
-	int				urb_len;
-	priority_t		priority=BULK_PRIORITY;
-	struct urb 		*tx_urb=NULL;
-
-	urb_len = H2CTXCMD_DESC_LEN+H2CTXCMD_HDR_LEN;
-
-	tx = kmalloc(urb_len, GFP_ATOMIC);
-	if(!tx)
-	{
-		printk("%s, %d\n", __FUNCTION__, __LINE__);
-		goto fwbcn_fail;
-	}
-#ifdef RTL8192SU_TX_FEW_INT
-#else
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
- 	tx_urb = usb_alloc_urb(0,GFP_ATOMIC);
-#else
- 	tx_urb = usb_alloc_urb(0);
-#endif
-
-	if(!tx_urb)
-	{
-		kfree(tx);
-		printk("%s, %d\n", __FUNCTION__, __LINE__);
-		goto fwbcn_fail;
-	}
-#endif
-	pdesc_txcmd = (struct tx_desc*)tx;
-	//clear all bits
-	memset(pdesc_txcmd, 0, H2CTXCMD_DESC_LEN+H2CTXCMD_HDR_LEN);
-#ifdef RTL8192SU_TX_FEW_INT
-	//get_tx_urb_from_pool(priv,&tx_urb,&pdescinfo);
-	if(get_tx_urb_from_pool(priv,&tx_urb,&pdescinfo) != SUCCESS)
-	{
-		kfree(tx);
-		goto fwbcn_fail;
-	}
-	//memset(pdescinfo, 0, sizeof(struct tx_desc_info));
-#else
-	pdescinfo = kmalloc(sizeof(struct tx_desc_info), GFP_ATOMIC);
-	if(!pdescinfo)
-		goto fwbcn_fail;
-	memset(pdescinfo, 0, sizeof(struct tx_desc_info));
-#endif
-
-	rtl8192SU_fill_TxCmd(priv, txcfg, pdesc_txcmd);
-
-	pdescinfo->purb= tx;
-	priority=get_endpoint(priv, txcfg->q_num);
-	pdescinfo->q_num = txcfg->q_num;
-	pdescinfo->type = _RESERVED_FRAME_TYPE_;
-	pdescinfo->priv = priv;
-	{
-		usb_fill_bulk_urb(tx_urb,priv->udev,
-				usb_sndbulkpipe(priv->udev,priority), tx,
-				urb_len, (usb_complete_t)rtl8192su_tx_isr, (void *)pdescinfo);
-
-#ifdef RTL8192SU_FWBCN_DBGMSG
-			memDump(tx,urb_len,"reset beacon");
-#endif
-	}
-	dma_cache_wback_inv((unsigned long)tx,urb_len);
-	//rtl_cache_sync_wback(priv, (unsigned int)tx, urb_len, 0);
-
-	status = RTL8192SU_submit_urb(priv, tx_urb);
-
-	if (!status){
-		//atomic_inc((priority == NORM_PRIORITY)? &priv->tx_np_pending : &priv->tx_lp_pending);
-	}else{
-		printk("Error TXCMD reset beacon URB ,error %d\n", status);
-	}
-	return;
-fwbcn_fail:
-}
-#endif
 
 #endif
 
@@ -3173,21 +2744,11 @@ fwbcn_fail:
 //__IRAM_IN_865X
 void rtl8192SE_signin_txdesc(struct rtl8190_priv *priv, struct tx_insn* txcfg)
 {
-#if !defined(RTL8192SU)
-	static struct tx_desc  *phdesc, *pdesc, *pndesc, *picvdesc, *pmicdesc, *pfrstdesc;
-#else //RTl8192SU
 	struct tx_desc  *pdesc=NULL, *pndesc, *pfrstdesc=NULL;
 #ifdef RTL8192SU_FWBCN
 	struct tx_desc	*pdesc_txcmd=NULL;
 #endif
-#endif
 
-#if !defined(RTL8192SU)
-	static struct tx_desc_info	*pswdescinfo, *pdescinfo, *pndescinfo, *picvdescinfo, *pmicdescinfo;
-	static int					*tx_head, q_num;
-	static unsigned long		tmpphyaddr;
-	static struct rtl8190_hw	*phw;
-#else //RTL8192SU
 	struct tx_desc_info	*pdescinfo, *pndescinfo;
 	unsigned int 		*tx;
 	int		q_num, wlanhdr;
@@ -3203,7 +2764,6 @@ void rtl8192SE_signin_txdesc(struct rtl8190_priv *priv, struct tx_insn* txcfg)
 	struct urb 		*tx_urb=NULL;
 	unsigned int	urb_len;
 
-#endif
 	unsigned int 		fr_len, tx_len, i, keyid=0;
 	unsigned char		*da, *pbuf, *pwlhdr, *pmic=NULL, *picv=NULL;
 	unsigned char		 q_select=0;
@@ -3215,20 +2775,11 @@ void rtl8192SE_signin_txdesc(struct rtl8190_priv *priv, struct tx_insn* txcfg)
 #endif
 	unsigned int		pfrst_dma_desc=0;
 
-#if !defined(RTL8192SU)	
-	unsigned int		*dma_txhead;
-
-	static unsigned long flush_addr[20];
-	static int flush_len[20];
-	int flush_num=0;
-	picvdesc=NULL;
-#endif
 	keyid=0;
 	pmic=NULL;
 	picv=NULL;
 	q_select=0;
 
-#ifdef RTL8192SU
 	wlanhdr = 0;
 	if (!IS_DRV_OPEN(priv))
 	{
@@ -3240,7 +2791,6 @@ void rtl8192SE_signin_txdesc(struct rtl8190_priv *priv, struct tx_insn* txcfg)
 		}
 		goto signin_tx_fail;
 	}
-#endif //RTL8192SU
 
 	if (txcfg->tx_rate == 0) {
 #if !defined(LOOPBACK_MODE)
@@ -3251,14 +2801,6 @@ void rtl8192SE_signin_txdesc(struct rtl8190_priv *priv, struct tx_insn* txcfg)
 
 	q_num = txcfg->q_num;
 
-#if !defined(RTL8192SU)
-	phw	= GET_HW(priv);
-
-	dma_txhead	= get_txdma_addr(phw, q_num);
-	tx_head		= get_txhead_addr(phw, q_num);
-	phdesc   	= get_txdesc(phw, q_num);
-	pswdescinfo = get_txdesc_info(priv->pshare->pdesc_info, q_num);
-#endif
 
 	tx_len = txcfg->fr_len;
 
@@ -3269,9 +2811,6 @@ void rtl8192SE_signin_txdesc(struct rtl8190_priv *priv, struct tx_insn* txcfg)
 
 	da = get_da((unsigned char *)txcfg->phdr);
 
-#if !defined(RTL8192SU)
-	tmpphyaddr = get_physical_addr(priv, pbuf, tx_len, PCI_DMA_TODEVICE);
-#endif	
 #ifdef USE_RTL8186_SDK
 	rtl_cache_sync_wback(priv, (unsigned int)pbuf, tx_len, PCI_DMA_TODEVICE);
 #endif
@@ -3318,19 +2857,11 @@ void rtl8192SE_signin_txdesc(struct rtl8190_priv *priv, struct tx_insn* txcfg)
 			keyid = priv->pmib->dot11sKeysTable.keyid;
 #endif
 	}
-#if !defined(RTL8192SU)
-	for(i=0, pfrstdesc= phdesc + (*tx_head); i < txcfg->frg_num; i++)
-#else
 	for(i=0; i < txcfg->frg_num; i++)
-#endif
 	{
 		/*------------------------------------------------------------*/
 		/*           fill descriptor of header + iv + llc             */
 		/*------------------------------------------------------------*/
-#if !defined(RTL8192SU)
-		pdesc     = phdesc + (*tx_head);
-		pdescinfo = pswdescinfo + *tx_head;
-#else //RTl8192SU
 		en_pktoffset=0;
 		wlanhdr=i;
 		if (txcfg->frg_num==1)
@@ -3372,17 +2903,6 @@ void rtl8192SE_signin_txdesc(struct rtl8190_priv *priv, struct tx_insn* txcfg)
 		//	printk("hdr_len=%d,llc=%d,iv=%d,fr_len=%d,icv=%d,mic=%d, frag_thrshld=%d, urb_len=%d\n", 
 		//	txcfg->hdr_len,txcfg->llc,txcfg->iv,txcfg->fr_len,txcfg->icv,txcfg->mic, txcfg->frag_thrshld, urb_len);
 
-#if 0// RTL8672_USB_PATCH
-		{
-			int rest;
-			rest = urb_len&0x3f;
-			if((0 == (urb_len & 0x1ff))||((rest>=3) && (rest<=5)))
-			{
-				en_pktoffset=1;
-				urb_len += 8;
-			}
-		}
-#endif	
 
 #ifdef RTL8192SU_TX_ZEROCOPY
 		if(txcfg->frg_num==1 && (txcfg->fr_type == _SKB_FRAME_TYPE_) && !skb_cloned((struct sk_buff *)txcfg->pframe) )
@@ -3512,7 +3032,6 @@ ALLOCTXBUFF:
 			//pbuf = pbuf+txcfg->llc+txcfg->iv+txcfg->hdr_len;
 		}
 #endif
-#endif //RTL8192SU
 
 		//clear all bits
 		memset(pdesc, 0, 32);
@@ -3524,11 +3043,7 @@ ALLOCTXBUFF:
 			if (pwlhdr == (UINT8 *)NULL)
 			{
 				DEBUG_ERR("System-bug... should have enough wlan_hdr\n");
-#if !defined(RTL8192SU)
-				return;
-#else
 				goto signin_tx_fail;
-#endif
 			}
 			// other MPDU will share the same seq with the first MPDU
 			memcpy((void *)pwlhdr, (void *)(txcfg->phdr), txcfg->hdr_len); // data pkt has 24 bytes wlan_hdr
@@ -3565,7 +3080,6 @@ ALLOCTXBUFF:
 #endif
 				);
 
-#ifdef RTL8192SU
 #ifdef SEMI_QOS
 	if ((txcfg->hdr_len==WLAN_HDR_A3_QOS_LEN || txcfg->hdr_len==WLAN_HDR_A4_QOS_LEN))
 #ifndef DISABLE_UNALIGN_TRAP
@@ -3581,7 +3095,6 @@ ALLOCTXBUFF:
 	OR_EQUAL(&pdesc->Dword1, set_desc(TX_NonQos));
 #endif
 
-#endif
 
 #ifndef DISABLE_UNALIGN_TRAP
 			pdesc->Dword3 |= set_desc( (GetSequence(txcfg->phdr) & TX_SeqMask)  << TX_SeqSHIFT );
@@ -3605,7 +3118,6 @@ ALLOCTXBUFF:
 		}
 		SetDuration(pwlhdr, 0);
 
-#ifdef RTL8192SU
 
 #ifdef RTL8192SU_FWBCN
 		if (txcfg->q_num==BEACON_QUEUE)
@@ -3626,70 +3138,8 @@ ALLOCTXBUFF:
 			pskb_data=(char*)(((unsigned int)pdesc)+32+(en_pktoffset<<3));
 		}
 
-#endif //RTL8192SU
 
 		rtl8192SE_fill_fwinfo(priv, txcfg, pdesc, i);
-#if 0
-		// There is no fwinfo in 8192SE desgin, use TX desc instead
-		{
-			struct FWtemplate *ppfwinfo =  (struct FWtemplate *)pfwinfo;
-			// so far, we cannot send cck rate, use 6Mhz instead.
-			// for test, use fix rate
-			// 92SE 1st cut can't use CCK rate, avoid.
-//			printk("txRate: %d\n", ppfwinfo->txRate);
-
-#ifdef RTL8192SE_ACUT
-			if(ppfwinfo->txRate < 0x4)
-				ppfwinfo->txRate = 0x4; // 6Mhz
-#endif
-
-//			if(txcfg->pstat)
-//				pdesc->Dword1 |= set_desc(txcfg->pstat->aid && TX_MACIDMask);
-
-			pdesc->Dword5 |= set_desc((ppfwinfo->txRate & TX_TxRateMask) << TX_TxRateSHIFT);
-			pdesc->Dword4 |= (ppfwinfo->txHt == 1)? set_desc(TX_TXHT): 0;
-			pdesc->Dword4 |= (ppfwinfo->txbw == 1)? set_desc(TX_TxBw): 0;
-			pdesc->Dword4 |= set_desc((ppfwinfo->txSC & TX_TXSCMask) << TX_TXSCSHIFT);
-
-//			printk("txHt: %x, txBW: %x, TxSC: %x, TxRate: %x\n",ppfwinfo->txHt, ppfwinfo->txbw, ppfwinfo->txSC, ppfwinfo->txRate);
-
-//			pdesc->Dword4 |= (ppfwinfo->txshort == 1)?set_desc(TX_TxShort): 0;
-//			pdesc->Dword4 |= set_desc(TX_TxShort);
-//			pdesc->Dword2 |= (ppfwinfo->aggren == 1)?set_desc(TX_AggEn): 0;
-			// force aggren
-			pdesc->Dword2 |= set_desc(TX_AggEn);
-
-			//set Break
-			if(txcfg->pstat != priv->pshare->CurPstat){
-				pdesc->Dword2 |= set_desc(TX_BK);
-				priv->pshare->CurPstat = txcfg->pstat;
-			}
-
-
-//			pdesc->xxx = ppfwinfo->rxMF;
-//			pdesc->xxx = ppfwinfo->rxAMD;
-//			pdesc->xxx = ppfwinfo->retryLimit1;
-//			pdesc->xxx = ppfwinfo->retryLimit2;
-			//protection related
-			pdesc->Dword4 |= (ppfwinfo->rtsEn == 1)? set_desc(TX_RTSEn): 0;
-			pdesc->Dword4 |= (ppfwinfo->ctsEn == 1)? set_desc(TX_CTS2Self): 0;
-			pdesc->Dword4 |= (ppfwinfo->rtsShort == 1)? set_desc(TX_RTSShort): 0;
-//			pdesc->RTSSTBC = 0;	//RTS STBC mode... what is that ...?
-			pdesc->Dword4 |= (ppfwinfo->rtsHt == 1)? set_desc(TX_RTSHT): 0;
-			pdesc->Dword4 |= set_desc((ppfwinfo->rtsTxRate & TX_RTSRateMask) << TX_RTSRateSHIFT);//1 rate table is different from 8190, need to modify later!!
-//			pdesc->RTSRate	= MRateToHwRate8192SE(Adapter, MGN_24M);
-			pdesc->Dword4 |= (ppfwinfo->rtsbw == 1)? set_desc(TX_RTSBW): 0;
-			pdesc->Dword4 |= set_desc((ppfwinfo->rtsSC & TX_RTSSCMask) << TX_RTSSCSHIFT);
-			pdesc->Dword4 |= (ppfwinfo->rtsShort == 1)? set_desc(TX_RTSShort): 0;
-
-			//fill necessary field in First Descriptor
-//			pdesc->LINIP = 0;
-			pdesc->Dword0 |= set_desc(32 << TX_OFFSETSHIFT); // tx_desc size
-//			pdesc->Offset = USB_HWDESC_HEADER_LEN;
-//			pdesc->PktSize = (u2Byte)PktLen;
-		}
-
-#endif
 #if !defined(RTL8192SU) || !defined(DISABLE_UNALIGN_TRAP)
 		pdesc->Dword0 |= set_desc(32 << TX_OFFSETSHIFT); // tx_desc size
 #else
@@ -3711,12 +3161,10 @@ ALLOCTXBUFF:
 		{
 			fr_len = tx_len;
 			ClearMFrag(pwlhdr);
-#ifdef RTL8192SU
 			if (txcfg->fr_type == _SKB_FRAME_TYPE_)
 			{
 				pdescinfo->last_seg=1;
 			}
-#endif
 		}
 		SetFragNum((pwlhdr), i);
 
@@ -3731,11 +3179,7 @@ ALLOCTXBUFF:
 			OR_EQUAL(&pdesc->Dword0 , set_desc((fr_len + (get_desc(pdesc->Dword7) & TX_TxBufferSizeMask)) << TX_PktSizeSHIFT));
 			OR_EQUAL(&pdesc->Dword0 , set_desc(TX_FirstSeg));
 #endif
-#if !defined(RTL8192SU)
-			pdescinfo->type = _PRE_ALLOCLLCHDR_;
-#else
 			pdescinfo->hdr_type = _PRE_ALLOCLLCHDR_;
-#endif
 		}
 		else
 		{
@@ -3748,11 +3192,7 @@ ALLOCTXBUFF:
 			OR_EQUAL(&pdesc->Dword0 , set_desc((fr_len + (get_desc(pdesc->Dword7) & TX_TxBufferSizeMask)) << TX_PktSizeSHIFT));
 			OR_EQUAL(&pdesc->Dword0 , set_desc(TX_FirstSeg));
 #endif
-#if !defined(RTL8192SU)
-			pdescinfo->type = _PRE_ALLOCHDR_;
-#else
 			pdescinfo->hdr_type = _PRE_ALLOCHDR_;
-#endif
 		}
 
 
@@ -3776,12 +3216,10 @@ ALLOCTXBUFF:
 			q_select = 0x11;// High Queue
 			break;
 #endif
-#ifdef RTL8192SU
 		case BEACON_QUEUE:
 #ifdef RTL8192SU_FWBCN
 			q_select = 0x10;
 			break;
-#endif
 #endif
 		case MGNT_QUEUE:
 			q_select = 0x12;
@@ -3789,7 +3227,6 @@ ALLOCTXBUFF:
 		default:
 			// data packet
 			q_select = ((struct sk_buff *)txcfg->pframe)->cb[1];
-#ifdef RTL8192SU
 			if (q_select==3||q_select==0)
 				q_num=BE_QUEUE;
 			else if (q_select==2||q_select==1)
@@ -3805,7 +3242,6 @@ ALLOCTXBUFF:
 				//q_select=0;
 				//q_num=BE_QUEUE;
 			}
-#endif
 			break;
 		}
 #ifndef DISABLE_UNALIGN_TRAP
@@ -3864,9 +3300,7 @@ ALLOCTXBUFF:
 */
 
 //		pdesc->Dword4 |= set_desc(TX_UserRate);
-#ifdef RTL8192SU
 		if (q_num!=BEACON_QUEUE)
-#endif
 #ifndef DISABLE_UNALIGN_TRAP
 		pdesc->Dword5 |= set_desc((0x1f) << TX_DataRateFBLmtSHIFT);
 #else
@@ -3885,7 +3319,6 @@ ALLOCTXBUFF:
 			OR_EQUAL(&pdesc->Dword4 , set_desc(TX_DisRTSFB));// disable RTS fall back
 #endif
 		}
-#ifdef RTL8192SU
 		if (q_num==BEACON_QUEUE)
 		{
 #ifndef DISABLE_UNALIGN_TRAP
@@ -3898,7 +3331,6 @@ ALLOCTXBUFF:
 			OR_EQUAL(&pdesc->Dword4 , set_desc(0x08 << TX_RTSRateSHIFT));
 #endif
 		}
-#endif //RTL8192SU
 
 #ifdef STA_EXT
 		if(txcfg->pstat && txcfg->pstat->remapped_aid == FW_NUM_STAT-1/*(priv->pshare->STA_map & BIT(txcfg->pstat->aid)*/){
@@ -4008,14 +3440,11 @@ ALLOCTXBUFF:
 					break;
 				}
 			}
-#ifdef RTL8192SU
 			if (i==0)
 				memcpy(pskb_data, pwlhdr, txcfg->hdr_len+txcfg->iv+txcfg->llc);
 			else
 				memcpy(pskb_data, pwlhdr, txcfg->hdr_len+txcfg->iv);
-#endif
 		}
-#ifdef RTL8192SU
 		else
 		{
 			//memDump(pskb_data, 64, "pskb_data");
@@ -4024,26 +3453,16 @@ ALLOCTXBUFF:
 			else
 				memcpy(pskb_data, pwlhdr, txcfg->hdr_len);
 		}
-#endif
 //		pdesc->paddr = set_desc(get_physical_addr(priv, pwlhdr-sizeof(struct FWtemplate),
 //			(get_desc(pdesc->flen)&0xffff), PCI_DMA_TODEVICE));
 		// we don't have fwinfo for 8192SE tx
 		//TxBufferAddr
 
 
-#if !defined(RTL8192SU)
-		pdesc->Dword8 = set_desc(get_physical_addr(priv, pwlhdr,
-			(get_desc(pdesc->Dword7)&0xffff), PCI_DMA_TODEVICE));
-#endif
 
 		// below is for sw desc info
-#if !defined(RTL8192SU)
-		pdescinfo->paddr  = get_desc(pdesc->Dword8);
-		pdescinfo->pframe = pwlhdr;
-#else
 		pdescinfo->phdr = pwlhdr;
 		pdescinfo->priv = priv;
-#endif
 #if defined(SEMI_QOS) && defined(WMM_APSD)
 		pdescinfo->priv = priv;
 		pdescinfo->pstat = txcfg->pstat;
@@ -4056,10 +3475,6 @@ ALLOCTXBUFF:
 			&& (ref_txsc == 1)
 #endif
 			){
-#if !defined(RTL8192SU)
-			desc_copy(&txcfg->pstat->hwdesc1, pdesc);
-			descinfo_copy(&txcfg->pstat->swdesc1, pdescinfo);
-#else
 			if (txcfg->fr_len>=1400)
 			{
 				desc_copy(&txcfg->pstat->hwdesc1, pdesc);
@@ -4069,7 +3484,6 @@ ALLOCTXBUFF:
 				desc_copy(&txcfg->pstat->hwdesc3, pdesc);
 			}
 			
-#endif
 			txcfg->pstat->protection = priv->pmib->dot11ErpInfo.protection;
 			txcfg->pstat->sc_keyid = keyid;
 			txcfg->pstat->pktpri = ((struct sk_buff *)txcfg->pframe)->cb[1];
@@ -4082,9 +3496,6 @@ ALLOCTXBUFF:
 		}
 #endif
 
-#if !defined(RTL8192SU)
-		pfrst_dma_desc = dma_txhead[*tx_head];
-#endif
 
 		if (i != 0) {
 //			pdesc->OWN = 1;
@@ -4093,17 +3504,8 @@ ALLOCTXBUFF:
 #else
 			OR_EQUAL(&pdesc->Dword0 , set_desc(TX_OWN));
 #endif
-#if !defined(RTL8192SU)
-#ifndef USE_RTL8186_SDK
-			rtl_cache_sync_wback(priv, dma_txhead[*tx_head], sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-#endif
 		}
 
-#if defined(USE_RTL8186_SDK) && !defined(RTL8192SU)
-		flush_addr[flush_num]=(unsigned long)bus_to_virt(get_desc(pdesc->Dword8)); //TxBufferAddr
-		flush_len[flush_num++]= (get_desc(pdesc->Dword7) & TX_TxBufferSizeMask);
-#endif
 
 /*
 		//printk desc content
@@ -4117,9 +3519,6 @@ ALLOCTXBUFF:
 		}
 */
 
-#if !defined(RTL8192SU)
-		txdesc_rollover(pdesc, (unsigned int *)tx_head);
-#endif
 
 		if (txcfg->fr_len == 0)
 		{
@@ -4137,27 +3536,10 @@ ALLOCTXBUFF:
 		/*------------------------------------------------------------*/
 		/*              fill descriptor of frame body                 */
 		/*------------------------------------------------------------*/
-#if !defined(RTL8192SU)
-		pndesc     = phdesc + *tx_head;
-		pndescinfo = pswdescinfo + *tx_head;
-		//clear all bits
-		memset(pndesc, 0,32);
-/*
-		pndesc->cmd	= set_desc((get_desc(pdesc->cmd) & (~_FS_)) | _OWN_);
-		pndesc->rsvd0 = pdesc->rsvd0;
-		pndesc->rsvd1 = pdesc->rsvd1;
-		pndesc->rsvd2 = pdesc->rsvd2;
-*/
-
-		pndesc->Dword0 = set_desc((get_desc(pdesc->Dword0) & (~TX_FirstSeg)) | (TX_OWN));
-//		pndesc->FirstSeg= 0;
-//		pndesc->OWN = 1;
-#else
 		pdescinfo->type=0;
 		pndesc     = pdesc;
 		pndescinfo = pdescinfo;
 		//pdesc->Dword0 |= set_desc(TX_OWN);
-#endif
 
 		if (txcfg->privacy)
 		{
@@ -4203,14 +3585,6 @@ ALLOCTXBUFF:
 		}
 
 //		pndesc->flen = set_desc(fr_len);
-#if !defined(RTL8192SU)
-#if defined(CONFIG_RTL_WAPI_SUPPORT)
-		if (txcfg->privacy == _WAPI_SMS4_)
-			pndesc->Dword7 |= set_desc( (fr_len+SMS4_MIC_LEN) & TX_TxBufferSizeMask);
-		else
-#endif
-		pndesc->Dword7 |= set_desc(fr_len & TX_TxBufferSizeMask);
-#else
 #ifndef DISABLE_UNALIGN_TRAP
 		//pndesc->Dword7 = set_desc(get_desc(pdesc->Dword7) + txcfg->fr_len);
 		pndesc->Dword7 = set_desc(get_desc(pdesc->Dword7) + fr_len);
@@ -4218,16 +3592,8 @@ ALLOCTXBUFF:
 		//SET_EQUAL(&pndesc->Dword7 , set_desc(get_desc(pdesc->Dword7) + txcfg->fr_len));
 		SET_EQUAL(&pndesc->Dword7 , set_desc(get_desc(pdesc->Dword7) + fr_len));
 #endif
-#endif		
 
-#if !defined(RTL8192SU)
-		if (i == 0)
-			pndescinfo->type = txcfg->fr_type;
-		else
-			pndescinfo->type = _RESERVED_FRAME_TYPE_;
-#else
 		pdescinfo->type = txcfg->fr_type;
-#endif
 
 #if defined(CONFIG_RTK_MESH) && defined(MESH_USE_METRICOP)
 		if( (txcfg->fr_type == _PRE_ALLOCMEM_) && (txcfg->is_11s & 128)) // for 11s link measurement frame
@@ -4239,27 +3605,11 @@ ALLOCTXBUFF:
 #endif
 
 //		pndesc->paddr = set_desc(tmpphyaddr);
-#if !defined(RTL8192SU)
-		pndesc->Dword8 = set_desc(tmpphyaddr); //TxBufferAddr
-		pndescinfo->paddr = get_desc(pndesc->Dword8);
-		pndescinfo->pframe = txcfg->pframe;
-		pndescinfo->len = txcfg->fr_len;	// for pci_unmap_single
-		pndescinfo->priv = priv;
-#else
 		pdescinfo->pframe = txcfg->pframe;		
-#endif
 
-#if !defined(RTL8192SU)
-		pbuf += fr_len;
-		tmpphyaddr += fr_len;
-#endif		
 
 #ifdef TX_SHORTCUT
 		if (fit_shortcut) {
-#if !defined(RTL8192SU)
-			desc_copy(&txcfg->pstat->hwdesc2, pndesc);
-			descinfo_copy(&txcfg->pstat->swdesc2, pndescinfo);
-#else
 			if (txcfg->fr_len>=1400)
 			{
 				descinfo_copy(&txcfg->pstat->swdesc1, pdescinfo);
@@ -4270,76 +3620,16 @@ ALLOCTXBUFF:
 				descinfo_copy(&txcfg->pstat->swdesc3, pdescinfo);
 				txcfg->pstat->hwdesc4.Dword7 = set_desc(txcfg->fr_len & TX_TxBufferSizeMask);
 			}
-#endif
 		}
 #endif
 
-#if !defined(RTL8192SU)
-#ifndef USE_RTL8186_SDK
-		rtl_cache_sync_wback(priv, dma_txhead[*tx_head], sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
 
-		flush_addr[flush_num]=(unsigned long)bus_to_virt(get_desc(pndesc->Dword8));
-		flush_len[flush_num++]=get_desc(pndesc->Dword7) & TX_TxBufferSizeMask; // TxBufferSize
-
-		txdesc_rollover(pndesc, (unsigned int *)tx_head);
-#endif
-#ifndef CONFIG_RTL8671 //tylo, disable to use gdma-memcpy
-		// retrieve H/W MIC and put in payload
-#if defined(CONFIG_RTL_WAPI_SUPPORT)
-		if (txcfg->privacy == _WAPI_SMS4_)
-		{
-			SecSWSMS4Encryption(priv, txcfg);
-		} else
-#endif
-
-		if ((txcfg->privacy == _TKIP_PRIVACY_) &&
-			(priv->pshare->have_hw_mic) &&
-			!(priv->pmib->dot11StationConfigEntry.swTkipMic) &&
-			(i == (txcfg->frg_num-1)) )	// last segment
-		{
-			register unsigned long int l,r;
-			unsigned char *mic;
-			volatile int i;
-
-			while ((*(volatile unsigned int *)GDMAISR & GDMA_COMPIP) == 0)
-				for (i=0; i<10; i++)
-					;
-
-			l = *(volatile unsigned int *)GDMAICVL;
-			r = *(volatile unsigned int *)GDMAICVR;
-
-			mic = ((struct sk_buff *)txcfg->pframe)->data + txcfg->fr_len - 8;
-			mic[0] = (unsigned char)(l & 0xff);
-			mic[1] = (unsigned char)((l >> 8) & 0xff);
-			mic[2] = (unsigned char)((l >> 16) & 0xff);
-			mic[3] = (unsigned char)((l >> 24) & 0xff);
-			mic[4] = (unsigned char)(r & 0xff);
-			mic[5] = (unsigned char)((r >> 8) & 0xff);
-			mic[6] = (unsigned char)((r >> 16) & 0xff);
-			mic[7] = (unsigned char)((r >> 24) & 0xff);
-
-#ifdef MICERR_TEST
-			if (priv->micerr_flag) {
-				mic[7] ^= mic[7];
-				priv->micerr_flag = 0;
-			}
-#endif
-		}
-#endif
-
-#ifdef RTL8192SU
 		if ((i == 0) && (txcfg->fr_type == _SKB_FRAME_TYPE_))
 		{
 #ifdef RTL8192SU_TX_ZEROCOPY
 			if(pdescinfo->non_zcpy)
 			{
-				#ifdef CONFIG_RTL8671
 				gdma_memcpy(pskb_data+(txcfg->hdr_len+txcfg->llc+txcfg->iv), ((struct sk_buff *)txcfg->pframe)->data, fr_len);
-				#else
-				memcpy(pskb_data+(txcfg->hdr_len+txcfg->llc+txcfg->iv), ((struct sk_buff *)txcfg->pframe)->data, fr_len);
-				//memcpy(pskb_data+(txcfg->hdr_len+txcfg->llc+txcfg->iv), ((struct sk_buff *)txcfg->pframe)->data, txcfg->fr_len);
-				#endif
 			}
 #else
 			memcpy(pskb_data+(txcfg->hdr_len+txcfg->llc+txcfg->iv), ((struct sk_buff *)txcfg->pframe)->data, fr_len);
@@ -4357,7 +3647,6 @@ ALLOCTXBUFF:
 			//pbuf=pskb_data+(txcfg->hdr_len);
 		}
 		pbuf += fr_len;
-#endif //RTL8192SU
 
 #ifdef RTL8192SU_FWBCN
 		if (txcfg->q_num==BEACON_QUEUE)
@@ -4369,49 +3658,17 @@ ALLOCTXBUFF:
 		/*------------------------------------------------------------*/
 		if (txcfg->privacy && UseSwCrypto(priv, txcfg->pstat, (txcfg->pstat ? FALSE : TRUE)))
 		{
-#ifdef RTL8192SU
 			pwlhdr = pskb_data;
-#endif
 			if (txcfg->privacy == _TKIP_PRIVACY_ ||
 				txcfg->privacy == _WEP_40_PRIVACY_ ||
 				txcfg->privacy == _WEP_104_PRIVACY_)
 			{
-#if !defined(RTL8192SU)
-				picvdesc     = phdesc + *tx_head;
-				picvdescinfo = pswdescinfo + *tx_head;
-				//clear all bits
-				memset(picvdesc, 0,32);
-
-				if (txcfg->aggre_en == FG_AGGRE_MSDU_FIRST){
-//					memcpy(picvdesc, pdesc, sizeof(struct _TX_DESC_8192SE));
-//					picvdesc->FirstSeg = 0;
-//					picvdesc->OWN = 1;
-					picvdesc->Dword0 = set_desc((get_desc(pdesc->Dword0) & (~TX_FirstSeg)) | TX_OWN);
-//				  picvdesc->cmd = set_desc((get_desc(pdesc->cmd) & (~_FS_)) | _OWN_);
-				}
-				else{
-//					memcpy(picvdesc, pdesc, sizeof(struct _TX_DESC_8192SE));
-//					picvdesc->FirstSeg = 0;
-//					picvdesc->LastSeg = 1;
-//					picvdesc->OWN = 1;
-					picvdesc->Dword0   = set_desc((get_desc(pdesc->Dword0) & (~TX_FirstSeg)) | TX_OWN | TX_LastSeg);
-//	  			  picvdesc->cmd   = set_desc((get_desc(pdesc->cmd) & (~_FS_)) | _OWN_ | _LS_);
-				}
-
-
-//				picvdesc->flen  = set_desc(txcfg->icv);
-//				picvdesc->rsvd0 = pdesc->rsvd0;
-//				picvdesc->rsvd1 = pdesc->rsvd1;
-//				picvdesc->rsvd2 = pdesc->rsvd2;
-				picvdesc->Dword7 |= (set_desc(txcfg->icv & TX_TxBufferSizeMask)); //TxBufferSize
-#else
 #ifndef DISABLE_UNALIGN_TRAP
 				pdesc->Dword7 = set_desc(get_desc(pdesc->Dword7) + txcfg->icv);
 				pdesc->Dword0 = set_desc((get_desc(pdesc->Dword0)) | TX_LastSeg);
 #else
 				SET_EQUAL(&pdesc->Dword7 , set_desc(get_desc(pdesc->Dword7) + txcfg->icv));
 				SET_EQUAL(&pdesc->Dword0 , set_desc((get_desc(pdesc->Dword0)) | TX_LastSeg));
-#endif
 #endif
 
 				// append ICV first...
@@ -4422,128 +3679,55 @@ ALLOCTXBUFF:
 					BUG();
 				}
 
-#if !defined(RTL8192SU)
-				picvdescinfo->type = _PRE_ALLOCICVHDR_;
-				picvdescinfo->pframe = picv;
-				picvdescinfo->pstat = txcfg->pstat;
-				picvdescinfo->rate = txcfg->tx_rate;
-				picvdescinfo->priv = priv;
-//				picvdesc->paddr = set_desc(get_physical_addr(priv, picv, txcfg->icv, PCI_DMA_TODEVICE));
-				//TxBufferAddr
-				picvdesc->Dword8 = set_desc(get_physical_addr(priv, picv, txcfg->icv, PCI_DMA_TODEVICE));
-#ifdef USE_RTL8186_SDK
-				rtl_cache_sync_wback(priv, (unsigned int)picv, txcfg->icv, PCI_DMA_TODEVICE);
-#endif
-#else
 				pdescinfo->enc_type = _PRE_ALLOCICVHDR_;
 				pdescinfo->penc = picv;
 				pdescinfo->pstat = txcfg->pstat; //??
 				pdescinfo->rate = txcfg->tx_rate;//??
-#endif //!RTL8192SU
 				if (i == 0)
 					tkip_icv(picv,
 						pwlhdr + txcfg->hdr_len + txcfg->iv, txcfg->llc,
-#if !defined(RTL8192SU)
-						pbuf - (get_desc(pndesc->Dword7) & TX_TxBufferSizeMask), (get_desc(pndesc->Dword7) & TX_TxBufferSizeMask));
-#else
 						pwlhdr + (txcfg->hdr_len+txcfg->llc+txcfg->iv), fr_len);//- txcfg->fr_len, txcfg->fr_len);
 						
-#endif
 				else
 					tkip_icv(picv,
 						NULL, 0,
-#if !defined(RTL8192SU)
-						pbuf - (get_desc(pndesc->Dword7) & TX_TxBufferSizeMask), (get_desc(pndesc->Dword7) & TX_TxBufferSizeMask));
-#else
 						pwlhdr+(txcfg->hdr_len+txcfg->iv), fr_len);//- txcfg->fr_len, txcfg->fr_len);
-#endif
 				if ((i == 0) && (txcfg->llc != 0)) {
 					if (txcfg->privacy == _TKIP_PRIVACY_)
 					{
-#if !defined(RTL8192SU)
-						tkip_encrypt(priv, pwlhdr, txcfg->hdr_len,
-							pwlhdr + txcfg->hdr_len + 8, sizeof(struct llc_snap),
-							pbuf - (get_desc(pndesc->Dword7) & TX_TxBufferSizeMask), (get_desc(pndesc->Dword7) & TX_TxBufferSizeMask), picv, txcfg->icv);
-#else
 						tkip_encrypt(priv, pwlhdr, txcfg->hdr_len,
 							pwlhdr+txcfg->hdr_len+8, sizeof(struct llc_snap),
 							pwlhdr+(txcfg->hdr_len+txcfg->llc+txcfg->iv), fr_len, //txcfg->fr_len,
 							picv, txcfg->icv);
-#endif
 					}
 					else
 					{
-#if !defined(RTL8192SU)
-						wep_encrypt(priv, pwlhdr, txcfg->hdr_len,
-							pwlhdr + txcfg->hdr_len + 4, sizeof(struct llc_snap),
-							pbuf - (get_desc(pndesc->Dword7) & TX_TxBufferSizeMask), (get_desc(pndesc->Dword7) & TX_TxBufferSizeMask), picv, txcfg->icv,
-							txcfg->privacy);
-#else
 						wep_encrypt(priv, pwlhdr, txcfg->hdr_len,
 							pwlhdr+txcfg->hdr_len+4, sizeof(struct llc_snap),
 							pwlhdr+(txcfg->hdr_len+txcfg->llc+txcfg->iv), fr_len, //txcfg->fr_len,
 							picv, txcfg->icv, txcfg->privacy);
-#endif
 					}
 				}
 				else { // not first segment or no snap header
 					if (txcfg->privacy == _TKIP_PRIVACY_)
-#if !defined(RTL8192SU)
-						tkip_encrypt(priv, pwlhdr, txcfg->hdr_len, NULL, 0,
-							pbuf - (get_desc(pndesc->Dword7) & TX_TxBufferSizeMask), (get_desc(pndesc->Dword7) & TX_TxBufferSizeMask), picv, txcfg->icv);
-#else
 						tkip_encrypt(priv, pwlhdr, txcfg->hdr_len, NULL, 0,
 							pwlhdr+(txcfg->hdr_len+txcfg->iv), fr_len, //txcfg->fr_len,
 							picv, txcfg->icv);
-#endif
 					else
-#if !defined(RTL8192SU)
-						wep_encrypt(priv, pwlhdr, txcfg->hdr_len, NULL, 0,
-							pbuf - (get_desc(pndesc->Dword7) & TX_TxBufferSizeMask), (get_desc(pndesc->Dword7) & TX_TxBufferSizeMask), picv, txcfg->icv,
-							txcfg->privacy);
-#else
 						wep_encrypt(priv, pwlhdr, txcfg->hdr_len, NULL, 0,
 							pwlhdr+(txcfg->hdr_len+txcfg->iv), fr_len, //txcfg->fr_len,
 							picv, txcfg->icv,
 							txcfg->privacy);
-#endif
 				}
-#if !defined(RTL8192SU)
-#ifndef USE_RTL8186_SDK
-				rtl_cache_sync_wback(priv, dma_txhead[*tx_head], sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-
-				flush_addr[flush_num]=(unsigned long)bus_to_virt(get_desc(picvdesc->Dword8));//TxBufferAddr
-				flush_len[flush_num++]=(get_desc(picvdesc->Dword7) & TX_TxBufferSizeMask);
-
-				txdesc_rollover(picvdesc, (unsigned int *)tx_head);
-#else
 				//memcpy(pwlhdr+(txcfg->hdr_len+txcfg->iv+txcfg->llc+txcfg->fr_len), picv, txcfg->icv);
 				if (i==0)
 					memcpy(pwlhdr+(txcfg->hdr_len+txcfg->iv+txcfg->llc+fr_len), picv, txcfg->icv);
 				else
 					memcpy(pwlhdr+(txcfg->hdr_len+txcfg->iv+fr_len), picv, txcfg->icv);
-#endif //!RTL8192SU
 			}
 
 			else if (txcfg->privacy == _CCMP_PRIVACY_)
 			{
-#if !defined(RTL8192SU)
-				pmicdesc = phdesc + *tx_head;
-				pmicdescinfo = pswdescinfo + *tx_head;
-				if (txcfg->aggre_en == FG_AGGRE_MSDU_FIRST)
-					pmicdesc->Dword0 = set_desc((get_desc(pdesc->Dword0) & (~TX_FirstSeg)) | TX_OWN);
-//				  pmicdesc->cmd = set_desc((get_desc(pdesc->cmd) & (~_FS_)) | _OWN_);
-				else
-				  pmicdesc->Dword0   = set_desc((get_desc(pdesc->Dword0) & (~TX_FirstSeg)) | TX_OWN | TX_LastSeg);
-//				  pmicdesc->cmd   = set_desc((get_desc(pdesc->cmd) & (~_FS_)) | _OWN_ | _LS_);
-//				pmicdesc->rsvd0 = pdesc->rsvd0;
-//				pmicdesc->rsvd1 = pdesc->rsvd1;
-//				pmicdesc->rsvd2 = pdesc->rsvd2;
-
-				// set TxBufferSize
-				pmicdesc->Dword7 = set_desc(txcfg->mic & TX_TxBufferSizeMask);
-#else
 #ifndef DISABLE_UNALIGN_TRAP
 				pdesc->Dword7 = set_desc(get_desc(pdesc->Dword7) + txcfg->mic);
 				pdesc->Dword0 = set_desc((get_desc(pdesc->Dword0)) | TX_LastSeg);
@@ -4551,7 +3735,6 @@ ALLOCTXBUFF:
 				SET_EQUAL(&pdesc->Dword7 , set_desc(get_desc(pdesc->Dword7) + txcfg->mic));
 				SET_EQUAL(&pdesc->Dword0 , set_desc((get_desc(pdesc->Dword0)) | TX_LastSeg));
 #endif
-#endif	//!RTL8192SU			
 
 				// append MIC first...
 				pmic = get_mic_from_poll(priv);
@@ -4561,47 +3744,18 @@ ALLOCTXBUFF:
 					BUG();
 				}
 
-#if !defined(RTL8192SU)
-				pmicdescinfo->type = _PRE_ALLOCMICHDR_;
-				pmicdescinfo->pframe = pmic;
-				pmicdescinfo->pstat = txcfg->pstat;
-				pmicdescinfo->rate = txcfg->tx_rate;
-				pmicdescinfo->priv = priv;
-				// set TxBufferAddr
-				pmicdesc->Dword8= set_desc(get_physical_addr(priv, pmic, txcfg->mic, PCI_DMA_TODEVICE));
-#ifdef USE_RTL8186_SDK
-				rtl_cache_sync_wback(priv, (unsigned int)pmic, txcfg->mic, PCI_DMA_TODEVICE);
-#endif
-#else
 				pdescinfo->enc_type = _PRE_ALLOCMICHDR_;
 				pdescinfo->penc = pmic;
 
 				pdescinfo->pstat = txcfg->pstat; //??
 				pdescinfo->rate = txcfg->tx_rate;//??
-#endif //!RTL8192SU
 
 				// then encrypt all (including ICV) by AES
 				if (i == 0) // encrypt 3 segments ==> llc, mpdu, and mic
-#if !defined(RTL8192SU)
-					aesccmp_encrypt(priv, pwlhdr, pwlhdr + txcfg->hdr_len + 8,
-						pbuf - (get_desc(pndesc->Dword7) & TX_TxBufferSizeMask), (get_desc(pndesc->Dword7) & TX_TxBufferSizeMask), pmic);
-#else
 					aesccmp_encrypt(priv, pwlhdr, ((char*)(tx+8)) + txcfg->hdr_len + 8,
 						pwlhdr+(txcfg->hdr_len+txcfg->llc+txcfg->iv), fr_len,//txcfg->fr_len,
 						pmic);
-#endif	//!RTL8192SU
 				else // encrypt 2 segments ==> mpdu and mic
-#if !defined(RTL8192SU)
-					aesccmp_encrypt(priv, pwlhdr, NULL,
-						pbuf - (get_desc(pndesc->Dword7) & TX_TxBufferSizeMask), (get_desc(pndesc->Dword7) & TX_TxBufferSizeMask), pmic);
-#ifndef USE_RTL8186_SDK
-				rtl_cache_sync_wback(priv, dma_txhead[*tx_head], sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-				flush_addr[flush_num]=(unsigned long)bus_to_virt(get_desc(pmicdesc->Dword8));
-				flush_len[flush_num++]= (get_desc(pmicdesc->Dword7) & TX_TxBufferSizeMask);
-
-				txdesc_rollover(pmicdesc, (unsigned int *)tx_head);
-#else
 					aesccmp_encrypt(priv, pwlhdr, NULL,
 						pwlhdr+(txcfg->hdr_len+txcfg->iv), fr_len,//txcfg->fr_len,
 						pmic);
@@ -4611,10 +3765,8 @@ ALLOCTXBUFF:
 					memcpy(pwlhdr+txcfg->hdr_len+txcfg->iv+txcfg->llc+fr_len, pmic, txcfg->mic);
 				else
 					memcpy(pwlhdr+txcfg->hdr_len+txcfg->iv+fr_len, pmic, txcfg->mic);
-#endif	//!RTL8192SU
 			}
 		}
-#ifdef RTL8192SU
 init_deschead:
 	pdesc->Dword7 = 0;
 #ifdef RTL8192SU_TX_ZEROCOPY
@@ -4642,7 +3794,6 @@ init_deschead:
 	dma_cache_wback_inv((unsigned long)tx,urb_len);
 	//rtl_cache_sync_wback(priv, (unsigned int)tx, urb_len, 0);
 
-#if 1
 	//if (atomic_read(&priv->tx_pending[BEACON_QUEUE]) > PRE_ALLOCATED_MMPDU>>2)
 		//(((struct urb *)(tx_urb))->transfer_flags) &= (~URB_NO_INTERRUPT);
 #if defined (TX_SHORTCUT)&&defined(RTL8192SU_TXSC_DBG)
@@ -4656,7 +3807,6 @@ init_deschead:
 		if (skb2->cb[8]!=1)
 			priv->ext_stats.normal_pkt_cnt++;
 	}
-#endif
 #endif
 
 #ifdef RTL8192SU_CHECKTXHANGUP
@@ -4682,15 +3832,9 @@ init_deschead:
 	}
 	if (txcfg->fr_len == 0)
 		break;
-#endif //RTL8192SU
 	}
 
 
-#if !defined(RTL8192SU)
-init_deschead:
-	for (i=0; i<flush_num; i++)
-		rtl_cache_sync_wback(priv, flush_addr[i], flush_len[i], PCI_DMA_TODEVICE);
-#endif
 
 	if (txcfg->aggre_en == FG_AGGRE_MSDU_FIRST) {
 		priv->amsdu_first_desc = pfrstdesc;
@@ -4698,11 +3842,7 @@ init_deschead:
 		priv->amsdu_first_dma_desc = pfrst_dma_desc;
 #endif
 		priv->amsdu_len = get_desc(pfrstdesc->Dword0) & 0xffff; // get pktSize
-#if !defined(RTL8192SU)
-		return;
-#else
 		goto signin_tx_fail;
-#endif
 	}
 
 #ifdef BUFFER_TX_AMPDU
@@ -4730,36 +3870,13 @@ init_deschead:
 				tx_poll(priv, q_num);
 			}
 		}
-#if !defined(RTL8192SU)
-		return;
-#else
 		goto signin_tx_fail;
-#endif		
 	}
 #endif // BUFFER_TX_AMPDU
-#if !defined(RTL8192SU)
-//	pfrstdesc->cmd |= set_desc(_OWN_);
-	pfrstdesc->Dword0 |= set_desc(TX_OWN);
-#ifndef USE_RTL8186_SDK
-	rtl_cache_sync_wback(priv, pfrst_dma_desc, sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-
-#ifndef SW_MCAST
-	if (q_num == HIGH_QUEUE) {
-		priv->pkt_in_dtimQ = 1;
-		return;
-	}
-	else
-#endif
-		tx_poll(priv, q_num);
-
-	return;
-#else //RTL8192SU
 	return;
 signin_tx_fail:
 	priv->ext_stats.tx_drops++;
 	rtl8192su_siginTx_fail(priv, txcfg, wlanhdr);
-#endif //!RTL8192SU
 }
 
 
@@ -4779,12 +3896,6 @@ void rtl8192SE_signin_txdesc_amsdu(struct rtl8190_priv *priv, struct tx_insn* tx
 	q_num = txcfg->q_num;
 	phw	= GET_HW(priv);
 
-#if !defined(RTL8192SU)
-	dma_txhead	= get_txdma_addr(phw, q_num);
-	tx_head		= get_txhead_addr(phw, q_num);
-	phdesc   	= get_txdesc(phw, q_num);
-	pswdescinfo = get_txdesc_info(priv->pshare->pdesc_info, q_num);
-#endif
 	pbuf = ((struct sk_buff *)txcfg->pframe)->data;
 	tx_len = ((struct sk_buff *)txcfg->pframe)->len;
 	tmpphyaddr = get_physical_addr(priv, pbuf, tx_len, PCI_DMA_TODEVICE);
@@ -4798,9 +3909,6 @@ void rtl8192SE_signin_txdesc_amsdu(struct rtl8190_priv *priv, struct tx_insn* tx
 	//clear all bits
 	memset(pdesc, 0, 32);
 
-#if !defined(RTL8192SU)
-	pdesc->Dword8 = set_desc(tmpphyaddr); // TXBufferAddr
-#endif	
 	pdesc->Dword7 |= (set_desc(tx_len & TX_TxBufferSizeMask));
 	pdesc->Dword0 |= set_desc(32 << TX_OFFSETSHIFT); // tx_desc size
 	if (txcfg->aggre_en == FG_AGGRE_MSDU_LAST){
@@ -4819,9 +3927,6 @@ void rtl8192SE_signin_txdesc_amsdu(struct rtl8190_priv *priv, struct tx_insn* tx
 #endif
 
 	pdescinfo->type = _SKB_FRAME_TYPE_;
-#if !defined(RTL8192SU)	
-	pdescinfo->paddr = get_desc(pdesc->Dword8); // TXBufferAddr
-#endif	
 	pdescinfo->pframe = txcfg->pframe;
 	pdescinfo->len = txcfg->fr_len;
 	pdescinfo->priv = priv;
@@ -4928,11 +4033,6 @@ int rtl8192SE_SetupOneCmdPacket(struct rtl8190_priv *priv, unsigned char *dat_co
 	struct tx_desc	*phdesc;
 	volatile unsigned int *ppdesc  ; //= (unsigned int *)pdesc;
 	struct rtl8190_hw	*phw = GET_HW(priv);	
-#if !defined(RTL8192SU)
-	int	*tx_head, *tx_tail;
-	tx_head	= &phw->txcmdhead;
-	tx_tail = &phw->txcmdtail;
-#else
 	unsigned int *tx;
 	struct urb *tx_urb=NULL;
 	int urb_len=0, frame_len=0;
@@ -4943,7 +4043,6 @@ int rtl8192SE_SetupOneCmdPacket(struct rtl8190_priv *priv, unsigned char *dat_co
 	{
 		frame_len = txLength+1;
 	}
-#endif
 
 	phdesc = phw->txcmd_desc;
 
@@ -4954,7 +4053,6 @@ int rtl8192SE_SetupOneCmdPacket(struct rtl8190_priv *priv, unsigned char *dat_co
 
 //	printk("data lens: %d\n", txLength );
 
-#ifdef RTL8192SU
 		urb_len = txLength+(8*4);//;+USB_HWDESC_HEADER_LEN;
 		{
 			tx = kmalloc(urb_len, GFP_ATOMIC);
@@ -4975,21 +4073,13 @@ int rtl8192SE_SetupOneCmdPacket(struct rtl8190_priv *priv, unsigned char *dat_co
 			kfree(tx);
 			return -ENOMEM;
 		}
-#endif
 	for (ih=0; ih<DescNum; ih++) {
-#if !defined(RTL8192SU)
-		pdesc      = (phdesc + (*tx_head));
-#else
 		pdesc   	= (struct tx_desc*)tx;
 		pdescinfo = kmalloc(sizeof(struct tx_desc_info), GFP_ATOMIC);
 		if(!pdescinfo) return -ENOMEM;
 		pdescinfo->pframe = tx;
-#endif
 		ppdesc = (unsigned int *)pdesc;
 		// Clear all status
-#if !defined(RTL8192SU)
-		memset(pdesc, 0, 36);
-#endif
 //		rtl_cache_sync_wback(priv, phw->txcmd_desc_dma_addr[*tx_head], 32, PCI_DMA_TODEVICE);
 		// For firmware downlaod we only need to set LINIP
 		if (LastPkt)
@@ -5008,20 +4098,9 @@ int rtl8192SE_SetupOneCmdPacket(struct rtl8190_priv *priv, unsigned char *dat_co
 		OR_EQUAL(&pdesc->Dword0 , set_desc(TX_LastSeg));//bLastSeg;
 #endif
 
-#if !defined(RTL8192SU)
-		// 92SE need not to set TX packet size when firmware download
-		pdesc->Dword7 |=  (set_desc((unsigned short)(txLength) << TX_TxBufferSizeSHIFT));
-#endif
 		memcpy(priv->pshare->txcmd_buf, dat_content, txLength);
 
-#if !defined(RTL8192SU)
-		rtl_cache_sync_wback(priv, (unsigned int)priv->pshare->txcmd_buf, txLength, PCI_DMA_TODEVICE);
-
-
-		pdesc->Dword8 =  set_desc(priv->pshare->cmdbuf_phyaddr);
-#else
 		memcpy(tx+8, dat_content, txLength);
-#endif		
 
 #ifndef DISABLE_UNALIGN_TRAP
 		pdesc->Dword0	|= set_desc((unsigned short)(txLength) << TX_PktIDSHIFT);
@@ -5039,12 +4118,6 @@ int rtl8192SE_SetupOneCmdPacket(struct rtl8190_priv *priv, unsigned char *dat_co
 //			*(ppdesc) |= set_desc(BIT(31));
 		}
 
-#if !defined(RTL8192SU)
-#ifndef USE_RTL8186_SDK
-		rtl_cache_sync_wback(priv, phw->txcmd_desc_dma_addr[*tx_head], sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-		*tx_head = (*tx_head + 1) & (NUM_CMD_DESC - 1);
-#else
 	{
 		/* FIXME check what EP is for low/norm PRI */
 		usb_fill_bulk_urb(tx_urb,priv->udev,
@@ -5055,18 +4128,12 @@ int rtl8192SE_SetupOneCmdPacket(struct rtl8190_priv *priv, unsigned char *dat_co
 
 	dma_cache_wback_inv((unsigned long)tx,urb_len);
 	//rtl_cache_sync_wback(priv, (unsigned int)tx, urb_len, 0);
-#ifdef RTL867X_CP3
-rtl8651_romeperfEnterPoint(ROMEPERF_INDEX_USB_SUBMIT_URB_TX );
-#endif
 	//status = RTL8192SU_submit_urb(priv, tx_urb);
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	status = usb_submit_urb(tx_urb, GFP_ATOMIC);
 #else
 	status = usb_submit_urb(tx_urb);
-#endif
-#ifdef RTL867X_CP3
-rtl8651_romeperfExitPoint(ROMEPERF_INDEX_USB_SUBMIT_URB_TX);
 #endif
 	if (status){
 		printk("Error TX URB ,error %d\n",
@@ -5075,1094 +4142,14 @@ rtl8651_romeperfExitPoint(ROMEPERF_INDEX_USB_SUBMIT_URB_TX);
 				status);
 		//return -1;
 	}
-#endif	//RTL8192SU
 	}
 
 	return TRUE;
 }
 
 
-#elif defined(RTL8190) || defined(RTL8192E)
 
-
-__IRAM_FASTEXTDEV
-static void rtl8190_fill_fwinfo(struct rtl8190_priv *priv, struct tx_insn* txcfg, unsigned char *ptxfw, unsigned int frag_idx)
-{
-	struct FWtemplate *txfw = (struct FWtemplate *)ptxfw;
-	int erp_protection = 0, n_protection = 0;
-	unsigned char rate, ampdu_des;
-
-	memset(txfw, 0, sizeof(struct FWtemplate)); // initialize to zero
-
-#ifdef MP_TEST
-	if (OPMODE & WIFI_MP_STATE) {
-		if (is_MCS_rate(txcfg->tx_rate)) {	// HT rates
-			txfw->txRate = txcfg->tx_rate & 0x7f;
-			txfw->txHt = 1;
-		}
-		else
-			txfw->txRate = get_rate_index_from_ieee_value((UINT8)txcfg->tx_rate);
-
-		if (priv->pshare->CurrentChannelBW) {
-			txfw->txbw = 1;
-			txfw->txSC = 3;
-			if (priv->pmib->dot11nConfigEntry.dot11nShortGIfor40M)
-				txfw->txshort = 1;
-		}
-		else {
-			if (priv->pmib->dot11nConfigEntry.dot11nShortGIfor20M)
-				txfw->txshort = 1;
-		}
-
-		if (txcfg->retry) {
-			txfw->ccx = 1;
-			txfw->retryLimit1 = txcfg->retry & 0x3;
-			txfw->retryLimit2 = (txcfg->retry >> 2) & 0x3;
-		}
-
-		return;
-	}
-#endif
-
-	if (is_MCS_rate(txcfg->tx_rate))	// HT rates
-	{
-		txfw->txRate = txcfg->tx_rate & 0x7f;
-		txfw->txHt = 1;
-
-		if (priv->pshare->is_40m_bw) {
-//			if (txcfg->pstat && (txcfg->pstat->ht_cap_buf.ht_cap_info & cpu_to_le16(_HTCAP_SUPPORT_CH_WDTH_))) {
-			if (txcfg->pstat && (txcfg->pstat->tx_bw == HT_CHANNEL_WIDTH_20_40)) {
-				txfw->txbw = 1;
-#ifdef RTL8190
-				txfw->txSC = 3;
-#elif defined(RTL8192E)
-				txfw->txSC = 0; //By SD3's Jerry suggestion, use duplicated mode, cosa 04012008
-#endif
-
-				if (priv->pmib->dot11nConfigEntry.dot11nShortGIfor40M &&
-					txcfg->pstat && (txcfg->pstat->ht_cap_buf.ht_cap_info & cpu_to_le16(_HTCAP_SHORTGI_40M_)))
-					txfw->txshort = 1;
-
-				if (priv->pshare->bw_pwrdiff_ofst != 0) {
-					txfw->txAGCOffset = priv->pshare->bw_pwrdiff_ofst;
-					txfw->txAGCSign = priv->pshare->bw_pwrdiff_sign;
-				}
-			}
-			else {
-				if (priv->pshare->offset_2nd_chan == HT_2NDCH_OFFSET_BELOW)
-					txfw->txSC = 2;
-				else
-					txfw->txSC = 1;
-
-				if (priv->pmib->dot11nConfigEntry.dot11nShortGIfor20M &&
-					txcfg->pstat && (txcfg->pstat->ht_cap_buf.ht_cap_info & cpu_to_le16(_HTCAP_SHORTGI_20M_)))
-					txfw->txshort = 1;
-			}
-		}
-		else {
-			if (priv->pmib->dot11nConfigEntry.dot11nShortGIfor20M &&
-				txcfg->pstat && (txcfg->pstat->ht_cap_buf.ht_cap_info & cpu_to_le16(_HTCAP_SHORTGI_20M_)))
-				txfw->txshort = 1;
-		}
-
-		if ((txcfg->aggre_en >= FG_AGGRE_MPDU) && (txcfg->aggre_en <= FG_AGGRE_MPDU_BUFFER_LAST)) {
-
-			txfw->aggren = 1;
-			switch (priv->pmib->dot11nConfigEntry.dot11nAMPDUSendSz) {
-			case 8:
-				txfw->rxMF = 0;
-				break;
-			case 16:
-				txfw->rxMF = 1;
-				break;
-			case 32:
-				txfw->rxMF = 2;
-				break;
-			case 64:
-				txfw->rxMF = 3;
-				break;
-			default:
-				if (txcfg->pstat->is_rtl8190_sta) {
-					txfw->rxMF = 3;
-				}
-				else {
-					//txfw->rxMF = txcfg->pstat->ht_cap_buf.ampdu_para & 0x03;
-					if ((txcfg->pstat->ht_cap_buf.ampdu_para & 0x03) > 0)
-						txfw->rxMF = 1;		// default 16K of AMPDU size to other clients support more than 8K
-					else
-						txfw->rxMF = 0;		// default 8K of AMPDU size to other clients support 8K only
-				}
-				break;
-			}
-			ampdu_des = (txcfg->pstat->ht_cap_buf.ampdu_para & _HTCAP_AMPDU_SPC_MASK_) >> _HTCAP_AMPDU_SPC_SHIFT_;
-			if ((ampdu_des > 0) && (ampdu_des < 7))
-				ampdu_des++; // 8190 Spec doesn't fit to 802.11n
-			if (priv->pshare->is_40m_bw && txcfg->pstat
-				&& (txcfg->pstat->tx_bw == HT_CHANNEL_WIDTH_20_40)
-				&& (get_sta_encrypt_algthm(priv, txcfg->pstat) == _CCMP_PRIVACY_)
-				&& txcfg->pstat->dot11KeyMapping.keyInCam == TRUE)
-				txfw->rxAMD = 7;
-			else
-				txfw->rxAMD = ampdu_des;
-		}
-	}
-	else	// legacy rate
-	{
-		txfw->txRate = get_rate_index_from_ieee_value((UINT8)txcfg->tx_rate);
-		if (is_CCK_rate(txcfg->tx_rate) && (txcfg->tx_rate != 2)) {
-			if ((priv->pmib->dot11BssType.net_work_type & WIRELESS_11G) &&
-					(priv->pmib->dot11ErpInfo.longPreambleStaNum > 0))
-				; // txfw->txshort = 0
-			else {
-				if (txcfg->pstat)
-					txfw->txshort = (priv->pmib->dot11RFEntry.shortpreamble) &&
-									(txcfg->pstat->useShortPreamble);
-				else
-					txfw->txshort = priv->pmib->dot11RFEntry.shortpreamble;
-			}
-		}
-
-		if (priv->pshare->is_40m_bw) {
-			if (priv->pshare->offset_2nd_chan == HT_2NDCH_OFFSET_BELOW)
-				txfw->txSC = 2;
-			else
-				txfw->txSC = 1;
-		}
-
-		// 20080311 Bryant modified Tx power differences and omitted L-OFDM setting
-		//if (!is_CCK_rate(txcfg->tx_rate) && !priv->pshare->use_default_para) {
-		//	txfw->txAGCOffset = priv->pshare->legacyOFDM_pwrdiff & 0x0f;
-		//	txfw->txAGCSign = (priv->pshare->legacyOFDM_pwrdiff & 0x80)? 1:0;
-		//}
-	}
-
-	if (txcfg->need_ack) { // unicast
-		if (frag_idx == 0) {
-			if (txcfg->rts_thrshld <= get_mpdu_len(txcfg, txcfg->fr_len))
-				txfw->rtsEn = 1;
-			else {
-				if ((priv->pmib->dot11BssType.net_work_type & WIRELESS_11N) &&
-					is_MCS_rate(txcfg->tx_rate) &&
-					priv->ht_protection)
-				{
-					n_protection = 1;
-					txfw->rtsEn = 1;
-					if (priv->pmib->dot11ErpInfo.ctsToSelf)
-						txfw->ctsEn = 1;
-				}
-				else if ((priv->pmib->dot11BssType.net_work_type & WIRELESS_11G) &&
-					(!is_CCK_rate(txcfg->tx_rate)) && // OFDM mode
-					priv->pmib->dot11ErpInfo.protection)
-				{
-					erp_protection = 1;
-					txfw->rtsEn = 1;
-					if (priv->pmib->dot11ErpInfo.ctsToSelf)
-						txfw->ctsEn = 1;
-				}
-				else if ((priv->pmib->dot11BssType.net_work_type & WIRELESS_11N) &&
-					(txcfg->pstat) && (txcfg->pstat->MIMO_ps & _HT_MIMO_PS_DYNAMIC_) &&
-					is_MCS_rate(txcfg->tx_rate) && ((txcfg->tx_rate & 0x7f)>7))
-				{	// when HT MIMO Dynamic power save is set and rate > MCS7, RTS is needed
-					txfw->rtsEn = 1;
-				}
-			}
-		}
-	}
-
-	if (txfw->rtsEn == 1) {
-		if (erp_protection)
-			rate = (unsigned char)find_rate(priv, NULL, 1, 3);
-		else
-			rate = (unsigned char)find_rate(priv, NULL, 1, 1);
-
-		if (is_MCS_rate(rate)) {	// HT rates
-			// can we use HT rates for RTS?
-		}
-		else {
-			txfw->rtsTxRate = get_rate_index_from_ieee_value(rate);
-			if (erp_protection) {
-				if (is_CCK_rate(rate) && (rate != 2)) {
-					if ((priv->pmib->dot11BssType.net_work_type & WIRELESS_11G) &&
-							(priv->pmib->dot11ErpInfo.longPreambleStaNum > 0))
-						txfw->rtsShort = 0;
-					else {
-						if (txcfg->pstat)
-							txfw->rtsShort = (priv->pmib->dot11RFEntry.shortpreamble) &&
-											(txcfg->pstat->useShortPreamble);
-						else
-							txfw->rtsShort = priv->pmib->dot11RFEntry.shortpreamble;
-					}
-				}
-			}
-			else if (n_protection) {
-				txfw->rtsTxRate = get_rate_index_from_ieee_value(48);	// User 24M to send RTS for TXOP protection
-				if (priv->pshare->is_40m_bw) {
-					txfw->rtsbw = 1;
-					txfw->rtsSC = 0;	// duplicate RTS
-				}
-			}
-			else {	// > RTS threshold
-			}
-		}
-	}
-
-	if (txcfg->need_ack) {
-		txfw->enCPUDur = 1;	// no need to count duration for broadcast & multicast pkts
-
-		// give retry limit to management frame
-		if (txcfg->q_num == MANAGE_QUE_NUM) {
-			txfw->ccx = 1;
-			if (GetFrameSubType(txcfg->phdr) == WIFI_PROBERSP) {
-				txfw->retryLimit1 = 0;
-				txfw->retryLimit2 = 0;
-			}
-#ifdef WDS
-			else if ((GetFrameSubType(txcfg->phdr) == WIFI_PROBEREQ) && (txcfg->pstat->state & WIFI_WDS)) {
-				txfw->retryLimit1 = 2;
-				txfw->retryLimit2 = 0;
-			}
-#endif
-			else {
-				txfw->retryLimit1 = 6 & 0x3;
-				txfw->retryLimit2 = (6 >> 2) & 0x3;
-			}
-		}
-#ifdef WDS
-		else if (txcfg->wdsIdx >= 0) {
-			if (txcfg->pstat->rx_avarage == 0) {
-				txfw->ccx = 1;
-				txfw->retryLimit1 = 3;
-				txfw->retryLimit2 = 0;
-			}
-		}
-#endif
-	}
-}
-
-
-//__IRAM_IN_865X
-void signin_txdesc(struct rtl8190_priv *priv, struct tx_insn* txcfg)
-{
-	struct tx_desc		*phdesc, *pdesc, *pndesc, *picvdesc=NULL, *pmicdesc, *pfrstdesc;
-	struct tx_desc_info	*pswdescinfo, *pdescinfo, *pndescinfo, *picvdescinfo, *pmicdescinfo;
-	unsigned int 		fr_len, tx_len, i, keyid=0;
-	int					*tx_head, q_num;
-	unsigned long		tmpphyaddr;
-	unsigned char		*da, *pbuf, *pwlhdr, *pmic=NULL, *picv=NULL;
-	struct rtl8190_hw	*phw;
-	unsigned char		*pfwinfo=NULL, q_select=0;
-#ifdef TX_SHORTCUT
-	int	fit_shortcut = 0;
-#endif
-	unsigned int		pfrst_dma_desc=0;
-	unsigned int		*dma_txhead;
-
-	unsigned long flush_addr[20];
-	int flush_len[20];
-	int flush_num=0;
-
-	if (txcfg->tx_rate == 0) {
-		DEBUG_ERR("tx_rate=0!\n");
-		txcfg->tx_rate = find_rate(priv, NULL, 0, 1);
-	}
-
-	q_num = txcfg->q_num;
-	phw	= GET_HW(priv);
-
-	dma_txhead	= get_txdma_addr(phw, q_num);
-	tx_head		= get_txhead_addr(phw, q_num);
-	phdesc   	= get_txdesc(phw, q_num);
-	pswdescinfo = get_txdesc_info(priv->pshare->pdesc_info, q_num);
-
-	tx_len = txcfg->fr_len;
-
-	if (txcfg->fr_type == _SKB_FRAME_TYPE_)
-		pbuf = ((struct sk_buff *)txcfg->pframe)->data;
-	else
-		pbuf = (unsigned char*)txcfg->pframe;
-
-	da = get_da((unsigned char *)txcfg->phdr);
-
-	tmpphyaddr = get_physical_addr(priv, pbuf, tx_len, PCI_DMA_TODEVICE);
-#ifdef USE_RTL8186_SDK
-	rtl_cache_sync_wback(priv, (unsigned int)pbuf, tx_len, PCI_DMA_TODEVICE);
-#endif
-
-	// in case of default key, then find the key id
-	if (GetPrivacy((txcfg->phdr)))
-	{
-#ifdef WDS
-		if (txcfg->wdsIdx >= 0) {
-			if (txcfg->pstat)
-				keyid = txcfg->pstat->keyid;
-			else
-				keyid = 0;
-		}
-		else
-#endif
-
-#ifdef __DRAYTEK_OS__
-		if (!IEEE8021X_FUN)
-			keyid = priv->pmib->dot1180211AuthEntry.dot11PrivacyKeyIndex;
-		else {
-			if (IS_MCAST(GetAddr1Ptr ((unsigned char *)txcfg->phdr)) || !txcfg->pstat)
-				keyid = priv->pmib->dot11GroupKeysTable.keyid;
-			else
-				keyid = txcfg->pstat->keyid;
-		}
-#else
-
-		if (priv->pmib->dot1180211AuthEntry.dot11PrivacyAlgrthm==_WEP_40_PRIVACY_ ||
-			priv->pmib->dot1180211AuthEntry.dot11PrivacyAlgrthm==_WEP_104_PRIVACY_) {
-			if(IEEE8021X_FUN && txcfg->pstat) {
-				if(IS_MCAST(da))
-					keyid = 0;
-				else
-					keyid = txcfg->pstat->keyid;
-			}
-			else
-				keyid = priv->pmib->dot1180211AuthEntry.dot11PrivacyKeyIndex;
-		}
-#endif
-
-//modify by Joule for SECURITY	0115
-#ifdef CONFIG_RTK_MESH
-		if( txcfg->is_11s )
-			keyid = priv->pmib->dot11sKeysTable.keyid;
-#endif
-	}
-
-	for(i=0, pfrstdesc= phdesc + (*tx_head); i < txcfg->frg_num; i++)
-	{
-		/*------------------------------------------------------------*/
-		/*           fill descriptor of header + iv + llc             */
-		/*------------------------------------------------------------*/
-		pdesc     = phdesc + (*tx_head);
-		pdescinfo = pswdescinfo + *tx_head;
-
-		if (i != 0)
-		{
-			// we have to allocate wlan_hdr
-			pwlhdr = (UINT8 *)get_wlanhdr_from_poll(priv);
-			if (pwlhdr == (UINT8 *)NULL)
-			{
-				DEBUG_ERR("System-bug... should have enough wlan_hdr\n");
-				return;
-			}
-			// other MPDU will share the same seq with the first MPDU
-			memcpy((void *)pwlhdr, (void *)(txcfg->phdr), txcfg->hdr_len); // data pkt has 24 bytes wlan_hdr
-		}
-		else
-		{
-#ifdef SEMI_QOS
-			if (txcfg->pstat && (is_qos_data(txcfg->phdr))) {
-				if ((GetFrameSubType(txcfg->phdr) & (WIFI_DATA_TYPE | BIT(6) | BIT(7))) == (WIFI_DATA_TYPE | BIT(7))) {
-					unsigned char tempQosControl[2];
-					memset(tempQosControl, 0, 2);
-					tempQosControl[0] = ((struct sk_buff *)txcfg->pframe)->cb[1];
-#ifdef WMM_APSD
-					if ((APSD_ENABLE) && (txcfg->pstat) && (txcfg->pstat->state & WIFI_SLEEP_STATE) &&
-						(!GetMData(txcfg->phdr)) &&
-						((((tempQosControl[0] == 7) || (tempQosControl[0] == 6)) && (txcfg->pstat->apsd_bitmap & 0x01)) ||
-						 (((tempQosControl[0] == 5) || (tempQosControl[0] == 4)) && (txcfg->pstat->apsd_bitmap & 0x02)) ||
-						 (((tempQosControl[0] == 3) || (tempQosControl[0] == 0)) && (txcfg->pstat->apsd_bitmap & 0x08)) ||
-						 (((tempQosControl[0] == 2) || (tempQosControl[0] == 1)) && (txcfg->pstat->apsd_bitmap & 0x04))))
-						tempQosControl[0] |= BIT(4);
-#endif
-					if (txcfg->aggre_en == FG_AGGRE_MSDU_FIRST)
-						tempQosControl[0] |= BIT(7);
-
-					memcpy((void *)GetQosControl((txcfg->phdr)), tempQosControl, 2);
-				}
-			}
-#endif
-			assign_wlanseq(GET_HW(priv), txcfg->phdr, txcfg->pstat, GET_MIB(priv)
-#ifdef CONFIG_RTK_MESH
-				, txcfg->is_11s
-#endif
-				);
-			pwlhdr = txcfg->phdr;
-		}
-		SetDuration(pwlhdr, 0);
-
-		pfwinfo = pwlhdr - sizeof(struct FWtemplate);
-		rtl8190_fill_fwinfo(priv, txcfg, pfwinfo, i);
-
-		if (i != (txcfg->frg_num - 1))
-		{
-			SetMFrag(pwlhdr);
-			if (i == 0) {
-				fr_len = (txcfg->frag_thrshld - txcfg->llc);
-				tx_len -= (txcfg->frag_thrshld - txcfg->llc);
-			}
-			else {
-				fr_len = txcfg->frag_thrshld;
-				tx_len -= txcfg->frag_thrshld;
-			}
-		}
-		else	// last seg, or the only seg (frg_num == 1)
-		{
-			fr_len = tx_len;
-			ClearMFrag(pwlhdr);
-		}
-		SetFragNum((pwlhdr), i);
-
-		if ((i == 0) && (txcfg->fr_type == _SKB_FRAME_TYPE_))
-		{
-			pdesc->flen = set_desc(txcfg->hdr_len + txcfg->llc + sizeof(struct FWtemplate));
-			pdesc->cmd = set_desc((fr_len + get_desc(pdesc->flen) - sizeof(struct FWtemplate)) | _CMDINIT_ | _FS_);
-			pdescinfo->type = _PRE_ALLOCLLCHDR_;
-		}
-		else
-		{
-			pdesc->flen = set_desc(txcfg->hdr_len + sizeof(struct FWtemplate));
-			pdesc->cmd = set_desc((fr_len + get_desc(pdesc->flen) - sizeof(struct FWtemplate))	| _CMDINIT_ | _FS_);
-			pdescinfo->type = _PRE_ALLOCHDR_;
-		}
-
-#ifdef _11s_TEST_MODE_
-		mesh_debug_tx9(txcfg, pdescinfo);
-#endif
-
-		pdesc->opt = set_desc(sizeof(struct FWtemplate));
-		pdesc->cmd |= set_desc((sizeof(struct FWtemplate) + 8) << _OFFSETSHIFT_);
-		switch (q_num) {
-#ifdef SW_MCAST
-		case VO_QUEUE:
-			q_select = 6;
-			break;
-
-		case VI_QUEUE:
-			q_select = 5;
-			break;
-#else
-		case HIGH_QUEUE:
-			q_select = 0x11;
-			break;
-#endif
-		case MGNT_QUEUE:
-			q_select = 0x12;
-			break;
-		default:
-			// data packet
-			if (txcfg->tpt_pkt)
-				q_select = 0x15;
-			else
-				q_select = ((struct sk_buff *)txcfg->pframe)->cb[1];
-			break;
-		}
-		pdesc->opt |= set_desc(q_select << _QSELECTSHIFT_);
-		if (i != (txcfg->frg_num - 1))
-			pdesc->opt |= set_desc(_MFRAG_);
-
-		// Give RATid
-		if (txcfg->pstat) {
-			if (txcfg->pstat->aid != MANAGEMENT_AID)	{ // AID 7 use RATid 0
-				pdesc->opt |= set_desc((txcfg->pstat->aid & 0x0007) << _RATIDSHIFT_);
-				((struct FWtemplate *)pfwinfo)->rsvd0 = (txcfg->pstat->aid & 0x0018) >> 3;
-			}
-		}
-		else {
-			pdesc->opt |= set_desc((7 & 0x0007) << _RATIDSHIFT_);
-			((struct FWtemplate *)pfwinfo)->rsvd0 = (7 & 0x0018) >> 3;
-		}
-
-/*
-		if (
-#ifdef WDS
-				(txcfg->pstat && (txcfg->pstat->state & WIFI_WDS) &&
-					priv->pmib->dot11WdsInfo.entry[txcfg->pstat->wds_idx].txRate) ||
-				(txcfg->pstat && !(txcfg->pstat->state & WIFI_WDS) &&
-						!priv->pmib->dot11StationConfigEntry.autoRate) ||
-#else
-				(!priv->pmib->dot11StationConfigEntry.autoRate) ||
-#endif
-				(txcfg->pstat == NULL) ||
-				(txcfg->fr_type != _SKB_FRAME_TYPE_))
-			pdesc->opt |= set_desc(_USERATE_ | _DISFB_);
-*/
-		if (txcfg->fixed_rate
-#ifdef RTL8192E
-			|| txcfg->pstat->remapped_aid == FW_NUM_STAT-1/*(priv->pshare->STA_map & BIT(txcfg->pstat->aid)*/)
-#endif
-			)
-			pdesc->opt |= set_desc(_USERATE_ | _DISFB_);
-
-		if (!txcfg->need_ack && txcfg->privacy && UseSwCrypto(priv, NULL, TRUE))
-			pdesc->opt |= set_desc(_NOENC_);
-
-		if (txcfg->privacy)
-		{
-			if (UseSwCrypto(priv, txcfg->pstat, (txcfg->pstat ? FALSE : TRUE)))
-			{
-				pdesc->cmd = set_desc(get_desc(pdesc->cmd) + txcfg->icv + txcfg->mic + txcfg->iv);
-				pdesc->flen = set_desc(get_desc(pdesc->flen) + txcfg->iv);
-			}
-			else // hw encrypt
-			{
-				switch(txcfg->privacy)
-				{
-				case _WEP_104_PRIVACY_:
-				case _WEP_40_PRIVACY_:
-					pdesc->cmd = set_desc(get_desc(pdesc->cmd) + txcfg->iv);
-					pdesc->flen = set_desc(get_desc(pdesc->flen) + txcfg->iv);
-					wep_fill_iv(priv, pwlhdr, txcfg->hdr_len, keyid);
-					pdesc->opt = set_desc(get_desc(pdesc->opt) | BIT(30));
-					break;
-
-				case _TKIP_PRIVACY_:
-					pdesc->cmd = set_desc(get_desc(pdesc->cmd) + txcfg->iv + txcfg->mic);
-					pdesc->flen = set_desc(get_desc(pdesc->flen) + txcfg->iv);
-					tkip_fill_encheader(priv, pwlhdr, txcfg->hdr_len, keyid);
-					pdesc->opt = set_desc(get_desc(pdesc->opt) | BIT(31));
-					if ((!IS_MCAST(da)) && (txcfg->pstat))
-						pdesc->opt |= set_desc(BIT(29) | ((txcfg->pstat->cam_id) & 0x1f)<<24);
-					break;
-
-				case _CCMP_PRIVACY_:
-					//michal also hardware...
-					pdesc->cmd = set_desc(get_desc(pdesc->cmd) + txcfg->iv);
-					pdesc->flen = set_desc(get_desc(pdesc->flen) + txcfg->iv);
-					aes_fill_encheader(priv, pwlhdr, txcfg->hdr_len, keyid);
-					pdesc->opt = set_desc(get_desc(pdesc->opt) | BIT(31) | BIT(30));
-					if ((!IS_MCAST(da)) && (txcfg->pstat))
-						pdesc->opt |= set_desc(BIT(29) | ((txcfg->pstat->cam_id) & 0x1f)<<24);
-					break;
-
-				default:
-					DEBUG_ERR("Unknow privacy\n");
-					break;
-				}
-			}
-		}
-		pdesc->paddr = set_desc(get_physical_addr(priv, pwlhdr-sizeof(struct FWtemplate),
-			(get_desc(pdesc->flen)&0xffff), PCI_DMA_TODEVICE));
-
-		// below is for sw desc info
-		pdescinfo->paddr  = get_desc(pdesc->paddr);
-		pdescinfo->pframe = pwlhdr;
-#if defined(SEMI_QOS) && defined(WMM_APSD)
-		pdescinfo->priv = priv;
-		pdescinfo->pstat = txcfg->pstat;
-#endif
-
-#ifdef TX_SHORTCUT
-		if (!priv->pmib->dot11OperationEntry.disable_txsc && txcfg->pstat &&
-				(txcfg->fr_type == _SKB_FRAME_TYPE_)) {
-			desc_copy(&txcfg->pstat->hwdesc1, pdesc);
-			descinfo_copy(&txcfg->pstat->swdesc1, pdescinfo);
-			txcfg->pstat->protection = priv->pmib->dot11ErpInfo.protection;
-			txcfg->pstat->sc_keyid = keyid;
-			txcfg->pstat->pktpri = ((struct sk_buff *)txcfg->pframe)->cb[1];
-			memcpy(&txcfg->pstat->fw_bckp, pfwinfo, sizeof(struct FWtemplate));
-			fit_shortcut = 1;
-		}
-		else {
-			if (txcfg->pstat)
-					txcfg->pstat->hwdesc1.flen = 0;
-		}
-#endif
-
-		pfrst_dma_desc = dma_txhead[*tx_head];
-
-		if (i != 0) {
-			pdesc->cmd |= set_desc(_OWN_);
-#ifndef USE_RTL8186_SDK
-			rtl_cache_sync_wback(priv, dma_txhead[*tx_head], sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-		}
-
-#ifdef USE_RTL8186_SDK
-		flush_addr[flush_num]=(unsigned long)bus_to_virt(get_desc(pdesc->paddr));
-		flush_len[flush_num++]=get_desc(pdesc->flen);
-#endif
-
-		txdesc_rollover(pdesc, (unsigned int *)tx_head);
-
-		if (txcfg->fr_len == 0)
-		{
-			if (txcfg->aggre_en != FG_AGGRE_MSDU_FIRST)
-			  pdesc->cmd |= set_desc(_LS_);
-			goto init_deschead;
-		}
-
-		/*------------------------------------------------------------*/
-		/*              fill descriptor of frame body                 */
-		/*------------------------------------------------------------*/
-		pndesc     = phdesc + *tx_head;
-		pndescinfo = pswdescinfo + *tx_head;
-
-		pndesc->cmd	= set_desc((get_desc(pdesc->cmd) & (~_FS_)) | _OWN_);
-		pndesc->rsvd0 = pdesc->rsvd0;
-		pndesc->rsvd1 = pdesc->rsvd1;
-		pndesc->rsvd2 = pdesc->rsvd2;
-
-		if (txcfg->privacy)
-		{
-			if (!UseSwCrypto(priv, txcfg->pstat, (txcfg->pstat ? FALSE : TRUE)))
-			{
-				if (txcfg->aggre_en != FG_AGGRE_MSDU_FIRST)
-				  pndesc->cmd |= set_desc(_LS_);
-				pndescinfo->pstat = txcfg->pstat;
-				pndescinfo->rate = txcfg->tx_rate;
-			}
-		}
-		else
-		{
-			if (txcfg->aggre_en != FG_AGGRE_MSDU_FIRST)
-			  pndesc->cmd |= set_desc(_LS_);
-			pndescinfo->pstat = txcfg->pstat;
-			pndescinfo->rate = txcfg->tx_rate;
-		}
-
-		pndesc->flen = set_desc(fr_len);
-
-		if (i == 0)
-			pndescinfo->type = txcfg->fr_type;
-		else
-			pndescinfo->type = _RESERVED_FRAME_TYPE_;
-
-#if defined(CONFIG_RTK_MESH) && defined(MESH_USE_METRICOP)
-		if( (txcfg->fr_type == _PRE_ALLOCMEM_) && (txcfg->is_11s & 128)) // for 11s link measurement frame
-			pndescinfo->type =_RESERVED_FRAME_TYPE_;
-#endif
-
-#ifdef _11s_TEST_MODE_
-		mesh_debug_tx10(txcfg, pndescinfo);
-#endif
-
-		pndesc->paddr = set_desc(tmpphyaddr);
-		pndescinfo->paddr = get_desc(pndesc->paddr);
-		pndescinfo->pframe = txcfg->pframe;
-		pndescinfo->len = txcfg->fr_len;	// for pci_unmap_single
-		pndescinfo->priv = priv;
-
-		pbuf += fr_len;
-		tmpphyaddr += fr_len;
-
-#ifdef TX_SHORTCUT
-		if (fit_shortcut) {
-			desc_copy(&txcfg->pstat->hwdesc2, pndesc);
-			descinfo_copy(&txcfg->pstat->swdesc2, pndescinfo);
-		}
-#endif
-
-#ifndef USE_RTL8186_SDK
-		rtl_cache_sync_wback(priv, dma_txhead[*tx_head], sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-
-		flush_addr[flush_num]=(unsigned long)bus_to_virt(get_desc(pndesc->paddr));
-		flush_len[flush_num++]=get_desc(pndesc->flen);
-
-		txdesc_rollover(pndesc, (unsigned int *)tx_head);
-
-		// retrieve H/W MIC and put in payload
-		if ((txcfg->privacy == _TKIP_PRIVACY_) &&
-			(priv->pshare->have_hw_mic) &&
-			!(priv->pmib->dot11StationConfigEntry.swTkipMic) &&
-			(i == (txcfg->frg_num-1)) )	// last segment
-		{
-			register unsigned long int l,r;
-			unsigned char *mic;
-			volatile int i;
-
-			while ((*(volatile unsigned int *)GDMAISR & GDMA_COMPIP) == 0)
-				for (i=0; i<10; i++)
-					;
-
-			l = *(volatile unsigned int *)GDMAICVL;
-			r = *(volatile unsigned int *)GDMAICVR;
-
-			mic = ((struct sk_buff *)txcfg->pframe)->data + txcfg->fr_len - 8;
-			mic[0] = (unsigned char)(l & 0xff);
-			mic[1] = (unsigned char)((l >> 8) & 0xff);
-			mic[2] = (unsigned char)((l >> 16) & 0xff);
-			mic[3] = (unsigned char)((l >> 24) & 0xff);
-			mic[4] = (unsigned char)(r & 0xff);
-			mic[5] = (unsigned char)((r >> 8) & 0xff);
-			mic[6] = (unsigned char)((r >> 16) & 0xff);
-			mic[7] = (unsigned char)((r >> 24) & 0xff);
-
-#ifdef MICERR_TEST
-			if (priv->micerr_flag) {
-				mic[7] ^= mic[7];
-				priv->micerr_flag = 0;
-			}
-#endif
-		}
-
-
-		/*------------------------------------------------------------*/
-		/*                insert sw encrypt here!                     */
-		/*------------------------------------------------------------*/
-		if (txcfg->privacy && UseSwCrypto(priv, txcfg->pstat, (txcfg->pstat ? FALSE : TRUE)))
-		{
-			if (txcfg->privacy == _TKIP_PRIVACY_ ||
-				txcfg->privacy == _WEP_40_PRIVACY_ ||
-				txcfg->privacy == _WEP_104_PRIVACY_)
-			{
-				picvdesc     = phdesc + *tx_head;
-				picvdescinfo = pswdescinfo + *tx_head;
-				if (txcfg->aggre_en == FG_AGGRE_MSDU_FIRST)
-				  picvdesc->cmd = set_desc((get_desc(pdesc->cmd) & (~_FS_)) | _OWN_);
-				else
-				  picvdesc->cmd   = set_desc((get_desc(pdesc->cmd) & (~_FS_)) | _OWN_ | _LS_);
-				picvdesc->flen  = set_desc(txcfg->icv);
-				picvdesc->rsvd0 = pdesc->rsvd0;
-				picvdesc->rsvd1 = pdesc->rsvd1;
-				picvdesc->rsvd2 = pdesc->rsvd2;
-
-				// append ICV first...
-				picv = get_icv_from_poll(priv);
-				if (picv == NULL)
-				{
-					DEBUG_ERR("System-Buf! can't alloc picv\n");
-					BUG();
-				}
-
-				picvdescinfo->type = _PRE_ALLOCICVHDR_;
-				picvdescinfo->pframe = picv;
-				picvdescinfo->pstat = txcfg->pstat;
-				picvdescinfo->rate = txcfg->tx_rate;
-				picvdescinfo->priv = priv;
-				picvdesc->paddr = set_desc(get_physical_addr(priv, picv, txcfg->icv, PCI_DMA_TODEVICE));
-#ifdef USE_RTL8186_SDK
-				rtl_cache_sync_wback(priv, (unsigned int)picv, txcfg->icv, PCI_DMA_TODEVICE);
-#endif
-
-				if (i == 0)
-					tkip_icv(picv,
-						pwlhdr + txcfg->hdr_len + txcfg->iv, txcfg->llc,
-						pbuf - get_desc(pndesc->flen), get_desc(pndesc->flen));
-				else
-					tkip_icv(picv,
-						NULL, 0,
-						pbuf - get_desc(pndesc->flen), get_desc(pndesc->flen));
-
-				if ((i == 0) && (txcfg->llc != 0)) {
-					if (txcfg->privacy == _TKIP_PRIVACY_)
-						tkip_encrypt(priv, pwlhdr, txcfg->hdr_len,
-							pwlhdr + txcfg->hdr_len + 8, sizeof(struct llc_snap),
-							pbuf - get_desc(pndesc->flen), get_desc(pndesc->flen), picv, txcfg->icv);
-					else
-						wep_encrypt(priv, pwlhdr, txcfg->hdr_len,
-							pwlhdr + txcfg->hdr_len + 4, sizeof(struct llc_snap),
-							pbuf - get_desc(pndesc->flen), get_desc(pndesc->flen), picv, txcfg->icv,
-							txcfg->privacy);
-				}
-				else { // not first segment or no snap header
-					if (txcfg->privacy == _TKIP_PRIVACY_)
-						tkip_encrypt(priv, pwlhdr, txcfg->hdr_len, NULL, 0,
-							pbuf - get_desc(pndesc->flen), get_desc(pndesc->flen), picv, txcfg->icv);
-					else
-						wep_encrypt(priv, pwlhdr, txcfg->hdr_len, NULL, 0,
-							pbuf - get_desc(pndesc->flen), get_desc(pndesc->flen), picv, txcfg->icv,
-							txcfg->privacy);
-				}
-#ifndef USE_RTL8186_SDK
-				rtl_cache_sync_wback(priv, dma_txhead[*tx_head], sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-
-				flush_addr[flush_num]=(unsigned long)bus_to_virt(get_desc(picvdesc->paddr));
-				flush_len[flush_num++]=get_desc(picvdesc->flen);
-
-				txdesc_rollover(picvdesc, (unsigned int *)tx_head);
-			}
-
-			if (txcfg->privacy == _CCMP_PRIVACY_)
-			{
-				pmicdesc = phdesc + *tx_head;
-				pmicdescinfo = pswdescinfo + *tx_head;
-				if (txcfg->aggre_en == FG_AGGRE_MSDU_FIRST)
-				  pmicdesc->cmd = set_desc((get_desc(pdesc->cmd) & (~_FS_)) | _OWN_);
-				else
-				  pmicdesc->cmd   = set_desc((get_desc(pdesc->cmd) & (~_FS_)) | _OWN_ | _LS_);
-				pmicdesc->flen 	= set_desc(txcfg->mic);
-				pmicdesc->rsvd0 = pdesc->rsvd0;
-				pmicdesc->rsvd1 = pdesc->rsvd1;
-				pmicdesc->rsvd2 = pdesc->rsvd2;
-
-				// append MIC first...
-				pmic = get_mic_from_poll(priv);
-				if (pmic == NULL)
-				{
-					DEBUG_ERR("System-Buf! can't alloc pmic\n");
-					BUG();
-				}
-
-				pmicdescinfo->type = _PRE_ALLOCMICHDR_;
-				pmicdescinfo->pframe = pmic;
-				pmicdescinfo->pstat = txcfg->pstat;
-				pmicdescinfo->rate = txcfg->tx_rate;
-				pmicdescinfo->priv = priv;
-				pmicdesc->paddr = set_desc(get_physical_addr(priv, pmic, txcfg->mic, PCI_DMA_TODEVICE));
-#ifdef USE_RTL8186_SDK
-				rtl_cache_sync_wback(priv, (unsigned int)pmic, txcfg->mic, PCI_DMA_TODEVICE);
-#endif
-
-				// then encrypt all (including ICV) by AES
-				if (i == 0) // encrypt 3 segments ==> llc, mpdu, and mic
-					aesccmp_encrypt(priv, pwlhdr, pwlhdr + txcfg->hdr_len + 8,
-						pbuf - get_desc(pndesc->flen), get_desc(pndesc->flen), pmic);
-				else // encrypt 2 segments ==> mpdu and mic
-					aesccmp_encrypt(priv, pwlhdr, NULL,
-						pbuf - get_desc(pndesc->flen), get_desc(pndesc->flen), pmic);
-#ifndef USE_RTL8186_SDK
-				rtl_cache_sync_wback(priv, dma_txhead[*tx_head], sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-				flush_addr[flush_num]=(unsigned long)bus_to_virt(get_desc(pmicdesc->paddr));
-				flush_len[flush_num++]=get_desc(pmicdesc->flen);
-
-				txdesc_rollover(pmicdesc, (unsigned int *)tx_head);
-			}
-		}
-	}
-
-
-init_deschead:
-#if 0
-	switch (q_select) {
-	case 0:
-	case 3:
-	   if (q_num != BE_QUEUE)
-    		printk("%s %d error : q_select[%d], q_num[%d]\n", __FUNCTION__, __LINE__, q_select, q_num);
-	   break;
-	case 1:
-	case 2:
-		if (q_num != BK_QUEUE)
-		    printk("%s %d error : q_select[%d], q_num[%d]\n", __FUNCTION__, __LINE__, q_select, q_num);
-	   break;
-	case 4:
-	case 5:
-		if (q_num != VI_QUEUE)
-		    printk("%s %d error : q_select[%d], q_num[%d]\n", __FUNCTION__, __LINE__, q_select, q_num);
-		break;
-	case 6:
-	case 7:
-		if (q_num != VO_QUEUE)
-			printk("%s %d error : q_select[%d], q_num[%d]\n", __FUNCTION__, __LINE__, q_select, q_num);
-		break;
-	case 0x11 :
-		 if (q_num != HIGH_QUEUE)
-			printk("%s %d error : q_select[%d], q_num[%d]\n", __FUNCTION__, __LINE__, q_select, q_num);
-		break;
-	case 0x12 :
-		if (q_num != MGNT_QUEUE)
-			printk("%s %d error : q_select[%d], q_num[%d]\n", __FUNCTION__, __LINE__, q_select, q_num);
-		break;
-	default :
-		printk("%s %d warning : q_select[%d], q_num[%d]\n", __FUNCTION__, __LINE__, q_select, q_num);
-	break;
-	}
-#endif
-
-	for (i=0; i<flush_num; i++)
-		rtl_cache_sync_wback(priv, flush_addr[i], flush_len[i], PCI_DMA_TODEVICE);
-
-	if (txcfg->aggre_en == FG_AGGRE_MSDU_FIRST) {
-		priv->amsdu_first_desc = pfrstdesc;
-#ifndef USE_RTL8186_SDK
-		priv->amsdu_first_dma_desc = pfrst_dma_desc;
-#endif
-		priv->amsdu_len = get_desc(pfrstdesc->cmd) & 0xffff;
-		return;
-	}
-
-#ifdef BUFFER_TX_AMPDU
-	if ((txcfg->aggre_en >= FG_AGGRE_MPDU_BUFFER_FIRST) &&
-					(txcfg->aggre_en <= FG_AGGRE_MPDU_BUFFER_LAST)) {
-		if (txcfg->aggre_en == FG_AGGRE_MPDU_BUFFER_FIRST) {
-			priv->ampdu_first_desc = pfrstdesc;
-#ifndef USE_RTL8186_SDK
-			priv->ampdu_first_dma_desc = pfrst_dma_desc;
-#endif
-		}
-		else {
-			pfrstdesc->cmd |= set_desc(_OWN_);
-
-#ifndef USE_RTL8186_SDK
-			rtl_cache_sync_wback(priv, pfrst_dma_desc, sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-			if (txcfg->aggre_en == FG_AGGRE_MPDU_BUFFER_LAST) {
-				pfrstdesc = priv->ampdu_first_desc;
-				pfrstdesc->cmd |= set_desc(_OWN_);
-
-#ifndef USE_RTL8186_SDK
-				rtl_cache_sync_wback(priv, priv->ampdu_first_dma_desc, sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-				tx_poll(priv, q_num);
-			}
-		}
-		return;
-	}
-#endif // BUFFER_TX_AMPDU
-
-	pfrstdesc->cmd |= set_desc(_OWN_);
-#ifndef USE_RTL8186_SDK
-	rtl_cache_sync_wback(priv, pfrst_dma_desc, sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-
-#ifndef SW_MCAST
-	if (q_num == HIGH_QUEUE) {
-		priv->pkt_in_dtimQ = 1;
-		return;
-	}
-	else
-#endif
-		tx_poll(priv, q_num);
-
-	return;
-}
-
-#ifdef SUPPORT_TX_AMSDU
-__IRAM_FASTEXTDEV
-void signin_txdesc_amsdu(struct rtl8190_priv *priv, struct tx_insn* txcfg)
-{
-	struct tx_desc *phdesc, *pdesc, *pfrstdesc;
-	struct tx_desc_info *pswdescinfo, *pdescinfo;
-	unsigned int  tx_len;
-	int *tx_head, q_num;
-	unsigned long	tmpphyaddr;
-	unsigned char *pbuf;
-	struct rtl8190_hw *phw;
-	unsigned int *dma_txhead;
-
-	q_num = txcfg->q_num;
-	phw	= GET_HW(priv);
-
-	dma_txhead	= get_txdma_addr(phw, q_num);
-	tx_head		= get_txhead_addr(phw, q_num);
-	phdesc   	= get_txdesc(phw, q_num);
-	pswdescinfo = get_txdesc_info(priv->pshare->pdesc_info, q_num);
-
-	pbuf = ((struct sk_buff *)txcfg->pframe)->data;
-	tx_len = ((struct sk_buff *)txcfg->pframe)->len;
-
-	tmpphyaddr = get_physical_addr(priv, pbuf, tx_len, PCI_DMA_TODEVICE);
-#ifdef USE_RTL8186_SDK
-	rtl_cache_sync_wback(priv, (unsigned int)pbuf, tx_len, PCI_DMA_TODEVICE);
-#endif
-
-	pdesc     = phdesc + (*tx_head);
-	pdescinfo = pswdescinfo + *tx_head;
-
-	pdesc->paddr = set_desc(tmpphyaddr);
-	pdesc->flen = set_desc(tx_len);
-	if (txcfg->aggre_en == FG_AGGRE_MSDU_LAST)
-		pdesc->cmd = set_desc(_OWN_ | _LS_);
-	else
-		pdesc->cmd = set_desc(_OWN_);
-
-#ifndef USE_RTL8186_SDK
-	rtl_cache_sync_wback(priv, dma_txhead[*tx_head], sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-
-	pdescinfo->type = _SKB_FRAME_TYPE_;
-	pdescinfo->paddr = get_desc(pdesc->paddr);
-	pdescinfo->pframe = txcfg->pframe;
-	pdescinfo->len = txcfg->fr_len;
-	pdescinfo->priv = priv;
-
-	txdesc_rollover(pdesc, (unsigned int *)tx_head);
-
-	priv->amsdu_len += tx_len;
-
-	if (txcfg->aggre_en == FG_AGGRE_MSDU_LAST) {
-		pfrstdesc = priv->amsdu_first_desc;
-		pfrstdesc->cmd = set_desc((get_desc(pfrstdesc->cmd) &0xff0000) | priv->amsdu_len | _CMDINIT_ | _FS_ | _OWN_);
-#ifndef USE_RTL8186_SDK
-		rtl_cache_sync_wback(priv, priv->amsdu_first_dma_desc, sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-		tx_poll(priv, q_num);
-	}
-}
-#endif // SUPPORT_TX_AMSDU
-
-int SetupOneCmdPacket(struct rtl8190_priv *priv, unsigned char *dat_content,
-				unsigned short txLength, unsigned char LastPkt)
-{
-	unsigned char	ih=0;
-	unsigned char	DescNum;
-	unsigned short	DebugTimerCount;
-
-	struct tx_desc	*phdesc, *pdesc;
-	int	*tx_head, *tx_tail;
-	struct rtl8190_hw	*phw = GET_HW(priv);
-
-	tx_head	= &phw->txcmdhead;
-	tx_tail = &phw->txcmdtail;
-	phdesc = phw->txcmd_desc;
-
-	DebugTimerCount = 0; // initialize debug counter to exit loop
-	DescNum = 1;
-
-	//check the preceding desc is finished? to update tail (not in ISR)?  I am not sure.
-	if (!(((*tx_head) == 0) && ((*tx_tail) == 0))) // not first desc during initialization
-	{
-		if((*tx_head) != 0)
-			pdesc = phdesc + (*tx_head) - 1; // locate preceding descriptor pointer
-		else
-			pdesc = phdesc + NUM_CMD_DESC - 1; // last descriptor in chain
-
-		while (((get_desc(pdesc->cmd) & _OWN_) != 0) && (DebugTimerCount < 100)) {
-			DebugTimerCount++;
-		}
-
-		if (DebugTimerCount == 100) {
-			printk("Preceding tx cmd buffer can't dma to NIC\n");
-			return FALSE;
-		}
-
-		rtl_cache_sync_wback(priv, priv->pshare->cmdbuf_phyaddr, LoadPktSize, PCI_DMA_TODEVICE);
-
-		*tx_tail = ((*tx_tail) + 1) & (NUM_CMD_DESC - 1);
-	}
-
-
-	for (ih=0; ih<DescNum; ih++) {
-		pdesc     = phdesc + (*tx_head);
-		memset(pdesc, 0, 12);
-
-		// FS and TX MAC Header, descriptor set
-
-		pdesc->cmd |= set_desc(_FS_);
-
-		pdesc->flen = set_desc(txLength);
-
-		memcpy(priv->pshare->txcmd_buf, dat_content, txLength);
-		rtl_cache_sync_wback(priv, (unsigned int)priv->pshare->txcmd_buf, txLength, PCI_DMA_TODEVICE);
-
-		pdesc->cmd |= set_desc(_LS_);   // Set Last Segment
-
-		pdesc->paddr = set_desc(priv->pshare->cmdbuf_phyaddr);
-
-		// if LastPkt = 1, the Init_LP bit must be set
-		 if (LastPkt)
-			pdesc->cmd |= set_desc(_LINIP_);
-
-		pdesc->cmd |= set_desc(_OWN_);
-
-#ifndef USE_RTL8186_SDK
-		rtl_cache_sync_wback(priv, phw->txcmd_desc_dma_addr[*tx_head], sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-		*tx_head = (*tx_head + 1) & (NUM_CMD_DESC - 1);
-	}
-
-	return TRUE;
-}
-#endif
-
-#if !defined(RTL8192SU)
-#ifndef __LINUX_2_6__
-__MIPS16
-#endif
-#ifdef IRAM_FOR_WIRELESS_AND_WAPI_PERFORMANCE
-#else
-__IRAM_IN_865X_HI
-#endif
-#else
 __IRAM_WIFI_PRI5
-#endif
 int __rtl8190_start_xmit(struct sk_buff *skb, struct net_device *dev, int tx_flag)
 {
 	struct rtl8190_priv *priv = (struct rtl8190_priv *)dev->priv;
@@ -6178,18 +4165,9 @@ int __rtl8190_start_xmit(struct sk_buff *skb, struct net_device *dev, int tx_fla
 	unsigned int stat_fr_len=0;
 #endif
 
-#ifdef RTL867X_CP3
-	rtl8651_romeperfEnterPoint(ROMEPERF_INDEX_8187_TX_XMIT );
-	//rtl8651_romeperfEnterPoint(ROMEPERF_INDEX_STARTXMIT1 );
-#endif
 
-#ifdef CONFIG_RTL8671
 	int k;
-#endif
 
-#if !defined(RTL8192SU)
-	extern int no_ddr_patch;
-#endif
 
 	struct tx_insn tx_insn;
 	DECLARE_TXCFG(txcfg, tx_insn);
@@ -6346,7 +4324,6 @@ int __rtl8190_start_xmit(struct sk_buff *skb, struct net_device *dev, int tx_fla
 	}
 #endif
 
-#ifdef CONFIG_RTL8671
 	// Mason Yu
 	if ( g_port_mapping == TRUE ) {
 		for (k=0; k<5; k++) {
@@ -6358,7 +4335,6 @@ int __rtl8190_start_xmit(struct sk_buff *skb, struct net_device *dev, int tx_fla
 			}
 		}
 	}
-#endif // CONFIG_RTL8671
 
 #ifdef DFS
 	if (!priv->pmib->dot11DFSEntry.disable_DFS &&
@@ -6472,9 +4448,7 @@ int __rtl8190_start_xmit(struct sk_buff *skb, struct net_device *dev, int tx_fla
 #endif // CLIENT_MODE
 
 #ifdef MBSSID
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	if (GET_ROOT(priv)->pmib->miscEntry.vap_enable)
-#endif
 	{
 		if ((OPMODE & WIFI_AP_STATE) && !wdsDev) {
 			if ((*(unsigned int *)&(skb->cb[8]) == 0x86518190) &&						// come from wlan interface
@@ -6659,7 +4633,6 @@ skip_aggre_que:
 #endif
 
 #ifdef TX_SHORTCUT
-#ifdef RTL8192SU
 	if (!priv->pmib->dot11OperationEntry.disable_txsc && pstat)
 	{
 		if ((skb->len-sizeof(struct wlan_ethhdr_t))>=1400)
@@ -6676,53 +4649,25 @@ skip_aggre_que:
 #ifdef RTL8192SU_TXSC_DBG
 	skb->cb[8]=0;
 #endif
-#endif //RTL8192SU
 	if (!priv->pmib->dot11OperationEntry.disable_txsc && pstat 
-#if !defined(RTL8192SU)
-		&& (pstat->txcfg.fr_len > 0)
-#else
 		&& (stat_fr_len >0 )
-#endif
 		&& !memcmp(skb->data, &pstat->ethhdr, sizeof(struct wlan_ethhdr_t)) &&
 		(get_skb_priority(priv, skb) == pstat->pktpri) &&
 		(FRAGTHRSLD > 1500))
 	{
 //			unsigned long			flags=0;
-#if !defined(RTL8192SU)
-			int						*tx_head, *tx_tail, q_num;
-			struct rtl8190_hw		*phw = GET_HW(priv);
-#else
 			unsigned short			headerlen, fr_len;
 			//unsigned char			tx_rate;
-#endif
 
 #ifdef BUFFER_TX_AMPDU
 			int aggre_back;
 #endif
 
-#if !defined(RTL8192SU)
-			q_num = pstat->txcfg.q_num;
-			tx_head = get_txhead_addr(phw, q_num);
-			tx_tail = get_txtail_addr(phw, q_num);
-
-			// Check if we need to reclaim TX-ring before processing TX
-			if (CIRC_SPACE_RTK(*tx_head, *tx_tail, NUM_TX_DESC) < 10) {
-				rtl8190_tx_queueDsr(priv, q_num);
-			}
-
-//			if ((2 + 2) > CIRC_SPACE_RTK(*tx_head, *tx_tail, NUM_TX_DESC)) //per mpdu, we need 2 desc...
-			if ((4) > CIRC_SPACE_RTK(*tx_head, *tx_tail, NUM_TX_DESC)) //per mpdu, we need 2 desc...
-#else
 			//if (get_TxUrb_Pending_num(priv) > (NUM_TX_DESC-(NUM_TX_DESC>>5)))
 			if (get_TxUrb_Pending_num(priv) > (NUM_TX_DESC-10))
-#endif	//!RTL8192SU			
 			{
 				// 2 is for spare...
-#if !defined(RTL8192SU)				
-				DEBUG_ERR("%d hw Queue desc not available! head=%d, tail=%d request %d\n",q_num,*tx_head,*tx_tail,2);
-#else
 				DEBUG_INFO("Tx shortcut CONGESTED!\n");
-#endif				
 				rtl8190_tx_xmitSkbFail(priv, skb, dev, wdsDev, txcfg);
 				goto stop_proc;
 			}
@@ -6735,18 +4680,14 @@ skip_aggre_que:
 				aggre_back = 0;
 #endif
 
-#ifdef RTL8192SU
 			if ((skb->len-sizeof(struct wlan_ethhdr_t))<1400)
 				memcpy(txcfg, &pstat->txcfg_short, sizeof(struct tx_insn));
 			else
-#endif
 			memcpy(txcfg, &pstat->txcfg, sizeof(struct tx_insn));
-#ifdef RTL8192SU
 			if ((pstat->aggre_mthd == AGGRE_MTHD_MPDU) && (txcfg->aggre_en == 0)  && is_MCS_rate(get_tx_rate(priv, pstat)))
 			{
 				goto just_skip;
 			}
-#endif
 
 #ifdef BUFFER_TX_AMPDU
 			if (aggre_back)
@@ -6789,17 +4730,6 @@ skip_aggre_que:
 #endif
 
 			// check if we could re-use tx descriptor
-#if	defined(RTL8190) || defined(RTL8192E)
-			if ((get_desc(pstat->hwdesc1.flen) > 0) && (skb->len == get_desc(pstat->hwdesc2.flen)) &&
-#elif defined(RTL8192SE)
-			if ((get_desc(pstat->hwdesc1.Dword7)&TX_TxBufferSizeMask) > 0 &&
-				((
-#if defined(CONFIG_RTL_WAPI_SUPPORT)
-				 (txcfg->privacy==_WAPI_SMS4_) ? ((skb->len+SMS4_MIC_LEN)==(get_desc(pstat->hwdesc2.Dword7)&TX_TxBufferSizeMask)) :
-#endif				
-				(skb->len == (get_desc(pstat->hwdesc2.Dword7)&TX_TxBufferSizeMask)))
-				) &&
-#elif defined(RTL8192SU)
 			if (txcfg->fr_len>=1400)
 			{
 				headerlen=(get_desc(pstat->hwdesc1.Dword7)&TX_TxBufferSizeMask);
@@ -6817,13 +4747,8 @@ skip_aggre_que:
 			printk("hwdesc3.Dword7=%x, hwdesc4.Dword7=%x,\n", (get_desc(pstat->hwdesc3.Dword7)&TX_TxBufferSizeMask), (get_desc(pstat->hwdesc4.Dword7)&TX_TxBufferSizeMask));
 #endif
 			if (headerlen > 0 && (skb->len == fr_len) &&
-#endif
 #if !defined(LOOPBACK_NORMAL_TX_MODE)
-#if 1//!defined(RTL8192SU)
 				(txcfg->tx_rate == pstat->txcfg.tx_rate) &&
-#else
-				(txcfg->tx_rate == tx_rate) &&
-#endif
 #endif //!defined(LOOPBACK_NORMAL_TX_MODE)
 				(pstat->protection == priv->pmib->dot11ErpInfo.protection)
 #if defined(SEMI_QOS) && defined(WMM_APSD)
@@ -6850,32 +4775,7 @@ skip_aggre_que:
 
 //				if (txcfg->privacy != _TKIP_PRIVACY_)
 //					SAVE_INT_AND_CLI(flags);
-#if	defined(RTL8190) || defined(RTL8192E)
-				signin_txdesc_shortcut(priv, txcfg);
-#elif defined(RTL8192SE)
-
-				if (no_ddr_patch)
-				{
-					if ((skb_headroom(skb) >= (txcfg->hdr_len + txcfg->llc + txcfg->iv)) &&
-						!skb_cloned(skb) &&
-						(txcfg->privacy != _TKIP_PRIVACY_)
-#if defined(CONFIG_RTL_WAPI_SUPPORT)
-						&& (txcfg->privacy != _WAPI_SMS4_)
-#endif
-						)
-					{
-						memcpy((skb->data - (txcfg->hdr_len + txcfg->llc + txcfg->iv)), txcfg->phdr, (txcfg->hdr_len + txcfg->llc + txcfg->iv));
-						release_wlanllchdr_to_poll(priv, txcfg->phdr);
-						txcfg->phdr = skb->data - (txcfg->hdr_len + txcfg->llc + txcfg->iv);
-						txcfg->one_txdesc = 1;
-					}
-
-				}
-
 				rtl8192SE_signin_txdesc_shortcut(priv, txcfg);
-#elif defined(RTL8192SU)
-				rtl8192SE_signin_txdesc_shortcut(priv, txcfg);
-#endif
 
 //				RESTORE_INT(flags);
 				goto stop_proc;
@@ -6884,9 +4784,6 @@ skip_aggre_que:
 //			if (txcfg->privacy != _TKIP_PRIVACY_)
 //				SAVE_INT_AND_CLI(flags);
 
-#if	defined(RTL8190) || defined(RTL8192E)
-			signin_txdesc(priv, txcfg);
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 #ifdef RTL8192SU_TXSC_DBG
 			{
 #ifdef RTL8192SU_TXSC_DBG_MSG
@@ -6911,7 +4808,6 @@ skip_aggre_que:
 			}
 #endif
 			rtl8192SE_signin_txdesc(priv, txcfg);
-#endif
 
 			pstat->txcfg.tx_rate = txcfg->tx_rate;
 //			RESTORE_INT(flags);
@@ -6940,21 +4836,14 @@ skip_aggre_que:
 	}
 #endif
 #endif // TX_SHORTCUT
-#if defined(CONFIG_RTK_MESH) || defined(RTL8192SU)
 just_skip:
-#endif
 
 	/* ==================== Slow path of packet TX process ==================== */
-#ifdef RTL867X_CP3
-	//rtl8651_romeperfExitPoint(ROMEPERF_INDEX_STARTXMIT1 );
-#endif
 	if (rtl8190_tx_slowPath(priv, skb, pstat, dev, wdsDev, txcfg) == TX_PROCEDURE_CTRL_STOP) {
 		goto stop_proc;
 	}
 
-#ifdef __KERNEL__
 	dev->trans_start = jiffies;
-#endif
 
 	goto stop_proc;
 
@@ -6975,9 +4864,6 @@ free_and_stop:		/* Free current packet and stop TX process */
 #endif
 
 stop_proc:			/* Stop process and assume the TX-ed packet is already "processed" (freed or TXed) in previous code. */
-#ifdef RTL867X_CP3
-	rtl8651_romeperfExitPoint(ROMEPERF_INDEX_8187_TX_XMIT );
-#endif
 
 #ifdef LOOPBACK_MODE
 	local_irq_enable();
@@ -7037,65 +4923,10 @@ send_test_pkt_fail:
 
 
 #ifdef TX_SHORTCUT
-#if	defined(RTL8192SE) || defined(RTL8192SU)
-#if !defined(RTL8192SU)
-__MIPS16
-__IRAM_FASTEXTDEV
-#else
 __IRAM_WIFI_PRI5
-#endif
 void rtl8192SE_signin_txdesc_shortcut(struct rtl8190_priv *priv, struct tx_insn *txcfg)
 {
 	
-#if !defined(RTL8192SU)
-//#ifdef __LINUX_2_6__
-#if 0
-	struct tx_desc		*phdesc, *pdesc, *pfrstdesc;
-	struct tx_desc_info	*pswdescinfo, *pdescinfo;
-	struct rtl8190_hw	*phw;
-	int					*tx_head, q_num;
-	struct stat_info 	*pstat = txcfg->pstat;
-	struct sk_buff 		*pskb = (struct sk_buff *)txcfg->pframe;
-//	unsigned char		*pfwinfo;
-	unsigned int		pfrst_dma_desc=0;
-	unsigned int		*dma_txhead;
-#else
-	__DRAM_IN_865X static struct tx_desc *phdesc, *pdesc, *pfrstdesc;
-	__DRAM_IN_865X static struct tx_desc_info *pswdescinfo, *pdescinfo;
-	__DRAM_IN_865X static struct rtl8190_hw	*phw;
-	__DRAM_IN_865X static int *tx_head, q_num;
-	__DRAM_IN_865X static struct stat_info *pstat;
-	__DRAM_IN_865X static struct sk_buff *pskb;
-	__DRAM_IN_865X static unsigned int pfrst_dma_desc;
-	__DRAM_IN_865X static unsigned int *dma_txhead;
-#endif
-
-	pstat = txcfg->pstat;
-	pskb = (struct sk_buff *)txcfg->pframe;
-	pfrst_dma_desc=0;
-
-	phw	= GET_HW(priv);
-	q_num = txcfg->q_num;
-
-	dma_txhead	= get_txdma_addr(phw, q_num);
-	tx_head		= get_txhead_addr(phw, q_num);
-	phdesc		= get_txdesc(phw, q_num);
-	pswdescinfo	= get_txdesc_info(priv->pshare->pdesc_info, q_num);
-#else //RTL8192SU
-#if 0 //if enable this flag, must lock this function.
-	__DRAM_IN_865X static struct tx_desc		*pdesc;
-	__DRAM_IN_865X static struct tx_desc_info	*pdescinfo;
-	__DRAM_IN_865X static struct rtl8190_hw		*phw;
-	__DRAM_IN_865X static int			q_num;
-	__DRAM_IN_865X static struct stat_info 		*pstat;
-	__DRAM_IN_865X static struct sk_buff		*pskb;
-	__DRAM_IN_865X static struct urb 		*tx_urb;
-	__DRAM_IN_865X static unsigned int 				*tx;
-	__DRAM_IN_865X static int 				status;	
-	__DRAM_IN_865X static int					 urb_len;		
-	__DRAM_IN_865X static unsigned char		en_pktoffset;
-	__DRAM_IN_865X static priority_t			priority;
-#else //tysu: sometimes, this function is interrupted by RX.... can't use global or static vars, this function maybe reentery.
 	struct tx_desc		*pdesc;
 	struct tx_desc_info	*pdescinfo;
 	struct rtl8190_hw		*phw;
@@ -7109,7 +4940,6 @@ void rtl8192SE_signin_txdesc_shortcut(struct rtl8190_priv *priv, struct tx_insn 
 	unsigned char			en_pktoffset;
 	priority_t				priority;
 	unsigned char		 q_select=0;
-#endif
 
 	en_pktoffset=0;
 	priority=BULK_PRIORITY;
@@ -7141,17 +4971,6 @@ void rtl8192SE_signin_txdesc_shortcut(struct rtl8190_priv *priv, struct tx_insn 
 	}
 	//if (txcfg->fr_type == _SKB_FRAME_TYPE_)
 	//	printk("hdr_len=%d,llc=%d,iv=%d,fr_len=%d,icv=%d,mic=%d\n", txcfg->hdr_len,txcfg->llc,txcfg->iv,txcfg->fr_len,txcfg->icv,txcfg->mic);
-#if 0// RTL8672_USB_PATCH
-	{
-		int rest;
-		rest = urb_len&0x3f;
-		if((0 == (urb_len & 0x1ff))||((rest>=3) && (rest<=5)))
-		{
-			en_pktoffset=1;
-			urb_len += 8;
-		}
-	}
-#endif
 
 #ifdef RTL8192SU_TX_ZEROCOPY
 	if (!skb_cloned(pskb))
@@ -7227,21 +5046,11 @@ ALLOCTXBUFF_SC:
 	}
 
 #endif //end of RTL8192SU_TX_FEW_INT
-#endif //!RTL8192SU
 
-#ifdef RTL867X_CP3
-//rtl8651_romeperfExitPoint(ROMEPERF_INDEX_TX_SHORTCUT1);
-//rtl8651_romeperfEnterPoint(ROMEPERF_INDEX_TX_SHORTCUT2);
-#endif
 
 	/*------------------------------------------------------------*/
 	/*           fill descriptor of header + iv + llc             */
 	/*------------------------------------------------------------*/
-#if !defined(RTL8192SU)
-	pfrstdesc = pdesc = phdesc + *tx_head;
-	pdescinfo = pswdescinfo + *tx_head;
-	desc_copy(pdesc, &pstat->hwdesc1);
-#else //RTL8192SU
 	pdesc   	= (struct tx_desc*)tx;
 	//memcpy(pdesc, &pstat->hwdesc1, sizeof(struct tx_desc));
 	if (txcfg->fr_len>=1400)
@@ -7251,40 +5060,6 @@ ALLOCTXBUFF_SC:
 #ifdef RTL8192SU_TX_FEW_INT
 
 
-#if 0 //debug only: show the different URB pointer to the same skb_buffer.
-{
-	int i;
-	uint32 flags;
-	struct sk_buff *skb;
-	skb=txcfg->pframe;
-
-	SAVE_INT_AND_CLI(flags);
-	for(i=0;i<MAX_TX_URB;i++)
-	{
-		if(priv->pshare->tx_pool.own[i]!=0)
-		{
-			struct urb *purb= priv->pshare->tx_pool.urb[i];
-			if((unsigned int)purb->transfer_buffer==(unsigned int)tx)
-			{
-				struct sk_buff *skb=priv->pshare->tx_pool.pdescinfo[i]->pframe;
-				int j;
-				printk("Error... oldurb=%x new->data=%x i=%d newskb=%x newhead=%x newdata=%x old_desc_skb=%x olddata=%x\n",(unsigned int)purb,(unsigned int)tx,i,(unsigned int)pskb,(unsigned int)pskb->head,(unsigned int)pskb->data,(unsigned int)skb,(unsigned int)skb->data);
-				for(j=0;j<MAX_TX_URB;j++)
-				{
-					struct sk_buff *skb2=priv->pshare->tx_pool.pdescinfo[j]->pframe;
-					printk("[%02d] own=%d skb=%x\n",j,priv->pshare->tx_pool.own[j],(unsigned int)skb2);
-				}
-				memDump(tx,128,"tx");
-//				memDump(purb->transfer_buffer,128,"old");
-				while(1);
-				break;
-			}
-
-		}
-	}
-	RESTORE_INT(flags);
-}
-#endif
 
 	if(get_tx_urb_from_pool(priv,&tx_urb,&pdescinfo) != SUCCESS)
 	{
@@ -7306,16 +5081,12 @@ ALLOCTXBUFF_SC:
 	if(!pdescinfo) goto signin_tx_shortcut_fail;//return -ENOMEM;
 	memset(pdescinfo, 0, sizeof(struct tx_desc_info));
 #endif
-#ifdef RTL867X_CP3
-//rtl8651_romeperfExitPoint(ROMEPERF_INDEX_TX_SHORTCUT2);
-#endif
 #ifdef RTL8192SU_TX_ZEROCOPY
 	if(pskb==NULL)
 		pdescinfo->non_zcpy=1;
 	else
 		pdescinfo->non_zcpy=0;
 #endif	
-#endif //!RTL8192SU
 
 	assign_wlanseq(GET_HW(priv), txcfg->phdr, pstat, GET_MIB(priv)
 #ifdef CONFIG_RTK_MESH	// For broadcast data frame via mesh (ex:ARP requst)
@@ -7323,7 +5094,6 @@ ALLOCTXBUFF_SC:
 #endif
 		);
 
-#ifdef RTL8192SU
 #ifdef SEMI_QOS
 	if ((txcfg->hdr_len==WLAN_HDR_A3_QOS_LEN || txcfg->hdr_len==WLAN_HDR_A4_QOS_LEN))
 #ifndef DISABLE_UNALIGN_TRAP
@@ -7339,7 +5109,6 @@ ALLOCTXBUFF_SC:
 	OR_EQUAL(&pdesc->Dword1, set_desc(TX_NonQos));
 #endif
 
-#endif
 
 #ifndef DISABLE_UNALIGN_TRAP
 	pdesc->Dword3 = 0;
@@ -7365,17 +5134,6 @@ ALLOCTXBUFF_SC:
 		AND_EQUAL(&pdesc->Dword2 , set_desc(~TX_BK)); // clear it
 #endif
 
-#if !defined(RTL8192SU)
-	if (txcfg->one_txdesc) {
-		pdesc->Dword0 = set_desc((get_desc(pdesc->Dword0) & 0xffff0000) |
-			TX_LastSeg | (txcfg->hdr_len + txcfg->llc + txcfg->iv + txcfg->fr_len));
-		pdesc->Dword7 = set_desc((get_desc(pdesc->Dword7) & 0xffff0000) |
-			(txcfg->hdr_len + txcfg->llc + txcfg->iv + txcfg->fr_len));
-	}
-
-	pdesc->Dword8 = set_desc(get_physical_addr(priv, txcfg->phdr,
-		(get_desc(pdesc->Dword7)& TX_TxBufferSizeMask), PCI_DMA_TODEVICE));
-#else //RTL8192SU
 #ifndef DISABLE_UNALIGN_TRAP
 	pdesc->Dword0 = set_desc((get_desc(pdesc->Dword0) & 0xffff0000) |
 		TX_LastSeg | (txcfg->hdr_len + txcfg->llc + txcfg->iv + txcfg->fr_len));
@@ -7383,55 +5141,19 @@ ALLOCTXBUFF_SC:
 	SET_EQUAL(&pdesc->Dword0, set_desc((get_desc(pdesc->Dword0) & 0xffff0000) |
 		TX_LastSeg | (txcfg->hdr_len + txcfg->llc + txcfg->iv + txcfg->fr_len)));
 #endif
-#endif //!RTL8192SU
 
-#ifdef RTL8192SU
 	if (txcfg->fr_len<1400)
 		descinfo_copy(pdescinfo, &pstat->swdesc3);
 	else
-#endif
 	descinfo_copy(pdescinfo, &pstat->swdesc1);
 
-#if !defined(RTL8192SU)
-	pdescinfo->paddr  = get_desc(pdesc->Dword8); // buffer addr
-	if (txcfg->one_txdesc) {
-		pdescinfo->type = _SKB_FRAME_TYPE_;
-		pdescinfo->pframe = pskb;
-		pdescinfo->priv = priv;
-#if defined(SEMI_QOS) && defined(WMM_APSD)
-		pdescinfo->pstat = txcfg->pstat;
-#endif
-	}
-	else {
-		pdescinfo->pframe = txcfg->phdr;
-#if defined(SEMI_QOS) && defined(WMM_APSD)
-		pdescinfo->priv = priv;
-		pdescinfo->pstat = txcfg->pstat;
-#endif
-	}
-#else //RTL8192SU
 	pdescinfo->phdr = txcfg->phdr;
 	pdescinfo->priv = priv;
 #if defined(SEMI_QOS) && defined(WMM_APSD)
 	pdescinfo->pstat = txcfg->pstat;
 #endif
-#endif //!RTL8192SU
 
-#if !defined(RTL8192SU)
-	pfrst_dma_desc = dma_txhead[*tx_head];
-#endif	
 
-#if !defined(RTL8192SU)
-/*
-#ifdef USE_RTL8186_SDK
-	rtl_cache_sync_wback(priv, get_desc(pdesc->Dword8), (get_desc(pdesc->Dword7)&TX_TxBufferSizeMask), PCI_DMA_TODEVICE);
-#endif
-*/
-	txdesc_rollover(pdesc, (unsigned int *)tx_head);
-
-	if (txcfg->one_txdesc)
-		goto one_txdesc;
-#else //RTL8192SU
 	if (en_pktoffset)
 	{
 #ifndef DISABLE_UNALIGN_TRAP
@@ -7441,102 +5163,21 @@ ALLOCTXBUFF_SC:
 #endif
 	}
 	memcpy(tx+8+(en_pktoffset<<1), txcfg->phdr, txcfg->hdr_len+txcfg->iv+txcfg->llc);
-#endif //!RTL8192SU
 
 	/*------------------------------------------------------------*/
 	/*              fill descriptor of frame body                 */
 	/*------------------------------------------------------------*/
-#if !defined(RTL8192SU)
-	pdesc = phdesc + *tx_head;
-	pdescinfo = pswdescinfo + *tx_head;
-	desc_copy(pdesc, &pstat->hwdesc2);
-
-	pdesc->Dword8 = set_desc(get_physical_addr(priv, pskb->data,
-		(get_desc(pdesc->Dword7)&0x0fff), PCI_DMA_TODEVICE));
-
-	descinfo_copy(pdescinfo, &pstat->swdesc2);
-	pdescinfo->paddr  = get_desc(pdesc->Dword8);
-	pdescinfo->pframe = pskb;
-	pdescinfo->priv = priv;
-/*
-#ifndef USE_RTL8186_SDK
-	rtl_cache_sync_wback(priv, dma_txhead[*tx_head], sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#else
-	rtl_cache_sync_wback(priv, get_desc(pdesc->Dword8), (get_desc(pdesc->Dword7)&TX_TxBufferSizeMask), PCI_DMA_TODEVICE);
-#endif
-*/
-	txdesc_rollover(pdesc, (unsigned int *)tx_head);
-#else //RTL8192SU
 	pdescinfo->pframe = txcfg->pframe;
 	pdescinfo->priv = priv;
 
 #ifdef RTL8192SU_TX_ZEROCOPY
 	if(pdescinfo->non_zcpy)
-		#ifdef CONFIG_RTL8671
 		gdma_memcpy((char*)(tx+8+(en_pktoffset<<1))+(txcfg->hdr_len+txcfg->llc+txcfg->iv), ((struct sk_buff *)txcfg->pframe)->data, txcfg->fr_len);
-		#else
-		memcpy((char*)(tx+8+(en_pktoffset<<1))+(txcfg->hdr_len+txcfg->llc+txcfg->iv), ((struct sk_buff *)txcfg->pframe)->data, txcfg->fr_len);
-		#endif
 #else
 	memcpy((char*)(tx+8+(en_pktoffset<<1))+(txcfg->hdr_len+txcfg->llc+txcfg->iv), ((struct sk_buff *)txcfg->pframe)->data, txcfg->fr_len);
 #endif
-#endif //!RTL8192SU
 
-#ifndef CONFIG_RTL8671
-#if defined(CONFIG_RTL_WAPI_SUPPORT)
-	if (txcfg->privacy == _WAPI_SMS4_)
-	{
-		SecSWSMS4Encryption(priv, txcfg);
-	} else
-#endif
-	if ((txcfg->privacy == _TKIP_PRIVACY_) &&
-		(priv->pshare->have_hw_mic) &&
-		!(priv->pmib->dot11StationConfigEntry.swTkipMic))
-	{
-		register unsigned long int l,r;
-		unsigned char *mic;
-		int delay = 18;
 
-		while ((*(volatile unsigned int *)GDMAISR & GDMA_COMPIP) == 0) {
-			delay_us(delay);
-			delay = delay / 2;
-		}
-
-		l = *(volatile unsigned int *)GDMAICVL;
-		r = *(volatile unsigned int *)GDMAICVR;
-
-		mic = ((struct sk_buff *)txcfg->pframe)->data + txcfg->fr_len - 8;
-		mic[0] = (unsigned char)(l & 0xff);
-		mic[1] = (unsigned char)((l >> 8) & 0xff);
-		mic[2] = (unsigned char)((l >> 16) & 0xff);
-		mic[3] = (unsigned char)((l >> 24) & 0xff);
-		mic[4] = (unsigned char)(r & 0xff);
-		mic[5] = (unsigned char)((r >> 8) & 0xff);
-		mic[6] = (unsigned char)((r >> 16) & 0xff);
-		mic[7] = (unsigned char)((r >> 24) & 0xff);
-
-#ifdef MICERR_TEST
-		if (priv->micerr_flag) {
-			mic[7] ^= mic[7];
-			priv->micerr_flag = 0;
-		}
-#endif
-	}
-
-#ifndef USE_RTL8186_SDK
-	rtl_cache_sync_wback(priv, dma_txhead[*tx_head], sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#else
-	rtl_cache_sync_wback(priv, get_desc(pdesc->Dword8), (get_desc(pdesc->Dword7)&TX_TxBufferSizeMask), PCI_DMA_TODEVICE);
-#endif
-#endif
-
-#if !defined(RTL8192SU)
-one_txdesc:
-
-#ifdef USE_RTL8186_SDK
-	rtl_cache_sync_wback(priv, get_desc(pfrstdesc->Dword8), (get_desc(pfrstdesc->Dword7)&TX_TxBufferSizeMask), PCI_DMA_TODEVICE);
-#endif
-#endif
 
 #ifdef SUPPORT_SNMP_MIB
 	if (txcfg->rts_thrshld <= get_mpdu_len(txcfg, txcfg->fr_len))
@@ -7571,20 +5212,6 @@ one_txdesc:
 	}
 #endif // BUFFER_TX_AMPDU
 
-#if !defined(RTL8192SU)
-	pfrstdesc->Dword0 |= set_desc(TX_OWN);
-
-#ifndef USE_RTL8186_SDK
-	rtl_cache_sync_wback(priv, pfrst_dma_desc, sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-
-	if (q_num == HIGH_QUEUE) {
-		DEBUG_WARN("signin shortcut for DTIM pkt?\n");
-		return;
-	}
-	else
-		tx_poll(priv, q_num);
-#else //RTL8192SU
 	pdescinfo->last_seg=1;
 #ifdef RTL8192SU_TX_ZEROCOPY
 	if ((pskb==NULL )||(pdescinfo->non_zcpy))
@@ -7600,13 +5227,6 @@ one_txdesc:
 		q_num=VI_QUEUE;
 	else if (q_select==6||q_select==7)//VO
 		q_num=VO_QUEUE;
-#if 0
-#ifndef DISABLE_UNALIGN_TRAP
-	pdesc->Dword1 |= set_desc((q_select & TX_QueueSelMask)<< TX_QueueSelSHIFT);
-#else
-	OR_EQUAL(&pdesc->Dword1 , set_desc((q_select & TX_QueueSelMask)<< TX_QueueSelSHIFT));
-#endif
-#endif
 	priority=get_endpoint(priv, q_num);
 	pdescinfo->q_num = q_num;
 	{
@@ -7626,15 +5246,9 @@ one_txdesc:
 	//memDump(tx,32,"data");
 	dma_cache_wback_inv((unsigned long)tx,urb_len);
 	//rtl_cache_sync_wback(priv, (unsigned int)tx, urb_len, 0);
-#ifdef RTL867X_CP3
-rtl8651_romeperfEnterPoint(ROMEPERF_INDEX_USB_SUBMIT_URB_TX_SC );
-#endif
 	status = RTL8192SU_submit_urb(priv, tx_urb);
 	//msg_queue("submit skb=%x data=%x urb=%x\n",(u32)pdescinfo->pframe,(u32)tx,(u32)tx_urb);
 
-#ifdef RTL867X_CP3
-rtl8651_romeperfExitPoint(ROMEPERF_INDEX_USB_SUBMIT_URB_TX_SC );
-#endif
 #ifdef RTL8192SU_TXSC_DBG
 	priv->ext_stats.tx_shortcut_cnt++;
 #endif
@@ -7651,173 +5265,9 @@ signin_tx_shortcut_fail:
 
 	priv->ext_stats.tx_drops++;
 	rtl8192su_siginTx_fail(priv, txcfg, 0);
-#endif //!RTL8192SU
 }
 
 
-#elif defined(RTL8190) || defined(RTL8192E)
-#ifdef __LINUX_2_6__
-__MIPS16
-#endif
-__IRAM_FASTEXTDEV
-void signin_txdesc_shortcut(struct rtl8190_priv *priv, struct tx_insn *txcfg)
-{
-	struct tx_desc			*phdesc, *pdesc, *pfrstdesc;
-	struct tx_desc_info		*pswdescinfo, *pdescinfo;
-	struct rtl8190_hw		*phw;
-	int						*tx_head, q_num;
-	struct stat_info 		*pstat = txcfg->pstat;
-	struct sk_buff 			*pskb = (struct sk_buff *)txcfg->pframe;
-	unsigned char			*pfwinfo;
-	unsigned int			pfrst_dma_desc=0;
-	unsigned int			*dma_txhead;
-
-	phw	= GET_HW(priv);
-	q_num = txcfg->q_num;
-
-	dma_txhead	= get_txdma_addr(phw, q_num);
-	tx_head		= get_txhead_addr(phw, q_num);
-	phdesc		= get_txdesc(phw, q_num);
-	pswdescinfo	= get_txdesc_info(priv->pshare->pdesc_info, q_num);
-
-	/*------------------------------------------------------------*/
-	/*           fill descriptor of header + iv + llc             */
-	/*------------------------------------------------------------*/
-	pfrstdesc = pdesc = phdesc + *tx_head;
-	pdescinfo = pswdescinfo + *tx_head;
-	desc_copy(pdesc, &pstat->hwdesc1);
-
-	pfwinfo = txcfg->phdr - sizeof(struct FWtemplate);
-	memcpy(pfwinfo, &pstat->fw_bckp, sizeof(struct FWtemplate));
-	assign_wlanseq(GET_HW(priv), txcfg->phdr, pstat, GET_MIB(priv)
-#ifdef CONFIG_RTK_MESH
-		, txcfg->is_11s
-#endif
-		);
-
-	pdesc->paddr = set_desc(get_physical_addr(priv, txcfg->phdr-sizeof(struct FWtemplate),
-		(get_desc(pdesc->flen)&0xffff), PCI_DMA_TODEVICE));
-
-	descinfo_copy(pdescinfo, &pstat->swdesc1);
-	pdescinfo->paddr  = get_desc(pdesc->paddr);
-	pdescinfo->pframe = txcfg->phdr;
-#if defined(SEMI_QOS) && defined(WMM_APSD)
-	pdescinfo->priv = priv;
-	pdescinfo->pstat = txcfg->pstat;
-#endif
-
-	pfrst_dma_desc = dma_txhead[*tx_head];
-
-#ifdef USE_RTL8186_SDK
-	rtl_cache_sync_wback(priv, get_desc(pdesc->paddr), get_desc(pdesc->flen), PCI_DMA_TODEVICE);
-#endif
-	txdesc_rollover(pdesc, (unsigned int *)tx_head);
-
-	/*------------------------------------------------------------*/
-	/*              fill descriptor of frame body                 */
-	/*------------------------------------------------------------*/
-	pdesc = phdesc + *tx_head;
-	pdescinfo = pswdescinfo + *tx_head;
-	desc_copy(pdesc, &pstat->hwdesc2);
-
-	pdesc->paddr = set_desc(get_physical_addr(priv, pskb->data,
-		(get_desc(pdesc->flen)&0x0fff), PCI_DMA_TODEVICE));
-
-	descinfo_copy(pdescinfo, &pstat->swdesc2);
-	pdescinfo->paddr  = get_desc(pdesc->paddr);
-	pdescinfo->pframe = pskb;
-	pdescinfo->priv = priv;
-
-#ifndef USE_RTL8186_SDK
-	rtl_cache_sync_wback(priv, dma_txhead[*tx_head], sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#else
-	rtl_cache_sync_wback(priv, get_desc(pdesc->paddr), get_desc(pdesc->flen), PCI_DMA_TODEVICE);
-#endif
-
-	txdesc_rollover(pdesc, (unsigned int *)tx_head);
-
-
-	if ((txcfg->privacy == _TKIP_PRIVACY_) &&
-		(priv->pshare->have_hw_mic) &&
-		!(priv->pmib->dot11StationConfigEntry.swTkipMic))
-	{
-		register unsigned long int l,r;
-		unsigned char *mic;
-		int delay = 18;
-
-		while ((*(volatile unsigned int *)GDMAISR & GDMA_COMPIP) == 0) {
-			delay_us(delay);
-			delay = delay / 2;
-		}
-
-		l = *(volatile unsigned int *)GDMAICVL;
-		r = *(volatile unsigned int *)GDMAICVR;
-
-		mic = ((struct sk_buff *)txcfg->pframe)->data + txcfg->fr_len - 8;
-		mic[0] = (unsigned char)(l & 0xff);
-		mic[1] = (unsigned char)((l >> 8) & 0xff);
-		mic[2] = (unsigned char)((l >> 16) & 0xff);
-		mic[3] = (unsigned char)((l >> 24) & 0xff);
-		mic[4] = (unsigned char)(r & 0xff);
-		mic[5] = (unsigned char)((r >> 8) & 0xff);
-		mic[6] = (unsigned char)((r >> 16) & 0xff);
-		mic[7] = (unsigned char)((r >> 24) & 0xff);
-
-#ifdef MICERR_TEST
-		if (priv->micerr_flag) {
-			mic[7] ^= mic[7];
-			priv->micerr_flag = 0;
-		}
-#endif
-	}
-
-#ifdef SUPPORT_SNMP_MIB
-	if (txcfg->rts_thrshld <= get_mpdu_len(txcfg, txcfg->fr_len))
-		SNMP_MIB_INC(dot11RTSSuccessCount, 1);
-#endif
-
-#ifdef BUFFER_TX_AMPDU
-	if ((txcfg->aggre_en >= FG_AGGRE_MPDU_BUFFER_FIRST) &&
-					(txcfg->aggre_en <= FG_AGGRE_MPDU_BUFFER_LAST)) {
-		if (txcfg->aggre_en == FG_AGGRE_MPDU_BUFFER_FIRST) {
-			priv->ampdu_first_desc = pfrstdesc;
-#ifndef USE_RTL8186_SDK
-			priv->ampdu_first_dma_desc = pfrst_dma_desc;
-#endif
-		}
-		else {
-			pfrstdesc->cmd |= set_desc(_OWN_);
-
-#ifndef USE_RTL8186_SDK
-	rtl_cache_sync_wback(priv, pfrst_dma_desc, sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-			if (txcfg->aggre_en == FG_AGGRE_MPDU_BUFFER_LAST) {
-				pfrstdesc = priv->ampdu_first_desc;
-				pfrstdesc->cmd |= set_desc(_OWN_);
-#ifndef USE_RTL8186_SDK
-				rtl_cache_sync_wback(priv, priv->ampdu_first_dma_desc, sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-				tx_poll(priv, q_num);
-			}
-		}
-		return;
-	}
-#endif // BUFFER_TX_AMPDU
-
-	pfrstdesc->cmd |= set_desc(_OWN_);
-
-#ifndef USE_RTL8186_SDK
-	rtl_cache_sync_wback(priv, pfrst_dma_desc, sizeof(struct tx_desc), PCI_DMA_TODEVICE);
-#endif
-
-	if (q_num == HIGH_QUEUE) {
-		DEBUG_WARN("signin shortcut for DTIM pkt?\n");
-		return;
-	}
-	else
-		tx_poll(priv, q_num);
-}
-#endif // 8190, 92, 92se
 #endif // TX_SHORTCUT
 
 
@@ -8243,19 +5693,11 @@ signin_txdesc: fillin the desc and txpoll is necessary
 --------------------------------------------------------------------------------*/
 int rtl8190_firetx(struct rtl8190_priv *priv, struct tx_insn* txcfg)
 {
-#if !defined(RTL8192SU)
-	static int			*tx_head, *tx_tail, q_num;
-	static unsigned int	val32;
-#else
 	int					q_num;
-#endif
 //	unsigned long		flags;
 	struct sk_buff		*pskb;
 	struct llc_snap		*pllc_snap;
 	struct wlan_ethhdr_t	*pethhdr=NULL, *pmsdu_hdr;
-#if !defined(RTL8192SU)
-	struct rtl8190_hw	*phw = GET_HW(priv);
-#endif
 #if defined(CONFIG_RTK_MESH) || defined(CONFIG_RTL_WAPI_SUPPORT)
 	struct wlan_ethhdr_t	ethhdr;
 	pethhdr = &ethhdr;
@@ -8329,55 +5771,16 @@ int rtl8190_firetx(struct rtl8190_priv *priv, struct tx_insn* txcfg)
 		// wlan_hdr(including iv and llc) will occupy one desc, payload will occupy one, and
 		// icv/mic will occupy the third desc if swcrypto is utilized.
 		q_num = txcfg->q_num;
-#if !defined(RTL8192SU)
-		tx_head = get_txhead_addr(phw, q_num);
-		tx_tail = get_txtail_addr(phw, q_num);
-
-		if (txcfg->privacy)
-		{
-			if (UseSwCrypto(priv, txcfg->pstat, (txcfg->pstat ? FALSE : TRUE)))
-				val32 = txcfg->frg_num * 3;  //extra one is for ICV padding.
-			else
-				val32 = txcfg->frg_num * 2;
-		}
-		else
-			val32 = txcfg->frg_num * 2;
-
-		if ((val32 + 2) > CIRC_SPACE_RTK(*tx_head, *tx_tail, NUM_TX_DESC)) //per mpdu, we need 2 desc...
-		{
-			 // 2 is for spare...
-			DEBUG_ERR("%d hw Queue desc not available! head=%d, tail=%d request %d\n",q_num,*tx_head,*tx_tail,val32);
-			 return CONGESTED;
-		}
-#else
 		//if (get_TxUrb_Pending_num(priv)> (NUM_TX_DESC-(NUM_TX_DESC>>5)))
 		if (get_TxUrb_Pending_num(priv)> (NUM_TX_DESC-8))
 		{
 			DEBUG_INFO("Tx CONGESTED[Normal path]!\n");
 			return CONGESTED;
 		}
-#endif		
 	}
 	else
 		  q_num = txcfg->q_num;
 
-#if !defined(RTL8192SU)
-	// then we have to check if wlan-hdr is available for usage...
-	// actually, the checking can be void
-
-	/* ----------
-				Actually, I believe the check below is redundant.
-				Since at this moment, desc is available, hdr/icv/
-				should be enough.
-													--------------*/
-	val32 = txcfg->frg_num;
-
-	if (val32 >= priv->pshare->pwlan_hdr_poll->count)
-	{
-		DEBUG_ERR("%d hw Queue tx without enough wlan_hdr\n", q_num);
-		return CONGESTED;
-	}
-#endif
 
 	// then we have to check if wlan_snapllc_hdrQ is enough for use
 	// for each msdu, we need wlan_snapllc_hdrQ for maximum
@@ -8587,32 +5990,6 @@ int rtl8190_firetx(struct rtl8190_priv *priv, struct tx_insn* txcfg)
 			priv->pshare->LED_tx_cnt++;
 	}
 
-#if	defined(RTL8190) || defined(RTL8192E)
-#ifdef SUPPORT_TX_AMSDU
-	if (txcfg->aggre_en == FG_AGGRE_MSDU_MIDDLE || txcfg->aggre_en == FG_AGGRE_MSDU_LAST)
-		signin_txdesc_amsdu(priv, txcfg);
-	else
-#endif
-#ifdef _11s_TEST_MODE_
-		// Galileo
-		//  broadcast won's use AMSDU
-		signin_txdesc_galileo(priv, txcfg);
-#else
-		signin_txdesc(priv, txcfg);
-#endif
-#elif defined(RTL8192SE)
-#ifdef SUPPORT_TX_AMSDU
-	if (txcfg->aggre_en == FG_AGGRE_MSDU_MIDDLE || txcfg->aggre_en == FG_AGGRE_MSDU_LAST)
-		rtl8192SE_signin_txdesc_amsdu(priv, txcfg);
-	else
-#endif
-
-#ifdef _11s_TEST_MODE_
-		signin_txdesc_galileo(priv, txcfg);
-#else
-		rtl8192SE_signin_txdesc(priv, txcfg);
-#endif
-#elif defined(RTL8192SU)
 #ifdef TX_SHORTCUT
 	if ((!priv->pmib->dot11OperationEntry.disable_txsc) &&
 		(txcfg->fr_type == _SKB_FRAME_TYPE_) &&
@@ -8651,45 +6028,15 @@ int rtl8190_firetx(struct rtl8190_priv *priv, struct tx_insn* txcfg)
 		rtl8192SE_signin_txdesc(priv, txcfg);
 #endif
 
-#endif
 
 #ifdef TX_SHORTCUT
-#if !defined(RTL8192SU)
-	if ((!priv->pmib->dot11OperationEntry.disable_txsc) &&
-		(txcfg->fr_type == _SKB_FRAME_TYPE_) &&
-		(txcfg->pstat) &&
-		(txcfg->frg_num == 1) &&
-		((txcfg->privacy == 0) 
-#if defined(CONFIG_RTL_WAPI_SUPPORT)
-		|| (txcfg->privacy == _WAPI_SMS4_)
-#endif
-		|| (txcfg->privacy && !UseSwCrypto(priv, txcfg->pstat, (txcfg->pstat ? FALSE : TRUE)))) &&
-		/*(!IEEE8021X_FUN ||
-			(IEEE8021X_FUN && (txcfg->pstat->ieee8021x_ctrlport == 1) &&
-			(cpu_to_be16(pethhdr->type)!=0x888e))) && */
-		(cpu_to_be16(pethhdr->type) != 0x888e) &&
-#if defined(CONFIG_RTL_WAPI_SUPPORT)
-		 (cpu_to_be16(pethhdr->type)  != ETH_P_WAPI)&&
-#endif
-		!GetMData(txcfg->phdr) &&
-		!IS_MCAST((unsigned char *)pethhdr) &&
-		(txcfg->aggre_en < FG_AGGRE_MSDU_FIRST)
-		)
-#else
 	if (shortcut_pkt)
-#endif	//!RTL8192SU
 	{
-#if !defined(RTL8192SU)
-		memcpy(&txcfg->pstat->txcfg, txcfg, sizeof(struct tx_insn));
-		memcpy((void *)&txcfg->pstat->wlanhdr, txcfg->phdr, sizeof(struct wlanllc_hdr));
-		memcpy((void *)&txcfg->pstat->ethhdr, (const void *)pethhdr, sizeof(struct wlan_ethhdr_t));
-#else //RTL8192SU
 		if (txcfg->fr_len>=1400)
 			memcpy(&txcfg->pstat->txcfg, txcfg, sizeof(struct tx_insn));
 		else
 			memcpy(&txcfg->pstat->txcfg_short, txcfg, sizeof(struct tx_insn));			
 		memcpy((void *)&txcfg->pstat->wlanhdr, txcfg->phdr, sizeof(struct wlanllc_hdr));
-#endif		
 
 #ifdef BUFFER_TX_AMPDU
 		if ((txcfg->aggre_en >= FG_AGGRE_MPDU_BUFFER_FIRST) &&
@@ -8709,228 +6056,13 @@ int rtl8190_firetx(struct rtl8190_priv *priv, struct tx_insn* txcfg)
 	return SUCCESS;
 }
 
-#if !defined(RTL8192SU)
-/*
-	Procedure to re-cycle TXed packet in Queue index "txRingIdx"
-
-	=> Return value means if system need restart-TX-queue or not.
-
-		1: Need Re-start Queue
-		0: Don't Need Re-start Queue
-*/
-
-static int rtl8190_tx_recycle(struct rtl8190_priv *priv, unsigned int txRingIdx, int *recycleCnt_p)
-{
-//	unsigned long	flags;
-	struct tx_desc	*pdescH, *pdesc;
-	struct tx_desc_info *pdescinfoH, *pdescinfo;
-	volatile int	head, tail;
-	struct rtl8190_hw	*phw=GET_HW(priv);
-	int				needRestartQueue=0;
-	int				recycleCnt=0;
-
-//	SAVE_INT_AND_CLI(flags);
-
-	head		= get_txhead(phw, txRingIdx);
-	tail		= get_txtail(phw, txRingIdx);
-	pdescH		= get_txdesc(phw, txRingIdx);
-	pdescinfoH	= get_txdesc_info(priv->pshare->pdesc_info, txRingIdx);
-
-	while (CIRC_CNT_RTK(head, tail, NUM_TX_DESC))
-	{
-		pdesc = pdescH + (tail);
-		pdescinfo = pdescinfoH + (tail);
-
-#ifdef __MIPSEB__
-		pdesc = (struct tx_desc *)KSEG1ADDR(pdesc);
-#endif
-
-#if	defined(RTL8190) || defined(RTL8192E)
-		if (!pdesc || ((get_desc(pdesc->cmd)) & _OWN_))
-#elif defined(RTL8192SE)
-		if (!pdesc || (get_desc(pdesc->Dword0) & TX_OWN))
-#endif
-			break;
-
-#ifdef CONFIG_NET_PCI
-		if (IS_PCIBIOS_TYPE)
-#if	defined(RTL8190) || defined(RTL8192E)
-			//use the paddr and flen of pdesc field for icv, mic case which doesn't fill the pdescinfo
-			pci_unmap_single(priv->pshare->pdev,
-							 get_desc(pdesc->paddr),
-							 (get_desc(pdesc->flen)&0xfff),
-							 PCI_DMA_TODEVICE);
-#elif defined(RTL8192SE)
-			//use the paddr and flen of pdesc field for icv, mic case which doesn't fill the pdescinfo
-			pci_unmap_single(priv->pshare->pdev,
-							 get_desc(pdesc->Dword8),
-							 (get_desc(pdesc->Dword7)&0xffff),
-							 PCI_DMA_TODEVICE);
-#endif
-#endif
-
-		if (pdescinfo->type == _SKB_FRAME_TYPE_)
-		{
-#ifdef MP_TEST
-			if (OPMODE & WIFI_MP_CTX_BACKGROUND) {
-				struct sk_buff *skb = (struct sk_buff *)(pdescinfo->pframe);
-				skb->data = skb->head;
-				skb->tail = skb->data;
-				skb->len = 0;
-				priv->pshare->skb_tail = (priv->pshare->skb_tail + 1) & (NUM_MP_SKB - 1);
-			}
-			else
-#endif
-			{
-#ifdef __LINUX_2_6__
-				rtl_kfree_skb(pdescinfo->priv, (struct sk_buff *)(pdescinfo->pframe), _SKB_TX_IRQ_);
-#else
-// for debug ------------
-//				rtl_kfree_skb(pdescinfo->priv, (struct sk_buff *)(pdescinfo->pframe), _SKB_TX_IRQ_);
-				if (((struct sk_buff *)pdescinfo->pframe)->list) {
-					DEBUG_ERR("Free tx skb error, skip it!\n");
-					priv->ext_stats.freeskb_err++;
-				}
-				else
-					rtl_kfree_skb(pdescinfo->priv, (struct sk_buff *)(pdescinfo->pframe), _SKB_TX_IRQ_);
-//----------------------
-#endif
-				needRestartQueue = 1;
-			}
-		}
-		else if (pdescinfo->type == _PRE_ALLOCMEM_)
-		{
-			release_mgtbuf_to_poll(priv, (UINT8 *)(pdescinfo->pframe));
-		}
-		else if (pdescinfo->type == _PRE_ALLOCHDR_)
-		{
-			release_wlanhdr_to_poll(priv, (UINT8 *)(pdescinfo->pframe));
-		}
-		else if (pdescinfo->type == _PRE_ALLOCLLCHDR_)
-		{
-			release_wlanllchdr_to_poll(priv, (UINT8 *)(pdescinfo->pframe));
-		}
-		else if (pdescinfo->type == _PRE_ALLOCICVHDR_)
-		{
-			release_icv_to_poll(priv, (UINT8 *)(pdescinfo->pframe));
-		}
-		else if (pdescinfo->type == _PRE_ALLOCMICHDR_)
-		{
-			release_mic_to_poll(priv, (UINT8 *)(pdescinfo->pframe));
-		}
-		else if (pdescinfo->type == _RESERVED_FRAME_TYPE_)
-		{
-			// the chained skb, no need to release memory
-		}
-		else
-		{
-			DEBUG_ERR("Unknown tx frame type %d\n", pdescinfo->type);
-		}
-
-		// for skb buffer free
-		pdescinfo->pframe = NULL;
-
-		recycleCnt ++;
-
-		tail = (tail + 1) % NUM_TX_DESC;
-	}
-
-	*get_txtail_addr(phw, txRingIdx) = tail;
-
-//	RESTORE_INT(flags);
-
-	if (recycleCnt_p)
-		*recycleCnt_p = recycleCnt;
-
-	return needRestartQueue;
-}
-
-
-/*-----------------------------------------------------------------------------
-Purpose of tx_dsr:
-
-	For ALL TX queues
-		1. Free Allocated Buf
-		2. Update tx_tail
-		3. Update tx related counters
-		4. Restart tx queue if needed
-------------------------------------------------------------------------------*/
-void rtl8190_tx_dsr(unsigned long task_priv)
-{
-	struct rtl8190_priv	*priv = (struct rtl8190_priv *)task_priv;
-	unsigned int	j=0;
-	unsigned int	restart_queue=0;
-	struct rtl8190_hw	*phw=GET_HW(priv);
-	int needRestartQueue;
-	unsigned long flags;
-
-	if (!phw)
-		return;
-
-	for(j=0; j<=HIGH_QUEUE; j++)
-	{
-		SAVE_INT_AND_CLI(flags);
-		needRestartQueue = rtl8190_tx_recycle(priv, j, NULL);
-		RESTORE_INT(flags);
-		/* If anyone of queue report the TX queue need to be restart : we would set "restart_queue" to process ALL queues */
-		if (needRestartQueue == 1)
-			restart_queue = 1;
-	}
-
-	if (restart_queue)
-		rtl8190_tx_restartQueue(priv);
-
-#ifdef MP_TEST
-	if ((OPMODE & (WIFI_MP_STATE|WIFI_MP_CTX_BACKGROUND))==(WIFI_MP_STATE|WIFI_MP_CTX_BACKGROUND)) {
-		int *tx_head, *tx_tail;
-		tx_head = get_txhead_addr(phw, BE_QUEUE);
-		tx_tail = get_txtail_addr(phw, BE_QUEUE);
-		if (CIRC_SPACE_RTK(*tx_head, *tx_tail, NUM_TX_DESC) > (NUM_TX_DESC/2))
-			mp_ctx(priv, (unsigned char *)"tx-isr");
-	}
-#endif
-
-	refill_skb_queue(priv);
-
-#ifdef RTL8192SE
-	{
-		unsigned long x;
-		SAVE_INT_AND_CLI(x);
-		priv->pshare->has_triggered_tx_tasklet = 0;
-		RESTORE_INT(x);
-	}
-#endif
-
-}
-
-
-/*
-	Try to do TX-DSR for only ONE TX-queue ( rtl8190_tx_dsr would check for ALL TX queue )
-*/
-//__IRAM_FASTEXTDEV
-int rtl8190_tx_queueDsr(struct rtl8190_priv *priv, unsigned int txRingIdx)
-{
-	int recycleCnt;
-	unsigned long flags;
-	SAVE_INT_AND_CLI(flags);
-
-	if (rtl8190_tx_recycle(priv, txRingIdx, &recycleCnt) == 1)
-		rtl8190_tx_restartQueue(priv);
-
-	RESTORE_INT(flags);
-	return recycleCnt;
-}
-#endif //!RTL8192SU
 
 /*
 	Procedure to restart TX Queue
 */
-#ifdef RTL8192SU
 __IRAM_WIFI_PRI5
-#endif
 static void rtl8190_tx_restartQueue(struct rtl8190_priv *priv)
 {
-#ifdef __KERNEL__
 	if (netif_queue_stopped(priv->dev)) {
 		DEBUG_INFO("wake-up queue\n");
 		netif_wake_queue(priv->dev);
@@ -8944,9 +6076,7 @@ static void rtl8190_tx_restartQueue(struct rtl8190_priv *priv)
 #endif
 
 #ifdef MBSSID
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	if (GET_ROOT(priv)->pmib->miscEntry.vap_enable)
-#endif
 	{
 		int bssidIdx;
 		for (bssidIdx=0; bssidIdx<RTL8190_NUM_VWLAN; bssidIdx++)
@@ -8980,7 +6110,6 @@ static void rtl8190_tx_restartQueue(struct rtl8190_priv *priv)
 			}
 		}
 	}
-#endif
 #endif
 }
 
@@ -9126,10 +6255,6 @@ static int tkip_mic_padding(struct rtl8190_priv *priv,
 	michael(priv, mickey, hdr, llc, pbuf, (num_blocks << 2), tkipmic);
 
 	//tkip mic is MSDU-based, before filled-in descriptor, already finished.
-#ifndef CONFIG_RTL8671	//tylo, always get tkip-mic for gdma-memcpy
-	if (!(priv->pshare->have_hw_mic) ||
-		(priv->pmib->dot11StationConfigEntry.swTkipMic))
-#endif
 	{
 #ifdef MICERR_TEST
 		if (priv->micerr_flag) {
@@ -9431,19 +6556,6 @@ void rtk8192su_beacon_time(unsigned long task_priv)
 				//assign_wlanseq(GET_HW(priv), (unsigned char *)priv->beaconbuf, NULL ,pmib);
 			}
 		}
-#if 0//#ifdef RTL8192SU_SW_BEACON
-		if ((OPMODE & WIFI_AP_STATE) ||
-			 ((OPMODE & WIFI_ADHOC_STATE) &&
-				((priv->join_res == STATE_Sta_Ibss_Active) || (priv->join_res == STATE_Sta_Ibss_Idle)))){
-			if (OPMODE & WIFI_AP_STATE)
-				send_beacon_by_sw(priv);
-			else {
-				if (!(priv->ext_stats.beacon_ok%(priv->assoc_num+1))) // let other client has chance to send
-					send_beacon_by_sw(priv);
-			}
-			priv->ext_stats.beacon_ok++;
-		}
-#endif
 		//priv->ext_stats.beacon_ok++;
 
 #ifdef MBSSID
@@ -9475,11 +6587,6 @@ void rtk8192su_beacon_time(unsigned long task_priv)
 	//printk("pBeacon=%x\n", pBeacon);
 	phw = GET_HW(priv);
 	//pdesc = (struct tx_desc *)kmalloc((sizeof(struct tx_desc)), GFP_KERNEL);
-#if 0//def MBSSID
-	if (IS_VAP_INTERFACE(priv))
-		pdesc = phw->tx_descB + priv->vap_init_seq;
-	else
-#endif
 		pdesc = phw->tx_descB;
 
 	txinsn.retry = 0;

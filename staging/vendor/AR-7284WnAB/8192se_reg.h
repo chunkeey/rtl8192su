@@ -251,11 +251,9 @@
 #define		WFM4				0x02B0  //
 #define		WFM5				0x02C0  //
 
-#ifdef RTL8192SU
 // The following two definition are only used for USB interface.
 #define		RF_BB_CMD_ADDR		0x02c0	// RF/BB read/write command address.
 #define		RF_BB_CMD_DATA		0x02c4	// RF/BB read/write command data.
-#endif
 
 #define		WFCRC				0x02D0	// Wakeup Frame CRC.
 //#define		RPWM				0x02DC	// Host Request Power Mode.
@@ -406,11 +404,9 @@
 //============================================================================
 //       8190 Regsiter offset definition
 //============================================================================
-#if 1	// Delete the register later
 #define		AFR					0x010	// AutoLoad Function Register
 #define		BCN_TCFG			0x062	// Beacon Time Configuration
 #define		RATR0				0x320	// Rate Adaptive Table register1
-#endif
 // TODO: Remove unused register, We must declare backward compatiable
 //Undefined register set in 8192S. 0x320/350 DW is useless
 #define		UnusedRegister		0x0320		
@@ -970,7 +966,6 @@ Default: 00b.
 #define		MXDMA2_RX_SHIFT		4
 #define		MXDMA2_TX_SHIFT		0
 
-#ifdef RTL8192SU
 //============================================================================
 //       8192S USB specific Regsiter Offset and Content definition, 
 //       2008.08.28, added by Roger.
@@ -1000,7 +995,6 @@ Default: 00b.
 #define		LDV12_EN			BIT(0) 	// Enable LDOV12 Macro Block
 #define		LDOV12D_CTRL		0x0021	// V12 Digital LDO Control.
 
-#endif
 
 //----------------------------------------------------------------------------
 //       8190 CCX_COMMAND_REG Setting (offset 0x25A, 1 byte)

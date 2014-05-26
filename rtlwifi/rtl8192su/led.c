@@ -29,7 +29,8 @@
 
 #include "../wifi.h"
 #include "../usb.h"
-#include "reg.h"
+#include "../rtl8192s/reg_common.h"
+#include "../rtl8192s/led_common.h"
 #include "led.h"
 
 static void _rtl92su_init_led(struct ieee80211_hw *hw,
@@ -47,73 +48,6 @@ void rtl92su_init_sw_leds(struct ieee80211_hw *hw)
 	_rtl92su_init_led(hw, &(usbpriv->ledctl.sw_led1), LED_PIN_LED1);
 }
 
-void rtl92su_deinit_sw_leds(struct ieee80211_hw *hw)
-{
-}
-
-void rtl92su_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
-{
-	u8 ledcfg;
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	RT_TRACE(rtlpriv, COMP_LED, DBG_LOUD, "LedAddr:%X ledpin=%d\n",
-		 REG_LEDCFG, pled->ledpin);
-
-	ledcfg = rtl_read_byte(rtlpriv, REG_LEDCFG);
-
-	switch (pled->ledpin) {
-	case LED_PIN_GPIO0:
-		break;
-	case LED_PIN_LED0:
-		rtl_write_byte(rtlpriv, REG_LEDCFG, ledcfg & 0xf0);
-		break;
-	case LED_PIN_LED1:
-		rtl_write_byte(rtlpriv, REG_LEDCFG, ledcfg & 0x0f);
-		break;
-	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case not processed\n");
-		break;
-	}
-	pled->ledon = true;
-}
-
-void rtl92su_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
-{
-	struct rtl_priv *rtlpriv;
-	struct rtl_usb_priv *usbpriv = rtl_usbpriv(hw);
-	u8 ledcfg;
-
-	rtlpriv = rtl_priv(hw);
-	if (!rtlpriv || rtlpriv->max_fw_size)
-		return;
-	RT_TRACE(rtlpriv, COMP_LED, DBG_LOUD, "LedAddr:%X ledpin=%d\n",
-		 REG_LEDCFG, pled->ledpin);
-
-	ledcfg = rtl_read_byte(rtlpriv, REG_LEDCFG);
-
-	switch (pled->ledpin) {
-	case LED_PIN_GPIO0:
-		break;
-	case LED_PIN_LED0:
-		ledcfg &= 0xf0;
-		if (usbpriv->ledctl.led_opendrain)
-			rtl_write_byte(rtlpriv, REG_LEDCFG, (ledcfg | BIT(1)));
-		else
-			rtl_write_byte(rtlpriv, REG_LEDCFG, (ledcfg | BIT(3)));
-		break;
-	case LED_PIN_LED1:
-		ledcfg &= 0x0f;
-		rtl_write_byte(rtlpriv, REG_LEDCFG, (ledcfg | BIT(3)));
-		break;
-	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case not processed\n");
-		break;
-	}
-	pled->ledon = false;
-}
-
 static void _rtl92su_sw_led_control(struct ieee80211_hw *hw,
 				    enum led_ctl_mode ledaction)
 {
@@ -123,10 +57,10 @@ static void _rtl92su_sw_led_control(struct ieee80211_hw *hw,
 	case LED_CTL_POWER_ON:
 	case LED_CTL_LINK:
 	case LED_CTL_NO_LINK:
-		rtl92su_sw_led_on(hw, pLed0);
+		rtl92s_sw_led_on(hw, pLed0);
 		break;
 	case LED_CTL_POWER_OFF:
-		rtl92su_sw_led_off(hw, pLed0);
+		rtl92s_sw_led_off(hw, pLed0);
 		break;
 	default:
 		break;
@@ -152,3 +86,15 @@ void rtl92su_led_control(struct ieee80211_hw *hw, enum led_ctl_mode ledaction)
 
 	_rtl92su_sw_led_control(hw, ledaction);
 }
+
+static void _rtl92su_deInit_led(struct rtl_led *pled)
+{
+}
+
+void rtl92su_deinit_sw_leds(struct ieee80211_hw *hw)
+{
+	struct rtl_usb_priv *usbpriv = rtl_usbpriv(hw);
+	_rtl92su_deInit_led(&(usbpriv->ledctl.sw_led0));
+	_rtl92su_deInit_led(&(usbpriv->ledctl.sw_led1));
+}
+

@@ -13,7 +13,6 @@
 	#define _LITTLE_ENDIAN_
 #endif
 
-#ifdef __KERNEL__
 #include <linux/version.h>
 
 #if LINUX_VERSION_CODE >= 0x020616 // linux 2.6.22
@@ -31,13 +30,11 @@
 #else
 #include <linux/config.h>
 #endif
-#endif // __KERNEL__
 
 
 //-------------------------------------------------------------
 // Define flag of 867X system
 //-------------------------------------------------------------
-#ifdef CONFIG_RTL8192SU
 //tysu:  FOR source-insight parser, don't remove the following items.
 
 #undef B2B_TEST
@@ -103,9 +100,7 @@
 #undef PRE_ALLOCATE_SKB
 //#define PRE_ALLOCATE_SKB  // don't enable this flag when PKT_PROCESSOR is defined. ( PKT_PROCESSOR will use pre allocate skb by default. )
 #else
-#ifdef RTL8192SU
 #include "../../../net/packet_processor/rtl8672PacketProcessor.h"
-#endif
 #endif
 #undef RTK_BR_EXT
 #undef RTL8190
@@ -144,13 +139,9 @@
 //#define __IRAM_TX_8K		__attribute__ ((section(".iram")))
 #endif
 
-#ifdef CONFIG_ENABLE_MIPS16
-#include "./mips16_lib.h"
-#endif
 
 
 #undef DEBUG_MEMORY_LEAK
-#endif
 
 #ifdef CONFIG_RTK_MESH
 #include "mesh_ext/mesh_cfg.h"
@@ -213,7 +204,6 @@
 //  #define RTL_CACHED_BR_STA
 #endif
 
-#if defined(CONFIG_RTL8192SU)
 	#define DRV_NAME                "RTL8192SU"
 	#define RTL8192SU
 	#define INTERRUPT_2DW 1
@@ -240,12 +230,9 @@
 		//#define RTL8192SU_TXSC_DBG_MSG
 	#endif
 	#define RTL8192SU_USE_FW_TPT
-#endif
 
-#if defined(CONFIG_X86)
 	#define DRV_NAME		"EXPERIMENTAL"
 	#define RTL8192E
-#endif
 
 //-------------------------------------------------------------
 // Will check type for endian issue when access IO and memory
@@ -290,11 +277,7 @@
 #define EAP_BY_QUEUE
 #undef EAPOLSTART_BY_QUEUE	// jimmylin: don't pass eapol-start up
 							// due to XP compatibility issue
-#if defined(RTL8190) || defined(RTL8192E)|| defined(RTL8192SU)
 	#define USE_CHAR_DEV
-#elif defined(RTL8192SE) 
-	#define USE_PID_NOTIFY
-#endif
 
 
 //-------------------------------------------------------------
@@ -360,16 +343,6 @@
 //-------------------------------------------------------------
 #define CHECK_HANGUP
 #ifdef CHECK_HANGUP
-#if defined(RTL8190) || defined(RTL8192E)
-	#define CHECK_TX_HANGUP
-	#define CHECK_RX_HANGUP
-	#define CHECK_BEACON_HANGUP
-	#define FAST_RECOVERY
-#elif defined(RTL8192SE)
-	#define CHECK_BEACON_HANGUP
-	#define CHECK_BB_HANGUP
-	#define FAST_RECOVERY
-#endif
 #endif
 
 
@@ -409,9 +382,6 @@
 //-------------------------------------------------------------
 // IO mapping access
 //-------------------------------------------------------------
-#if defined(RTL8190) || defined(RTL8192E)
-	#define IO_MAPPING
-#endif
 
 
 //-------------------------------------------------------------
@@ -426,9 +396,6 @@
 #define MBSSID
 #ifdef MBSSID
 #define RTL8190_NUM_VWLAN  4
-#ifdef RTL8192SE
-#define FW_SW_BEACON
-#endif
 #endif
 
 
@@ -500,9 +467,6 @@
 //-------------------------------------------------------------
 // Support Tx AMSDU
 //-------------------------------------------------------------
-#if defined(RTL8190) || defined(RTL8192E)
-#define SUPPORT_TX_AMSDU
-#endif
 
 
 //-------------------------------------------------------------
@@ -537,50 +501,29 @@
 //-------------------------------------------------------------
 // Use static buffer for STA private buffer
 //-------------------------------------------------------------
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	#define PRIV_STA_BUF
-#endif
 
 
 //-------------------------------------------------------------
 // Do not drop packet immediately when rx buffer empty
 //-------------------------------------------------------------
-#ifdef RTL8192SE
-#ifdef CONFIG_RTL8190_PRIV_SKB
-	#define DELAY_REFILL_RX_BUF
-#endif
-#endif
 
 
 //-------------------------------------------------------------
 // WiFi 11n 20/40 coexistence
 //-------------------------------------------------------------
-#if defined(RTL8192SE) || defined(RTL8192SU)
 #define WIFI_11N_2040_COEXIST
-#endif
 
 
 //-------------------------------------------------------------
 // 8192SE define flag
 // Those functions need to be implemented in the future
 //-------------------------------------------------------------
-#ifdef RTL8192SE
-
-#ifdef B2B_TEST
-	#undef B2B_TEST
-#endif
-
-#ifdef DRVMAC_LB
-	#undef DRVMAC_LB
-#endif
-
-#endif // RTL8192SE
 
 //-------------------------------------------------------------
 // 8192SU define flag
 // Those functions need to be implemented in the future
 //-------------------------------------------------------------
-#ifdef RTL8192SU
 
 #ifdef MP_TEST
 //#undef MP_TEST
@@ -624,7 +567,6 @@
 
 //#define RTL8192SU_DBG
 
-#endif
 
 
 //-------------------------------------------------------------
@@ -985,10 +927,6 @@
 #define __IRAM_IN_865X		__attribute__ ((section(".iram-rtkwlan")))
 #define __IRAM_IN_865X_HI		__attribute__ ((section(".iram-tx")))
 #endif
-#if !defined(RTL8192SU)
-#define RTL8190_DIRECT_RX						/* For packet RX : directly receive the packet instead of queuing it */
-#define RTL8190_ISR_RX							/* process RXed packet in interrupt service routine: It become useful only when RTL8190_DIRECT_RX is defined */
-#endif
 #ifndef CONFIG_WIRELESS_LAN_MODULE
 //#define RTL8190_VARIABLE_USED_DMEM				/* Use DMEM for some critical variables */
 #endif
@@ -1019,11 +957,8 @@
 //-------------------------------------------------------------
 // X86 define flag
 //-------------------------------------------------------------
-#ifdef CONFIG_X86
 
-#ifndef CONFIG_NET_PCI
 	#define CONFIG_NET_PCI
-#endif
 
 #ifdef __MIPSEB__
 	#undef __MIPSEB__
@@ -1065,9 +1000,6 @@
 	#undef GBWC
 #endif
 
-#ifndef __LINUX_2_6__
-	#define del_timer_sync del_timer
-#endif
 
 #ifdef USE_IO_OPS
 	#undef USE_IO_OPS
@@ -1085,13 +1017,11 @@
 	#undef RTK_QUE
 #endif
 
-#endif // CONFIG_X86
 
 
 //-------------------------------------------------------------
 // Define flag of 867X system
 //-------------------------------------------------------------
-#ifdef CONFIG_RTL8671
 #undef BR_SHORTCUT
 #define RTL867X_USBPATCH
 #define DRV_VERSION_SUBL 4
@@ -1126,17 +1056,6 @@
 #undef PCI_SLOT0_CONFIG_ADDR
 #undef PCI_SLOT1_CONFIG_ADDR
 
-#if !defined(RTL8192SU)
-#define PCI_SLOT0_CONFIG_ADDR		0xbd100000
-#define PCI_SLOT1_CONFIG_ADDR		0xbd180000
-
-#undef PCI_CONFIG_BASE1
-#ifdef IO_MAPPING
-#define PCI_CONFIG_BASE1			(wdev->conf_addr+0x10)
-#else
-#define PCI_CONFIG_BASE1			(wdev->conf_addr+0x14)
-#endif
-#endif //!defined(RTL8192SU)
 
 #ifdef EVENT_LOG
 	#undef EVENT_LOG
@@ -1154,35 +1073,6 @@
 /* for Event Log */
 #define scrlog_printk	printk
 
-#elif defined(CONFIG_RTL8192SU) && defined(CONFIG_RTK_VOIP)
-
-#define __IRAM_WIFI_PRI1_NOM16	__attribute__ ((section(".iram-wifi-pri1")))
-//#define __IRAM_WIFI_PRI1	__attribute__ ((section(".iram-wifi-pri1"), mips16))
-#define __IRAM_WIFI_PRI1	__attribute__ ((section(".iram-wifi-pri1")))
-//#define __IRAM_WIFI_PRI2	__attribute__ ((section(".iram-wifi-pri2"), mips16))
-#define __IRAM_WIFI_PRI2	__attribute__ ((section(".iram-wifi-pri2")))
-#define __IRAM_WIFI_PRI3	__attribute__ ((section(".iram-wifi-pri3")))
-#define __IRAM_WIFI_PRI4	__attribute__ ((section(".iram-wifi-pri4")))
-#define __IRAM_WIFI_PRI5	__attribute__ ((section(".iram-wifi-pri5")))
-#define __IRAM_WIFI_PRI6	__attribute__ ((section(".iram-wifi-pri6")))
-#define __IRAM_IN_8672		__attribute__ ((section(".iram")))
-#ifndef __IRAM_PP_HIGH
-#define __IRAM_PP_HIGH		__attribute__ ((section(".iram-pp-high")))
-#endif
-
-#else
-
-#define __IRAM_WIFI_PRI1
-#define __IRAM_WIFI_PRI2
-#define __IRAM_WIFI_PRI3
-#define __IRAM_WIFI_PRI4
-#define __IRAM_WIFI_PRI5
-#define __IRAM_WIFI_PRI6
-#define __IRAM_IN_8672
-#define __IRAM_PP_HIGH
-//#define __IRAM_IN_865X
-//#define __IRAM_IN_865X_HI
-#endif // CONFIG_RTL8671
 
 
 //-------------------------------------------------------------
@@ -1357,19 +1247,11 @@
 	#define MDL_DEVINITDATA
 #else
 
-#ifdef RTL8192SU
 	#define MDL_DEVINIT
 	#define MDL_DEVEXIT
 	#define MDL_INIT
 	#define MDL_EXIT
 	#define MDL_DEVINITDATA
-#else
-	#define MDL_DEVINIT		__devinit
-	#define MDL_DEVEXIT		__devexit
-	#define MDL_INIT		__init
-	#define MDL_EXIT		__exit
-	#define MDL_DEVINITDATA	__devinitdata
-#endif
 
 #endif
 
@@ -1377,25 +1259,13 @@
 /*=============================================================*/
 /*----------- System configuration ----------------------------*/
 /*=============================================================*/
-#if defined(RTL8192SE) && defined(CONFIG_RTL8196B_GW_8M)
-#define NUM_TX_DESC		200
-#else
 #define NUM_TX_DESC		512		// from 256 -> 512, for Vista testing
-#endif
 
-#ifdef RTL8192SE
-#define NUM_RX_DESC		32
-#ifdef DELAY_REFILL_RX_BUF
-	#define REFILL_THRESHOLD	NUM_RX_DESC
-#endif
-#else
 #define NUM_RX_DESC		128
 #ifdef DELAY_REFILL_RX_BUF
 	#define REFILL_THRESHOLD	32
 #endif
-#endif
 
-#ifdef RTL8192SU
 #undef NUM_TX_DESC
 #undef NUM_RX_DESC
 #ifdef RTL867X_DMEM_ENABLE
@@ -1417,7 +1287,6 @@
 #else
 #define NUM_RX_DESC		128
 #endif
-#endif //RTL8192SU
 
 #if defined(CONFIG_RTL8196B_KLD) && (defined(RTL8192SE)||defined(RTL8192SU)) && defined(MBSSID)
 #define NUM_CMD_DESC	2
@@ -1431,19 +1300,15 @@
 #define NUM_STAT		32
 #endif
 
-#ifdef RTL8192SU
 #undef NUM_STAT
 #ifdef RTL867X_LOW_DRAM
 #define NUM_STAT		8
 #else
 #define NUM_STAT		32
 #endif
-#endif
 
 #define MAX_GUEST_NUM   NUM_STAT
-#ifdef RTL8192E
-#define FW_NUM_STAT	7
-#elif defined(STA_EXT)
+#if   defined(STA_EXT)
 #define FW_NUM_STAT 32
 #endif
 
@@ -1456,12 +1321,8 @@
 #define NUM_APSD_TXPKT_QUEUE	32
 
 #define PRE_ALLOCATED_HDR		NUM_TX_DESC
-#if !defined(RTL8192SU)
-#define PRE_ALLOCATED_MMPDU		64
-#else
 //#define PRE_ALLOCATED_MMPDU		NUM_TX_DESC
 #define PRE_ALLOCATED_MMPDU		128
-#endif
 #define PRE_ALLOCATED_BUFSIZE	(600/4)		// 600 bytes long should be enough for mgt! Declare as unsigned int
 
 #ifdef RTL867X_LOW_DRAM
@@ -1477,11 +1338,7 @@
 
 #define MAX_FRAG_COUNT		10
 
-#if !defined(RTL8192SU)
-#define NUM_MP_SKB		32
-#else
 #define NUM_MP_SKB		(NUM_TX_DESC>>2)
-#endif
 
 // unit of time out: 10 msec
 #define AUTH_TO			500
@@ -1577,10 +1434,6 @@
 #define FW_MAIN_SIZE	52000
 #define FW_DATA_SIZE	850
 #define AGC_TAB_SIZE	1600
-#if defined(RTL8190) || defined(RTL8192E)
-#define MAC_REG_SIZE	120
-#define	PHY_REG_SIZE	1280
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 #define MAC_REG_SIZE	1024
 #define	PHY_REG_SIZE	2048
 #define PHY_REG_PG_SIZE 256
@@ -1589,7 +1442,6 @@
 #define FW_IMEM_SIZE	40*(1024)
 #define FW_EMEM_SIZE	50*(1024)
 #define FW_DMEM_SIZE	48
-#endif
 
 #ifdef SUPPORT_TX_MCAST2UNI
 #define MAX_IP_MC_ENTRY		8
@@ -1616,7 +1468,6 @@
 
 #endif // CONFIG_RTL8196B_GW_8M
 
-#ifdef RTL8192SU
 #include <linux/usb.h>
 
 #undef DRV_NAME
@@ -1659,7 +1510,6 @@
 
 
 
-#endif //rtl8192su
 
 #endif // _8190N_CFG_H_
 

@@ -3,7 +3,6 @@
 #include <linux/config.h>
 #include "./8190n_cfg.h"
 
-#ifdef RTL8192SU
 static int usb_control_cnt=0;
 
 #include "./8190n.h"
@@ -13,9 +12,6 @@ static int usb_control_cnt=0;
 #include <linux/usb.h>
 #include "8190n_usb.h"
 
-#if !defined(__LINUX_2_6__) && defined(CONFIG_RTK_VOIP)
-#define USB_LOCK_ENABLE
-#endif
 
 #ifdef USB_LOCK_ENABLE
 #define USB_LOCK(lock, flags) spin_lock_irqsave(lock, flags)
@@ -39,7 +35,6 @@ static void new_usb_api_blocking_completion(struct urb *urb)
 //	wmb(); //FIXME
 }
 
-#ifdef __LINUX_2_6__
 __attribute__((nomips16)) static int new_usb_kill_urb(struct urb *urb)
 {
 	//might_sleep();
@@ -67,18 +62,8 @@ out:
 	spin_unlock_irq(&urb->lock);
 	return retval;
 }
-#else
-static int new_usb_kill_urb(struct urb *urb)
-{
-	return usb_unlink_urb(urb);
-}
-#endif
 
-#ifdef __LINUX_2_6__
  irqreturn_t ehci_irq (struct usb_hcd *hcd);
-#else
-void ehci_irq (struct usb_hcd *hcd, struct pt_regs *regs);
-#endif
 
 #if defined(CONFIG_RTK_VOIP) && defined(CONFIG_RTK_DEBUG)
 // rock: check usb_free_dev error
@@ -138,9 +123,6 @@ int new_usb_control_msg(struct usb_device *dev, unsigned int pipe, __u8 request,
 			 __u16 value, __u16 index, void *data, __u16 size, int timeout)
 {
 
-#ifdef CONFIG_ENABLE_MIPS16
-	u8 *dma_data=kmalloc(16,GFP_NOIO);
-#endif
 	struct usb_ctrlrequest *dr;
 	struct urb *urb;
 	volatile int done=0;
@@ -178,11 +160,7 @@ int new_usb_control_msg(struct usb_device *dev, unsigned int pipe, __u8 request,
 		return 0;
 	}
 	
-#ifdef __LINUX_2_6__
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
-#else
-	urb = usb_alloc_urb(0);
-#endif
 	if (!urb)
 	{
 		kfree(dr);
@@ -194,29 +172,14 @@ int new_usb_control_msg(struct usb_device *dev, unsigned int pipe, __u8 request,
 		printk("Error usb_control_cnt=%x\n",usb_control_cnt);	
 
 //  printk("fill urb data=%x indx=%x size=%d\n",*(u8*)data,index,size);
-#ifdef CONFIG_ENABLE_MIPS16
-	usb_fill_control_urb(urb, dev, pipe, (unsigned char *)dr, (void*)dma_data,
-			     size, new_usb_api_blocking_completion, (void *)&done);
-#else
 	usb_fill_control_urb(urb, dev, pipe, (unsigned char *)dr, data,
 			     size, new_usb_api_blocking_completion, (void *)&done);
-#endif
 	urb->actual_length = 0;
 
-#ifdef CONFIG_ENABLE_MIPS16
-	if(request==RTL8192_REQ_SET_REGS) memcpy(dma_data,data,size);
-	dma_cache_wback_inv((u32)dma_data,size);
-	//rtl_cache_sync_wback(priv, (unsigned int)dma_data, size, 0);
-#else
 	if(request==RTL8192_REQ_SET_REGS)
 		dma_cache_wback_inv((unsigned long)data, size);
-#endif
 
-#ifdef __LINUX_2_6__
 	status = usb_submit_urb(urb, GFP_ATOMIC);
-#else
-	status = usb_submit_urb(urb);
-#endif
 	if (unlikely(status))
 	{
 		goto out;
@@ -260,15 +223,11 @@ retry:
 #elif defined(CONFIG_USB_EHCI_HCD) || defined(CONFIG_USB_EHCI_HCD_RTL8652)
 {
 		struct usb_hcd *hcd=bus_to_hcd(dev->bus);
-#ifdef __LINUX_2_6__
 		struct ehci_hcd *ehci=(struct ehci_hcd *)hcd->hcd_priv;
 		spin_lock_irqsave (&ehci->lock, flags);
 		//scan_async(ehci);
 		ehci_irq(hcd);		
 		spin_unlock_irqrestore (&ehci->lock, flags);
-#else
-		ehci_irq(hcd, NULL);
-#endif
 }
 #endif
 		
@@ -289,38 +248,19 @@ out:
 	
 	if(done==0)
 	{
-#if 0
-		printk("USB Timeout!!!\n");		
-		if(!in_atomic()) 
-		{
-			usb_kill_urb(urb);
-		}
-		else
-		{
-			printk("in atomic, can't kill urb\n");
-		}
-		status = urb->status == -ENOENT ? -ETIMEDOUT : urb->status;
-#else
 		retval = new_usb_kill_urb(urb);
 		status = urb->status == -ENOENT ? -ETIMEDOUT : urb->status;
 		if((status != 0) && (status!= -ETIMEDOUT)) {
 			printk("[%s,%d], urb->status = %d, retval = %d\n", __func__, __LINE__, urb->status, retval);
 		}
-#endif
 	}
 	else
 	{
 //		  printk("index=%x data=%x done\n",index,*(u8*)data); 
-#ifdef CONFIG_ENABLE_MIPS16
-		if(request==RTL8192_REQ_GET_REGS) memcpy(data,dma_data,size);
-#endif
 		status = urb->status;
 	}
 
 	usb_free_urb(urb);
-#ifdef CONFIG_ENABLE_MIPS16
-	kfree(dma_data);
-#endif
 	kfree(dr);
 
 	usb_control_cnt--;
@@ -331,11 +271,7 @@ out:
 
 #define PAGE_NUM 15
 
-#ifdef __LINUX_2_6__
 	#define IO_TYPE_CAST	(unsigned char *)
-#else
-	#define IO_TYPE_CAST	(unsigned int)
-#endif
 
 #ifdef SW_LED
 void RTL_W8SU2(struct rtl8190_priv *priv, unsigned int indx, unsigned char data)
@@ -384,14 +320,6 @@ void RTL_W8SU(struct rtl8190_priv *priv, unsigned int indx, unsigned char data)
 	status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			       RTL8192_REQ_SET_REGS, RTL8192_REQT_WRITE,
 			       (indx&0xffff), 0, &data, 1, HZ / 2);
-#if 0
-	 if (status < 0)
-	{
-		printk("write_nic_byte TimeOut! status:%x addr=0x%x data=0x%x\n", status,indx,data);
-//		BUG();
-		while(1) ;
-	}
-#endif
 
 	if(status >= 0)
 	{
@@ -454,14 +382,6 @@ void RTL_W16SU(struct rtl8190_priv *priv,unsigned  int indx, unsigned short data
 	status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 		                RTL8192_REQ_SET_REGS, RTL8192_REQT_WRITE,
 			        (indx&0xffff), 0, &data, 2, HZ / 2);
-#if 0
-	if (status < 0)
-	{
-		printk("write_nic_word TimeOut! status:%x\n", status);
-		//BUG();		
-		while(1);
-	}
-#endif
 	
 	if(status >= 0)
 	{
@@ -522,14 +442,6 @@ void RTL_W32SU(struct rtl8190_priv *priv,unsigned  int indx, unsigned int data)
 	status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			       RTL8192_REQ_SET_REGS, RTL8192_REQT_WRITE,
 			       (indx&0xffff), 0, &data, 4, HZ / 2);
-#if 0
-	if (status < 0)
-	{
-		printk("write_nic_dword TimeOut! status:%d indx=0x%x\n", status,indx);
-//		BUG();		
-		while(1);
-	}
-#endif
 
 	if(status >= 0)
 	{
@@ -584,13 +496,11 @@ unsigned char RTL_R8SU(struct rtl8190_priv *priv,unsigned  int indx)
 		return 0;
 	}
 
-#if 1
 	if (indx>=0x800&&indx<=0xfff)
 	{ // read BB register
 		data=PHY_QueryBBReg(priv, indx, bMaskByte0);
 	}
 	else
-#endif	
 	{
 		status = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				       RTL8192_REQ_GET_REGS, RTL8192_REQT_READ,
@@ -628,13 +538,11 @@ unsigned short RTL_R16SU(struct rtl8190_priv *priv,unsigned  int indx)
 		return 0;
 	}
 
-#if 1
 	if (indx>=0x800&&indx<=0xfff)
 	{ // read BB register
 		data2=PHY_QueryBBReg(priv, indx, bMaskLWord);
 	}
 	else
-#endif	
 	{
 		status = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				       RTL8192_REQ_GET_REGS, RTL8192_REQT_READ,
@@ -678,13 +586,11 @@ unsigned int RTL_R32SU(struct rtl8190_priv *priv, unsigned int indx)
 		return 0;
 	}
 
-#if 1
 	if (indx>=0x800&&indx<=0xfff)
 	{ // read BB register
 		data=PHY_QueryBBReg(priv, indx, bMaskDWord);
 	}
 	else
-#endif	
 	{
 		status = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				       RTL8192_REQ_GET_REGS, RTL8192_REQT_READ,
@@ -733,7 +639,6 @@ void usb_receive_all_pkts(struct rtl8190_priv *priv)
 #ifdef CONFIG_USB_OTG_HOST_RTL8672
 	usb_scan_async(priv->udev->bus, 1);
 #else
-#ifdef __LINUX_2_6__
 	unsigned long		flags=0;
 
 	struct usb_hcd *hcd=bus_to_hcd(priv->udev->bus);
@@ -742,10 +647,6 @@ void usb_receive_all_pkts(struct rtl8190_priv *priv)
 	spin_lock_irqsave (&ehci->lock, flags);
 	ehci_irq(hcd);
 	spin_unlock_irqrestore (&ehci->lock, flags);
-#else
-	struct usb_hcd *hcd=bus_to_hcd(priv->udev->bus);
-	ehci_irq(hcd, NULL);
-#endif
 #endif
 }
 
@@ -865,30 +766,11 @@ __IRAM_WIFI_PRI5 int USB_PATCH(unsigned int** tx, unsigned int* urb_len, unsigne
 		}
 	}
 #endif
-#if 0
-check_usb:
-	check_usb = Check_USBPatch(tx, urblen);
-	if (check_usb!=0)
-	{
-		pktoffset+=check_usb;
-		urblen += (pktoffset<<3);
-		kfree(tx);
-		tx = kmalloc(*urb_len, GFP_ATOMIC);
-		if(!tx)
-		{
-			printk("%s, %d\n", __FUNCTION__, __LINE__);
-			return 0;
-		}
-		goto check_usb;
-	}
-	//if (pktoffset!=0)printk("[%s, %d]en_pktoffset=%d\n", __FUNCTION__, __LINE__, pktoffset);
-#endif
 	*urb_len=urblen;
 	*en_pktoffset=pktoffset;
 	return 1;
 }
 
-#ifdef CONFIG_RTL8671
 void usb_poll(struct usb_bus *bus)
 {
 #ifdef CONFIG_USB_OTG_HOST_RTL8672
@@ -903,7 +785,6 @@ void usb_poll(struct usb_bus *bus)
 
 	return;
 #else
-#ifdef __LINUX_2_6__
 	unsigned long		flags=0;
 
 	struct usb_hcd *hcd=bus_to_hcd(bus);
@@ -912,15 +793,10 @@ void usb_poll(struct usb_bus *bus)
 	spin_lock_irqsave (&ehci->lock, flags);
 	ehci_irq(hcd);
 	spin_unlock_irqrestore (&ehci->lock, flags);
-#else
-	struct usb_hcd *hcd=bus_to_hcd(priv->udev->bus);
-	ehci_irq(hcd, NULL);
-#endif
 
 	return;
 #endif
 }
-#endif
 
 int check_align(u32* tx) {
 #if defined (CONFIG_USB_OTG_HOST_RTL8672) || defined(CONFIG_USB_OTG_Driver)
@@ -930,4 +806,3 @@ int check_align(u32* tx) {
 #endif
 }
 
-#endif

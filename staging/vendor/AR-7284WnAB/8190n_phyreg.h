@@ -863,7 +863,7 @@
 #define PathC                     0x2
 #define PathD                     0x3
 
-#elif	defined(RTL8192SE) || defined(RTL8192SU)
+#else
 
 
 /*--------------------------Define Parameters-------------------------------*/

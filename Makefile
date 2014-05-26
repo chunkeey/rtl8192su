@@ -1,41 +1,53 @@
 # fallback to the current kernel source
 KSRC ?= /lib/modules/$(shell uname -r)/build
 
-KMOD_SRC ?= $(CURDIR)/r92su
+KMOD_SRC ?= $(CURDIR)/rtlwifi
+
+KMOD_OPTIONS = CONFIG_RTL_CARDS=y
+KMOD_OPTIONS += CONFIG_RTLWIFI=m
+KMOD_OPTIONS += CONFIG_RTLWIFI_DEBUG=y
+KMOD_OPTIONS += CONFIG_RTLWIFI_USB=m
+KMOD_OPTIONS += CONFIG_RTLWIFI_PCI=m
+KMOD_OPTIONS += CONFIG_RTL8192SU=m
+KMOD_OPTIONS += CONFIG_RTL8192SU_DEBUGFS=m
+KMOD_OPTIONS += CONFIG_RTL8192SE=m
+KMOD_OPTIONS += CONFIG_RTL8192S_COMMON=m
+
+# Don't build any of the other drivers
+KMOD_OPTIONS += CONFIG_RTL8192CU=n CONFIG_RTL8192DE=n CONFIG_RTL8192CE=n CONFIG_RTL8192C_COMMON=n CONFIG_RTL8723AE=n CONFIG_RTL8188EE=n
 
 EXTRA_CFLAGS += -DDEBUG
-
-OPTION_R92SU = CONFIG_R92SU=m
-KMOD_OPTIONS = $(OPTION_R92SU)
-R92SU_DEP_MODS = cfg80211
-EXTRA_CFLAGS += -D$(OPTION_R92SU)
-
-OPTION_WPC = CONFIG_R92SU_WPC=y
-KMOD_OPTIONS += $(OPTION_WPC)
-R92SU_DEP_MODS += input_core
-EXTRA_CFLAGS += -D$(OPTION_WPC)
-
-#OPTION_DEBFS = CONFIG_R92SU_DEBUGFS=y
-#KMOD_OPTIONS += $(OPTION_DEBFS)
-#R92SU_DEP_MODS += debugfs
-#EXTRA_CFLAGS += -D$(OPTION_DEBFS)
 
 all:
 	$(MAKE) -C $(KSRC) M=$(KMOD_SRC) $(KMOD_OPTIONS) $(MAKECMDGOALS) EXTRA_CFLAGS="$(EXTRA_CFLAGS)"
 
-.PHONY: all load unload reload clean
+.PHONY: all clean load unload reload test
 
 clean:
 	$(MAKE) -C $(KSRC) M=$(KMOD_SRC) clean $(KMOD_OPTIONS)
 
-#debug trace load
 load:
-	@for DEP_MOD in $(R92SU_DEP_MODS); do	\
-		modprobe "$$DEP_MOD" || echo "continue..."; \
-	done
-	insmod "$(KMOD_SRC)/r92su.ko"
+	modprobe mac80211
+	insmod $(KMOD_SRC)/rtlwifi.ko
+	insmod $(KMOD_SRC)/rtl_usb.ko
+	insmod $(KMOD_SRC)/rtl8192s/rtl8192s-common.ko
+	insmod $(KMOD_SRC)/rtl8192su/rtl8192su.ko
+
+loadpci:
+	modprobe mac80211
+	insmod $(KMOD_SRC)/rtlwifi.ko
+	insmod $(KMOD_SRC)/rtl_pci.ko
+	insmod $(KMOD_SRC)/rtl8192s/rtl8192s-common.ko
+	insmod $(KMOD_SRC)/rtl8192se/rtl8192se.ko
 
 unload:
-	rmmod r92su
+	rmmod rtl8192se || echo "rtl8192se not loaded"
+	rmmod rtl8192su || echo "rtl8192su not loaded"
+	rmmod rtl8192s-common || echo "rtl8192s-common not loaded"
+	rmmod rtl_pci	|| echo "rtl_pci not loaded"
+	rmmod rtl_usb   || echo "rtl_usb not loaded"
+	rmmod rtlwifi   || echo "rtlwifi not loaded"
 
-reload:	unload load
+reload: unload load
+
+test: all reload

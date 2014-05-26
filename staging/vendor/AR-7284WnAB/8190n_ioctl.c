@@ -6,7 +6,6 @@
 
 #define _8190N_IOCTL_C_
 
-#ifdef __KERNEL__
 #include <linux/module.h>
 #include <linux/init.h>
 #include <asm/uaccess.h>
@@ -14,33 +13,22 @@
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/delay.h>
-#endif
 
 #include "./8190n_cfg.h"
 
-#ifdef __LINUX_2_6__
 #include <linux/initrd.h>
 #include <linux/syscalls.h>
-#endif
 
-#ifndef __KERNEL__
-#include "./sys-support.h"
-#endif
 
 #include "./8190n_headers.h"
 #include "./8190n_debug.h"
-#ifdef RTL8192SU
 #include "./8190n_usb.h"
-#ifdef RTL867X_CP3
-#include "romeperf.h"
-#endif
 
 #ifndef REG32
 /* Register access macro (REG*()). */
 #define REG32(reg) 			(*((volatile unsigned int *)(reg)))
 #define REG16(reg) 			(*((volatile unsigned short *)(reg)))
 #define REG8(reg) 				(*((volatile unsigned char *)(reg)))
-#endif
 #endif
 
 #ifdef CONFIG_RTK_MESH
@@ -128,9 +116,7 @@
 #define MP_QUERY_STATS 	0x8B6D
 #define MP_TXPWR_TRACK	0x8B6E
 #define MP_QUERY_TSSI	0x8B6F
-#if defined(RTL8192SE) || defined(RTL8192SU)
 #define MP_QUERY_THER	0x8B77
-#endif
 
 #ifdef B2B_TEST
 // set/get convention: set(even number) get (odd number)
@@ -168,13 +154,11 @@
 #define SIOCGIWRTLAUTH			0x8B84//To get wireless auth result
 #endif
 
-#ifdef CONFIG_RTL8671
 // MBSSID Port Mapping
 #define SIOSIWRTLITFGROUP		0x8B90
 extern int bitmap_virt2phy(int mbr);
 extern struct port_map wlanDev[5];
 int g_port_mapping=FALSE;
-#endif
 
 #ifdef	CONFIG_RTK_MESH
 
@@ -333,41 +317,21 @@ static struct iwpriv_arg mib_table[] = {
 	{"ch_hi",		INT_T,		_OFFSET(dot11RFEntry.dot11ch_hi), _SIZE(dot11RFEntry.dot11ch_hi), 0},
 #ifdef CONFIG_RTL865X
 	{"TxPowerCCK",	IDX_BYTE_ARRAY_T, _OFFSET(dot11RFEntry.pwrlevelCCK), _SIZE(dot11RFEntry.pwrlevelCCK), 0},
-#if defined(RTL8190) || defined(RTL8192E)
-	{"TxPowerOFDM",	IDX_BYTE_ARRAY_T, _OFFSET(dot11RFEntry.pwrlevelOFDM), _SIZE(dot11RFEntry.pwrlevelOFDM), 0},
-#else	// RTL8192SE
 	{"TxPowerOFDM_1SS",	IDX_BYTE_ARRAY_T, _OFFSET(dot11RFEntry.pwrlevelOFDM_1SS), _SIZE(dot11RFEntry.pwrlevelOFDM_1SS), 0},
 	{"TxPowerOFDM_2SS",	IDX_BYTE_ARRAY_T, _OFFSET(dot11RFEntry.pwrlevelOFDM_2SS), _SIZE(dot11RFEntry.pwrlevelOFDM_2SS), 0},
-#endif
 #else
 	{"TxPowerCCK",	BYTE_ARRAY_T, _OFFSET(dot11RFEntry.pwrlevelCCK), _SIZE(dot11RFEntry.pwrlevelCCK), 0},
-#if defined(RTL8190) || defined(RTL8192E)
-	{"TxPowerOFDM",	BYTE_ARRAY_T, _OFFSET(dot11RFEntry.pwrlevelOFDM), _SIZE(dot11RFEntry.pwrlevelOFDM), 0},
-#else	// RTL8192SE
 	{"TxPowerOFDM_1SS",	BYTE_ARRAY_T, _OFFSET(dot11RFEntry.pwrlevelOFDM_1SS), _SIZE(dot11RFEntry.pwrlevelOFDM_1SS), 0},
 	{"TxPowerOFDM_2SS",	BYTE_ARRAY_T, _OFFSET(dot11RFEntry.pwrlevelOFDM_2SS), _SIZE(dot11RFEntry.pwrlevelOFDM_2SS), 0},
 #endif
-#endif
 	{"preamble",	INT_T,		_OFFSET(dot11RFEntry.shortpreamble), _SIZE(dot11RFEntry.shortpreamble), 0},
 	{"disable_ch14_ofdm",	INT_T,	_OFFSET(dot11RFEntry.disable_ch14_ofdm), _SIZE(dot11RFEntry.disable_ch14_ofdm), 0},
-#if defined(RTL8190)
-	{"LOFDM_pwrdiff",	INT_T,	_OFFSET(dot11RFEntry.legacyOFDM_pwrdiff), _SIZE(dot11RFEntry.legacyOFDM_pwrdiff), 0},
-	{"antC_pwrdiff",INT_T,	_OFFSET(dot11RFEntry.antC_pwrdiff), _SIZE(dot11RFEntry.antC_pwrdiff), 0},
-	{"ther_rfic",	INT_T,	_OFFSET(dot11RFEntry.ther_rfic), _SIZE(dot11RFEntry.ther_rfic), 0},
-	{"crystalCap",	INT_T,	_OFFSET(dot11RFEntry.crystalCap), _SIZE(dot11RFEntry.crystalCap), 0},
-	{"bw_pwrdiff",	INT_T,	_OFFSET(dot11RFEntry.bw_pwrdiff), _SIZE(dot11RFEntry.bw_pwrdiff), 0},
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 	{"LOFDM_pwd_A",	INT_T,	_OFFSET(dot11RFEntry.LOFDM_pwd_A), _SIZE(dot11RFEntry.LOFDM_pwd_A), 0},
 	{"LOFDM_pwd_B",	INT_T,	_OFFSET(dot11RFEntry.LOFDM_pwd_B), _SIZE(dot11RFEntry.LOFDM_pwd_B), 0},
 	{"tssi1",		INT_T,	_OFFSET(dot11RFEntry.tssi1), _SIZE(dot11RFEntry.tssi1), 0},
 	{"tssi2",		INT_T,	_OFFSET(dot11RFEntry.tssi2), _SIZE(dot11RFEntry.tssi2), 0},
 	{"ther",		INT_T,	_OFFSET(dot11RFEntry.ther), _SIZE(dot11RFEntry.ther), 0},
-#endif
-#if defined(RTL8192SE)||defined(RTL8192SU)
 	{"MIMO_TR_mode",	INT_T,	_OFFSET(dot11RFEntry.MIMO_TR_mode), _SIZE(dot11RFEntry.MIMO_TR_mode), MIMO_1T2R},
-#else
-	{"MIMO_TR_mode",	INT_T,	_OFFSET(dot11RFEntry.MIMO_TR_mode), _SIZE(dot11RFEntry.MIMO_TR_mode), MIMO_2T4R},
-#endif
 
 	// struct Dot11StationConfigEntry
 	{"ssid",		SSID_STRING_T,	_OFFSET(dot11StationConfigEntry.dot11DesiredSSID), _SIZE(dot11StationConfigEntry.dot11DesiredSSID), 0},
@@ -384,11 +348,7 @@ static struct iwpriv_arg mib_table[] = {
 	{"regdomain",	INT_T,		_OFFSET(dot11StationConfigEntry.dot11RegDomain), _SIZE(dot11StationConfigEntry.dot11RegDomain), 1},
 	{"autorate",	INT_T,		_OFFSET(dot11StationConfigEntry.autoRate), _SIZE(dot11StationConfigEntry.autoRate), 1},
 	{"fixrate",		INT_T,		_OFFSET(dot11StationConfigEntry.fixedTxRate), _SIZE(dot11StationConfigEntry.fixedTxRate), 0},
-#ifdef CONFIG_RTL8671
 	{"swTkipMic",	INT_T,		_OFFSET(dot11StationConfigEntry.swTkipMic), _SIZE(dot11StationConfigEntry.swTkipMic), 0},
-#else
-	{"swTkipMic",	INT_T,		_OFFSET(dot11StationConfigEntry.swTkipMic), _SIZE(dot11StationConfigEntry.swTkipMic), 1},
-#endif
 	{"disable_protection", INT_T,	_OFFSET(dot11StationConfigEntry.protectionDisabled), _SIZE(dot11StationConfigEntry.protectionDisabled), 0},
 	{"disable_olbc", INT_T,		_OFFSET(dot11StationConfigEntry.olbcDetectDisabled), _SIZE(dot11StationConfigEntry.olbcDetectDisabled), 0},
 	{"deny_legacy",	INT_T,		_OFFSET(dot11StationConfigEntry.legacySTADeny), _SIZE(dot11StationConfigEntry.legacySTADeny), 0},
@@ -437,11 +397,7 @@ static struct iwpriv_arg mib_table[] = {
 #endif
 
 	// struct Dot1180211AuthEntry
-#if defined(RTL8192SE) || defined(RTL8192SU) // temporary solution
 	{"authtype",	INT_T,		_OFFSET(dot1180211AuthEntry.dot11AuthAlgrthm), _SIZE(dot1180211AuthEntry.dot11AuthAlgrthm), 0},
-#else
-	{"authtype",	INT_T,		_OFFSET(dot1180211AuthEntry.dot11AuthAlgrthm), _SIZE(dot1180211AuthEntry.dot11AuthAlgrthm), 2},
-#endif
 	{"encmode",		INT_T,		_OFFSET(dot1180211AuthEntry.dot11PrivacyAlgrthm), _SIZE(dot1180211AuthEntry.dot11PrivacyAlgrthm), 0},
 	{"wepdkeyid",	INT_T,		_OFFSET(dot1180211AuthEntry.dot11PrivacyKeyIndex), _SIZE(dot1180211AuthEntry.dot11PrivacyKeyIndex), 0},
 #ifdef INCLUDE_WPA_PSK
@@ -497,11 +453,7 @@ static struct iwpriv_arg mib_table[] = {
 	{"guest_access",INT_T,		_OFFSET(dot11OperationEntry.guest_access), _SIZE(dot11OperationEntry.guest_access), 0},
 
 	// struct bss_type
-#ifdef CONFIG_RTL8671
 	{"band",		BYTE_T,		_OFFSET(dot11BssType.net_work_type), _SIZE(dot11BssType.net_work_type), 11},
-#else
-	{"band",		BYTE_T,		_OFFSET(dot11BssType.net_work_type), _SIZE(dot11BssType.net_work_type), 3},
-#endif
 
 	// struct erp_mib
 	{"cts2self",	INT_T,		_OFFSET(dot11ErpInfo.ctsToSelf), _SIZE(dot11ErpInfo.ctsToSelf), 1},
@@ -568,11 +520,9 @@ static struct iwpriv_arg mib_table[] = {
 #if (defined(RTL8192SE)||defined(RTL8192SU)) && defined(MBSSID)
 	{"vap_enable",	INT_T,		_OFFSET(miscEntry.vap_enable), _SIZE(miscEntry.vap_enable), 0},
 #endif
-#ifdef RTL8192SU	
 	{"num_sta",	INT_T,		_OFFSET(miscEntry.num_sta), _SIZE(miscEntry.num_sta), NUM_STAT},
 #ifdef RTL8192SU_FWBCN
 	{"intf_map",	INT_T,		_OFFSET(miscEntry.intf_map), _SIZE(miscEntry.intf_map), 1},
-#endif
 #endif
 
 	{"func_off",	INT_T,		_OFFSET(miscEntry.func_off), _SIZE(miscEntry.func_off), 0},
@@ -610,11 +560,7 @@ static struct iwpriv_arg mib_table[] = {
 	{"ampdu",		INT_T,		_OFFSET(dot11nConfigEntry.dot11nAMPDU), _SIZE(dot11nConfigEntry.dot11nAMPDU), 1},
 	{"amsdu",		INT_T,		_OFFSET(dot11nConfigEntry.dot11nAMSDU), _SIZE(dot11nConfigEntry.dot11nAMSDU), 0},
 	{"ampduSndSz",	INT_T,		_OFFSET(dot11nConfigEntry.dot11nAMPDUSendSz), _SIZE(dot11nConfigEntry.dot11nAMPDUSendSz), 0},
-#if defined(CONFIG_RTL8196B_GW_8M) || defined(RTL8192SU) /*RTL8192SE_ACUT*/ // 8196B patch need lots of spaces
 	{"amsduMax",	INT_T,		_OFFSET(dot11nConfigEntry.dot11nAMSDURecvMax), _SIZE(dot11nConfigEntry.dot11nAMSDURecvMax), 0},
-#else
-	{"amsduMax",	INT_T,		_OFFSET(dot11nConfigEntry.dot11nAMSDURecvMax), _SIZE(dot11nConfigEntry.dot11nAMSDURecvMax), 1},
-#endif
 	{"amsduTimeout",INT_T,		_OFFSET(dot11nConfigEntry.dot11nAMSDUSendTimeout), _SIZE(dot11nConfigEntry.dot11nAMSDUSendTimeout), 400},
 	{"amsduNum",	INT_T,		_OFFSET(dot11nConfigEntry.dot11nAMSDUSendNum), _SIZE(dot11nConfigEntry.dot11nAMSDUSendNum), 15},
 	{"lgyEncRstrct",INT_T,		_OFFSET(dot11nConfigEntry.dot11nLgyEncRstrct), _SIZE(dot11nConfigEntry.dot11nLgyEncRstrct), 0},
@@ -661,7 +607,6 @@ static struct iwpriv_arg mib_table[] = {
 #endif
 
 	// for RF debug
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	{"ofdm_1ss_oneAnt",	RFFT_T,		_OFFSET_RFFT(ofdm_1ss_oneAnt), _SIZE_RFFT(ofdm_1ss_oneAnt), 0},// 1ss and ofdm rate using one ant
 	{"pathB_1T", RFFT_T, _OFFSET_RFFT(pathB_1T), _SIZE_RFFT(pathB_1T), 0},// using pathB as 1T2R/1T1R tx path
 #ifdef EXT_ANT_DVRY
@@ -670,32 +615,18 @@ static struct iwpriv_arg mib_table[] = {
 	{"ext_ad_Ts",		RFFT_T,		_OFFSET_RFFT(ext_ad_Ts), _SIZE_RFFT(ext_ad_Ts), 30},
 	{"ExtAntDvry",		RFFT_T,		_OFFSET_RFFT(ExtAntDvry), _SIZE_RFFT(ExtAntDvry), 1},
 #endif
-#endif
 	{"rssi_dump",		RFFT_T,		_OFFSET_RFFT(rssi_dump), _SIZE_RFFT(rssi_dump), 0},
 	{"rxfifoO",			RFFT_T,		_OFFSET_RFFT(rxfifoO), _SIZE_RFFT(rxfifoO), 0},
 	{"raGoDownUpper",	RFFT_T,	_OFFSET_RFFT(raGoDownUpper), _SIZE_RFFT(raGoDownUpper), 50},
-#if defined(RTL8190) || defined(RTL8192E)
-	{"raGoDown20MLower",RFFT_T,	_OFFSET_RFFT(raGoDown20MLower), _SIZE_RFFT(raGoDown20MLower), 30},
-#else // RTL8192SE, RTL8192SU
 	{"raGoDown20MLower",RFFT_T,	_OFFSET_RFFT(raGoDown20MLower), _SIZE_RFFT(raGoDown20MLower), 18},
-#endif
 	{"raGoDown40MLower",RFFT_T,	_OFFSET_RFFT(raGoDown40MLower), _SIZE_RFFT(raGoDown40MLower), 10},
 	{"raGoUpUpper",		RFFT_T,	_OFFSET_RFFT(raGoUpUpper), _SIZE_RFFT(raGoUpUpper), 55},
-#if defined(RTL8190) || defined(RTL8192E)
-	{"raGoUp20MLower",	RFFT_T,	_OFFSET_RFFT(raGoUp20MLower), _SIZE_RFFT(raGoUp20MLower), 35},
-#else // RTL8192SE, RTL8192SU
 	{"raGoUp20MLower",	RFFT_T,	_OFFSET_RFFT(raGoUp20MLower), _SIZE_RFFT(raGoUp20MLower), 23},
-#endif
 	{"raGoUp40MLower",	RFFT_T,	_OFFSET_RFFT(raGoUp40MLower), _SIZE_RFFT(raGoUp40MLower), 15},
 	{"digGoLowerLevel",	RFFT_T,	_OFFSET_RFFT(digGoLowerLevel), _SIZE_RFFT(digGoLowerLevel), 35},
 	{"digGoUpperLevel",	RFFT_T,	_OFFSET_RFFT(digGoUpperLevel), _SIZE_RFFT(digGoUpperLevel), 40},
-#if defined(RTL8190) || defined(RTL8192E)
-	{"dcThUpper",		RFFT_T,	_OFFSET_RFFT(dcThUpper), _SIZE_RFFT(dcThUpper), 25},
-	{"dcThLower",		RFFT_T,	_OFFSET_RFFT(dcThLower), _SIZE_RFFT(dcThLower), 20},
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 	{"dcThUpper",		RFFT_T,	_OFFSET_RFFT(dcThUpper), _SIZE_RFFT(dcThUpper), 30},
 	{"dcThLower",		RFFT_T,	_OFFSET_RFFT(dcThLower), _SIZE_RFFT(dcThLower), 25},
-#endif
 	{"rssiTx20MUpper",	RFFT_T,	_OFFSET_RFFT(rssiTx20MUpper), _SIZE_RFFT(rssiTx20MUpper), 20},
 	{"rssiTx20MLower",	RFFT_T,	_OFFSET_RFFT(rssiTx20MLower), _SIZE_RFFT(rssiTx20MLower), 15},
 	{"ss_th_low",		RFFT_T,	_OFFSET_RFFT(ss_th_low), _SIZE_RFFT(ss_th_low), 30},
@@ -705,13 +636,6 @@ static struct iwpriv_arg mib_table[] = {
 	{"rssi_expire_to",	RFFT_T,	_OFFSET_RFFT(rssi_expire_to), _SIZE_RFFT(rssi_expire_to), 60},
 
 	// bcm old 11n chipset iot debug
-#if defined(RTL8190) || defined(RTL8192E)
-	{"fsync_func_on",	RFFT_T,	_OFFSET_RFFT(fsync_func_on), _SIZE_RFFT(fsync_func_on), 1},
-	{"fsync_mcs_th",	RFFT_T,	_OFFSET_RFFT(fsync_mcs_th), _SIZE_RFFT(fsync_mcs_th), 5},
-	{"fsync_rssi_th",	RFFT_T,	_OFFSET_RFFT(fsync_rssi_th), _SIZE_RFFT(fsync_rssi_th), 30},
-	{"mcs_ignore_upper",RFFT_T,	_OFFSET_RFFT(mcs_ignore_upper), _SIZE_RFFT(mcs_ignore_upper), 11},
-	{"mcs_ignore_lower",RFFT_T,	_OFFSET_RFFT(mcs_ignore_lower), _SIZE_RFFT(mcs_ignore_lower), 8},
-#endif
 
 	{"igUpperBound",	RFFT_T,	_OFFSET_RFFT(mlcstRxIgUpperBound), _SIZE_RFFT(mlcstRxIgUpperBound), 0x42},
 	{"tx_pwr_ctrl",		RFFT_T,	_OFFSET_RFFT(tx_pwr_ctrl), _SIZE_RFFT(tx_pwr_ctrl), 1},
@@ -787,9 +711,6 @@ static struct iwpriv_arg mib_table[] = {
 	{"txPowerPlus_mcs_15",	RFFT_T,	_OFFSET_RFFT(txPowerPlus_mcs_15), _SIZE_RFFT(txPowerPlus_mcs_15), 0xff},
 #endif
 
-#if !defined(RTL8192SU)
-	{"rootFwBeacon",		RFFT_T,	_OFFSET_RFFT(rootFwBeacon), _SIZE_RFFT(rootFwBeacon), 1},
-#endif
 
 #ifdef RTL8192SU_EFUSE
 	{"use_efuse",		INT_T,	_OFFSET(efuseEntry.enable_efuse), _SIZE(efuseEntry.enable_efuse), 1},
@@ -801,14 +722,6 @@ static struct iwpriv_arg mib_table[] = {
 #endif
 };
 
-#if !defined(RTL8192SE) && !defined(RTL8192SU)
-static struct iwpriv_arg eeprom_table[] = {
-	{"RFChipID",	BYTE_T,			EEPROM_RF_CHIP_ID, 1},
-	{"Mac",			BYTE_ARRAY_T,	EEPROM_NODE_ADDRESS_BYTE_0, MACADDRLEN},
-	{"TxPowerCCK",	IDX_BYTE_ARRAY_T,	EEPROM_TX_POWER_LEVEL_0, MAX_CCK_CHANNEL_NUM},
-	{"TxPowerOFDM",	IDX_BYTE_ARRAY_T,	EEPROM_11G_CHANNEL_OFDM_TX_POWER_LEVEL_OFFSET, MAX_OFDM_CHANNEL_NUM},
-};
-#endif
 
 #ifdef _DEBUG_RTL8190_
 unsigned long rtl8190_debug_err=0xffffffff;
@@ -892,25 +805,6 @@ static struct iwpriv_arg *get_tbl_entry(char *pstr)
 }
 
 
-#if !defined(RTL8192SE) && !defined(RTL8192SU)
-static struct iwpriv_arg *get_eeprom_tbl_entry(char *pstr)
-{
-	int i=0;
-	int arg_num = sizeof(eeprom_table)/sizeof(struct iwpriv_arg);
-	char name[128];
-
-	while (*pstr && *pstr != '=')
-		name[i++] = *pstr++;
-	name[i] = '\0';
-
-	for (i=0; i<arg_num; i++) {
-		if (!strcmp(name, eeprom_table[i].name)) {
-			return &eeprom_table[i];
-		}
-	}
-	return NULL;
-}
-#endif
 
 
 int get_array_val(unsigned char *dst, char *src, int len)
@@ -1402,9 +1296,7 @@ static int write_reg(struct rtl8190_priv *priv, unsigned char *data)
 	char name[100];
 	int i=0, op=0, offset;
 	unsigned long ioaddr, val;
-#ifdef RTL8192SU
 	unsigned char get_reg=0;
-#endif
 
 	DEBUG_TRACE;
 
@@ -1452,14 +1344,12 @@ static int write_reg(struct rtl8190_priv *priv, unsigned char *data)
 			(op == 1 ? "byte" : (op == 2 ? "word" : "dword")),
 			offset, (int)val);
 
-#ifdef RTL8192SU
 	if (offset>=0x800 && offset <=0xefff)
 		get_reg=1;
 	else if(offset>=0x80000000)
 		get_reg=2;
 	
 	if (get_reg==0)
-#endif
 	switch (op&0x7f) {
 	case 1:
 		RTL_W8(offset, ((unsigned char)val));
@@ -1469,7 +1359,6 @@ static int write_reg(struct rtl8190_priv *priv, unsigned char *data)
 		break;
 	case 3:
 		RTL_W32(offset, ((unsigned long)val));
-#ifdef RTL8192SU
 		if (offset==WFM4)
 		{
 			delay_ms(1000);
@@ -1480,10 +1369,8 @@ static int write_reg(struct rtl8190_priv *priv, unsigned char *data)
 			delay_ms(1000);
 			printk("read dword reg 0x2c4=0x%08x\n", RTL_R32(RF_BB_CMD_DATA));
 		}
-#endif
 		break;
 	}
-#ifdef RTL8192SU
 	else if(get_reg==1)
 	{
 		switch (op&0x7f)
@@ -1514,7 +1401,6 @@ static int write_reg(struct rtl8190_priv *priv, unsigned char *data)
 				break;
 		}	
 	}
-#endif	
 	return 0;
 }
 
@@ -1532,9 +1418,7 @@ static int read_reg(struct rtl8190_priv *priv, unsigned char *data)
 	unsigned long ioaddr, dw_val;
 	unsigned char *org_ptr=data, b_val;
 	unsigned short w_val;
-#ifdef RTL8192SU
 	unsigned char bb_reg=0;
-#endif
 
 	DEBUG_TRACE;
 
@@ -1571,14 +1455,12 @@ static int read_reg(struct rtl8190_priv *priv, unsigned char *data)
 	// get offset
 	offset = _atoi((char *)data, 16);
 
-#ifdef RTL8192SU
 	if (offset>=0x800 && offset <=0xefff)
 		bb_reg=1;
 	//else if(offset>=0x80000000)
 		//get_bb=2;
 	
 	if (bb_reg==0)
-#endif
 	switch (op&0x7f) {
 	case 1:
 		b_val = (unsigned char)RTL_R8(offset);
@@ -1614,7 +1496,6 @@ static int read_reg(struct rtl8190_priv *priv, unsigned char *data)
 		memcpy(org_ptr, (char *)&dw_val, len);
 		break;
 	}
-#ifdef RTL8192SU
 	else if(bb_reg==1)
 	{
 		switch (op&0x7f)
@@ -1654,37 +1535,6 @@ static int read_reg(struct rtl8190_priv *priv, unsigned char *data)
 				break;
 		}
 	}
-#if 0
-	else if(get_bb==2)  //read / write regs/mem
-	{
-		switch (op&0x7f)
-		{
-			case 1:
-				b_val = REG8(offset);
-				printk("read byte reg %x=0x%02x\n", offset, b_val);
-				len = 1;
-				memcpy(org_ptr, &b_val, len);
-				break;
-			case 2:
-				w_val = REG16(offset);
-				printk("read word reg %x=0x%04x\n", offset, w_val);
-				len = 2;
-				memcpy(org_ptr, (char *)&w_val, len);
-				break;
-			case 3:
-				dw_val = REG32(offset);
-				printk("read dword reg %x=0x%08lx\n", offset, dw_val);
-				len = 4;
-				memcpy(org_ptr, (char *)&dw_val, len);
-				break;
-			case 4:
-				memDump(offset,128,"dump");
-				break;
-		}	
-		
-	}	
-#endif	
-#endif
 
 	return len;
 }
@@ -1764,10 +1614,6 @@ static int read_mem(struct rtl8190_priv *priv, unsigned char *data)
 	char tmpbuf[100];
 //#ifndef CONFIG_RTL8186_TR	 //brad add for tr 11n
 #if !(defined(CONFIG_RTL865X_AC) || defined(CONFIG_RTL865X_KLD) || defined(CONFIG_RTL8196B_KLD) || defined(CONFIG_RTL865X_SC))
-#ifndef __LINUX_2_6__
-//#ifdef _DEBUG_RTL8190_
-	char tmp1[2048];
-#endif
 #endif// !define CONFIG_RTL8186_TR
 	int i=0, size=0, len, copy_len;
 	unsigned long start, dw_val;
@@ -1811,40 +1657,6 @@ static int read_mem(struct rtl8190_priv *priv, unsigned char *data)
 	start = (unsigned long)_atoi(tmpbuf, 16);
 	len = _atoi((char *)data, 16);
 #if !(defined(CONFIG_RTL865X_AC) || defined(CONFIG_RTL865X_KLD) || defined(CONFIG_RTL8196B_KLD) || defined(CONFIG_RTL865X_SC))
-#ifndef __LINUX_2_6__
-//#ifdef _DEBUG_RTL8190_
-	sprintf(tmp1, "read memory: from=%lx, len=0x%x (%s)\n",
-		start, len, (size == 1 ? "byte" : (size == 2 ? "word" : "dword")));
-
-	for (i=0; i<len; i++) {
-		char tmp2[10];
-		memcpy(pVal, (char *)start+i*size, size);
-		if (size == 1) {
-			sprintf(tmp2, "%02x ", b_val);
-			if ((i>0) && ((i%16)==0))
-				strcat(tmp1, "\n");
-		}
-		else if (size == 2) {
-			sprintf(tmp2, "%04x ", w_val);
-			if ((i>0) && ((i%8)==0))
-				strcat(tmp1, "\n");
-		}
-		else if (size == 4) {
-			sprintf(tmp2, "%08lx ", dw_val);
-			if ((i>0) && ((i%8)==0))
-				strcat(tmp1, "\n");
-		}
-		strcat(tmp1, tmp2);
-	}
-	strcat(tmp1, "\n");
-
-#ifdef CONFIG_PRINTK_DISABLED
-	panic_printk
-#else
-	printk
-#endif
-		("%s", tmp1);
-#endif // _DEBUG_RTL8190_
 #endif // !define CONFIG_RTL8186_TR
 	if (size*len > 128)
 		copy_len = 128;
@@ -1902,11 +1714,7 @@ static int write_rf_reg(struct rtl8190_priv *priv, unsigned char *data)
 		PHY_SetRFReg(priv, path, offset, bMask12Bits, val);
 		val_read = PHY_QueryRFReg(priv, path, offset, bMask12Bits, 1);
 		printk("write RF %d offset 0x%02x val [0x%04x],  read back [0x%04x]\n",
-#if !defined(RTL8192SU)
-			path, offset, (unsigned short)val, (unsigned short)val_read);
-#else
 			path, offset, (unsigned int)val, (unsigned int)val_read);
-#endif			
 	}
 
 	return 0;
@@ -1918,9 +1726,6 @@ static int read_rf_reg(struct rtl8190_priv *priv, unsigned char *data)
 	char tmpbuf[32];
 	unsigned char *arg = data;
 	unsigned int path, offset, val;
-#if defined(RTL8190) || defined(RTL8192E)
-	unsigned short val16;
-#endif
 	int i;
 
 	DEBUG_TRACE;
@@ -1937,24 +1742,10 @@ static int read_rf_reg(struct rtl8190_priv *priv, unsigned char *data)
 		path = _atoi(tmpbuf, 16);
 
 		offset = (unsigned char)_atoi((char *)arg, 16);
-#ifdef RTL8192SU		
 		if (path==0)printk("radio_a, ");
 		else printk("radio_b, ");
 		printk("offset=%x\n", offset);
-#endif		
 
-#if defined(RTL8190) || defined(RTL8192E)
-		val = PHY_QueryRFReg(priv, path, offset, bMask12Bits, 1);
-#ifdef CONFIG_PRINTK_DISABLED
-		panic_printk
-#else
-		printk
-#endif
-			("read RF %d reg %02x=0x%04x\n", path, offset, val);
-		val16 = (unsigned short)val;
-		memcpy(data, (char *)&val16, 2);
-		return 2;
-#elif defined(RTL8192SE)|| defined(RTL8192SU)
 		val = PHY_QueryRFReg(priv, path, offset, bMask20Bits, 1);
 #ifdef CONFIG_PRINTK_DISABLED
 		panic_printk
@@ -1964,7 +1755,6 @@ static int read_rf_reg(struct rtl8190_priv *priv, unsigned char *data)
 			("read RF %d reg %02x=0x%08x\n", path, offset, val);
 		memcpy(data, (char *)&val, 4);
 		return 4;
-#endif
 	}
 	return 1;
 }
@@ -2031,9 +1821,6 @@ int set_guestmacinvalid(struct rtl8190_priv *priv, char *buf)
 static void reg_dump(struct rtl8190_priv *priv)
 {
 	int i, j, len;
-#if !defined(RTL8192SU)	
-	unsigned long ioaddr = priv->pshare->ioaddr;
-#endif	
 	unsigned char tmpbuf[100];
 
 #ifdef CONFIG_RTL865X_WTDOG
@@ -2067,7 +1854,6 @@ static void reg_dump(struct rtl8190_priv *priv)
 #endif
 	("\n");
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
 #ifdef CONFIG_PRINTK_DISABLED
 	panic_printk
 #else
@@ -2099,7 +1885,6 @@ static void reg_dump(struct rtl8190_priv *priv)
 #endif
 		("\n");
 	}
-#endif
 
 /*
 	printk("CCK Registers:\n");
@@ -2325,125 +2110,13 @@ int del_sta_enc(struct rtl8190_priv *priv, unsigned char *data,int iStatusCode)
 
 static int write_eeprom(struct rtl8190_priv *priv, unsigned char *data)
 {
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	return -1;
-#else
-	struct iwpriv_arg *entry;
-	int int_idx, retval;
-	unsigned char byte_val;
-	char *arg_val, tmpbuf[100];
-
-	DEBUG_TRACE;
-
-	DEBUG_INFO("write_eeprom %s\n", data);
-
-	entry = get_eeprom_tbl_entry((char *)data);
-	if (entry == NULL) {
-		DEBUG_ERR("invalid entry name [%s] !\n", data);
-		return -1;
-	}
-
-	// search value
-	arg_val = (char *)data;
-	while (*arg_val && *arg_val != '=')
-		arg_val++;
-
-	if (!*arg_val) {
-		DEBUG_ERR("entry value empty [%s] !\n", data);
-		return -1;
-	}
-	arg_val++;
-
-	switch (entry->type) {
-	case IDX_BYTE_ARRAY_T:
-		arg_val = get_arg(arg_val, tmpbuf);
-		if (arg_val == NULL) {
-			DEBUG_ERR("invalid BYTE_ARRAY entry [%s] !\n", entry->name);
-			return -1;
-		}
-		int_idx = _atoi(tmpbuf, 10);
-		if (int_idx+1 > entry->len) {
-			DEBUG_ERR("invalid BYTE_ARRAY entry index [%s, %d] !\n", entry->name, int_idx);
-			return -1;
-		}
-		arg_val = get_arg(arg_val, tmpbuf);
-		if (arg_val == NULL) {
-			DEBUG_ERR("invalid BYTE_ARRAY entry [%s] !\n", entry->name);
-			return -1;
-		}
-		byte_val = (unsigned char)_atoi(tmpbuf, 10);
-		ReadAdapterInfo(priv, entry->offset, NULL);
-		if (entry->offset == EEPROM_TX_POWER_LEVEL_0)
-			priv->EE_TxPower_CCK[int_idx] = byte_val;
-		else if (entry->offset == EEPROM_11G_CHANNEL_OFDM_TX_POWER_LEVEL_OFFSET)
-			priv->EE_TxPower_OFDM[int_idx] = byte_val;
-		retval = WriteAdapterInfo(priv, entry->offset, (void *)int_idx);
-		if (retval == 0)
-			DEBUG_ERR("write eeprom fail\n");
-		break;
-
-	default:
-		DEBUG_ERR("invalid entry name [%s] !\n", data);
-		break;
-	}
-
-	return 0;
-#endif
 }
 
 
 static int read_eeprom(struct rtl8190_priv *priv, unsigned char *data)
 {
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	return -1;
-#else
-	struct iwpriv_arg *entry;
-	int i, copy_len, retval;
-
-	DEBUG_TRACE;
-
-	DEBUG_INFO("read_eeprom %s\n", data);
-
-	entry = get_eeprom_tbl_entry((char *)data);
-	if (entry == NULL) {
-		DEBUG_ERR("invalid entry name [%s] !\n", data);
-		return -1;
-	}
-	copy_len = entry->len;
-
-	switch (entry->type) {
-	case BYTE_T:
-		retval = ReadAdapterInfo(priv, entry->offset, data);
-		if (retval == 0) {
-			copy_len = 0;
-			PRINT_INFO("read eeprom fail\n");
-		}
-		else
-			PRINT_INFO("byte data: %d\n", *data);
-		break;
-
-	case BYTE_ARRAY_T:
-	case IDX_BYTE_ARRAY_T:
-		retval = ReadAdapterInfo(priv, entry->offset, data);
-		if (retval == 0) {
-			copy_len = 0;
-			PRINT_INFO("read eeprom fail\n");
-		}
-		else {
-			PRINT_INFO("data (hex): ");
-			for (i=0; i<entry->len; i++)
-				PRINT_INFO("%02x", data[i]);
-			PRINT_INFO("\n");
-		}
-		break;
-
-	default:
-		DEBUG_ERR("invalid entry type!\n");
-		return 0;
-	}
-
-	return copy_len;
-#endif
 }
 
 
@@ -3777,10 +3450,8 @@ int rtl8190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	unsigned char *tmpbuf, *tmp1;
 	UINT16 sta_num;
 	int	i = 0, ret = -1, sizeof_tmpbuf;
-#ifdef CONFIG_RTL8671
 	// MBSSID Port Mapping
 	int ifgrp_member_tmp;
-#endif
 	static unsigned char tmpbuf1[1024];
 #ifdef RTK_WOW
 	unsigned int wakeup_on_wlan = 0;
@@ -3864,16 +3535,11 @@ int rtl8190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 #ifdef B2B_TEST
 				{ MP_TX_PACKET, IW_PRIV_TYPE_CHAR | 128, IW_PRIV_TYPE_CHAR | 128, "mp_tx" },
 				{ MP_BRX_PACKET, IW_PRIV_TYPE_CHAR | 40, IW_PRIV_TYPE_CHAR | 128, "mp_brx" },
-#if 0
-				{ MP_RX_PACKET, IW_PRIV_TYPE_CHAR | 40, 0, "mp_rx" },
-#endif
 #endif
 				{ MP_QUERY_STATS, IW_PRIV_TYPE_CHAR | 40, IW_PRIV_TYPE_CHAR | 128, "mp_query" },
 				{ MP_TXPWR_TRACK, IW_PRIV_TYPE_CHAR | 40, 0, "mp_pwrtrk" },
 				{ MP_QUERY_TSSI, IW_PRIV_TYPE_CHAR | 40, IW_PRIV_TYPE_CHAR | 128, "mp_tssi" },
-#if defined(RTL8192SE) || defined(RTL8192SU)
 				{ MP_QUERY_THER, IW_PRIV_TYPE_CHAR | 40, IW_PRIV_TYPE_CHAR | 128, "mp_ther" },
-#endif
 #endif // MP_TEST
 #if (defined(CONFIG_RTL865X) && defined(CONFIG_RTL865X_CLE) && defined(MP_TEST)) || defined(MP_TEST_CFG)
 				{ MP_FLASH_CFG, IW_PRIV_TYPE_CHAR | 128, 0, "mp_cfg" },
@@ -3904,20 +3570,12 @@ int rtl8190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 #endif//tsananiu//
 #endif
 			};
-#ifdef __LINUX_2_6__
 			ret = access_ok(VERIFY_WRITE, (const void *)wrq->u.data.pointer, sizeof(privtab));
 			if (!ret) {
 				ret = -EFAULT;
 				DEBUG_ERR("user space valid check error!\n");
 				break;
 			}
-#else
-			ret = verify_area(VERIFY_WRITE, (const void *)wrq->u.data.pointer, sizeof(privtab));
-			if (ret) {
-				DEBUG_ERR("verify_area() error!\n");
-				break;
-			}
-#endif
 
 			wrq->u.data.length = sizeof(privtab) / sizeof(privtab[0]);
 			if (copy_to_user((void *)wrq->u.data.pointer, privtab, sizeof(privtab)))
@@ -4394,9 +4052,7 @@ int rtl8190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 #endif
 #ifdef MBSSID
 		if (
-#if defined(RTL8192SE) || defined(RTL8192SU)
 			GET_ROOT(priv)->pmib->miscEntry.vap_enable && 
-#endif
 			IS_VAP_INTERFACE(priv)) {
 			DEBUG_ERR("can't do site-survey for vap!\n");
 			break;
@@ -4414,9 +4070,7 @@ int rtl8190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 #endif
 #ifdef MBSSID
 		if (
-#if defined(RTL8192SE) || defined(RTL8192SU)
 			GET_ROOT(priv)->pmib->miscEntry.vap_enable && 
-#endif
 			IS_VAP_INTERFACE(priv)) {
 			DEBUG_ERR("can't get site-survey status for vap!\n");
 			break;
@@ -4571,20 +4225,6 @@ int rtl8190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		ret = 0;
 		break;
 
-#if 0
-	case MP_RX_PACKET:
-		if(copy_from_user(tmpbuf, (void *)wrq->u.data.pointer, wrq->u.data.length))
-			break;
-#ifndef __LINUX_2_6__
-		RESTORE_INT(flags);
-#endif
-		mp_rx(priv, tmpbuf);
-#ifndef __LINUX_2_6__
-		SAVE_INT_AND_CLI(flags);
-#endif
-		ret = 0;
-		break;
-#endif
 
 	case MP_BRX_PACKET:
 		if(copy_from_user(tmpbuf, (void *)wrq->u.data.pointer, wrq->u.data.length))
@@ -4636,7 +4276,6 @@ int rtl8190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		}
 		break;
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	case MP_QUERY_THER:
 		if(copy_from_user(tmpbuf, (void *)wrq->u.data.pointer, wrq->u.data.length))
 			break;
@@ -4650,7 +4289,6 @@ int rtl8190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			ret = 0;
 		}
 		break;
-#endif
 #endif	// MP_TEST
 
 #ifdef DEBUG_8190
@@ -4686,27 +4324,11 @@ int rtl8190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 #endif
 
-#ifdef CONFIG_RTL8671
 	// MBSSID Port Mapping
 	case SIOSIWRTLITFGROUP:
 	{
-#if 1
 		printk("TBS:not support.\n");
-#else
-		if (copy_from_user((char *)&ifgrp_member_tmp, wrq->u.data.pointer, 4))
-			break;
-
-		for (i=0; i<5; i++) {
-			if ( wrq->u.data.flags == i ) {
-				wlanDev[i].dev_ifgrp_member = bitmap_virt2phy(ifgrp_member_tmp);
-				g_port_mapping = TRUE;
-				break;
-			}
-		}
-		break;
-#endif
 	}
-#endif
 
 #ifdef SUPPORT_SNMP_MIB
 	case SIOCGSNMPMIB:
@@ -4736,9 +4358,7 @@ int rtl8190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 #endif
 			{
 #ifdef MBSSID
-#if defined(RTL8192SE) || defined(RTL8192SU)
 				if (priv->pmib->miscEntry.vap_enable)
-#endif
 				{
 					for (i=0; i<RTL8190_NUM_VWLAN; i++) {
 						if (IS_DRV_OPEN(priv->pvap_priv[i])) {
@@ -4860,17 +4480,9 @@ int rtl8190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		pEntry = pathsel_query_table( priv, invalid_node_addr );
 		if(pEntry != (struct path_sel_entry *)-1 && pEntry->flag==0)  
 		{	
-#ifdef __LINUX_2_6__
 /*by qjj_qin and hf_shi*/
-#else
-			SAVE_INT_AND_CLI(flags);
-#endif
 			ret = remove_path_entry(priv,invalid_node_addr);
-#ifdef __LINUX_2_6__
 /*by qjj_qin and hf_shi*/
-#else
-			RESTORE_INT(flags);
-#endif
 		}
 		break;
 	}
@@ -4989,10 +4601,6 @@ ret_nothing:
 			break;
 		}
 		ret = 0;
-#if 0
-		LOG_MESH_MSG("Root MAC = %02X:%02X:%02X:%02X:%02X:%02X\n",
-			priv->root_mac[0],priv->root_mac[1],priv->root_mac[2],priv->root_mac[3],priv->root_mac[4],priv->root_mac[5]);
-#endif
   		break;
 	}
 
@@ -5107,17 +4715,11 @@ case SIOC_SET_ROUTING_INFO:
 	return ret;
 }
 
-#ifdef CONFIG_ENABLE_MIPS16
-__attribute__((nomips16))
-#endif
 void delay_us(unsigned int t)
 {
 	__udelay(t, __udelay_val);
 }
 
-#ifdef CONFIG_ENABLE_MIPS16
-__attribute__((nomips16))
-#endif
 void delay_ms(unsigned int t)
 {
 	mdelay(t);

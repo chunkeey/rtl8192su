@@ -40,10 +40,8 @@ static __inline__ void rtl8192SE_txdesc_rollback(unsigned int *ptxhead)
 static __inline__ void rtl8192SE_tx_poll(struct rtl8190_priv *priv, int q_num)
 {
 	unsigned long ioaddr = priv->pshare->ioaddr;
-#ifdef CONFIG_RTL8671
 #ifdef CONFIG_CPU_RLX4181
 	r3k_flush_dcache_range(0,0);
-#endif
 #endif
 
 	switch (q_num) {

@@ -6,20 +6,15 @@
 
 #define _8190N_BR_EXT_C_
 
-#ifdef __KERNEL__
 #include <linux/if_arp.h>
 #include <net/ip.h>
 #include <net/ipx.h>
 #include <linux/atalk.h>
 #include <linux/udp.h>
 #include <linux/if_pppox.h>
-#endif
 
 #include "./8190n_cfg.h"
 
-#ifndef __KERNEL__
-#include "./sys-support.h"
-#endif
 
 #include "./8190n.h"
 #include "./8190n_headers.h"

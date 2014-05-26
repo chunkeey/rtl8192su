@@ -29,18 +29,8 @@
 
 #define EFUSE_MAX_SECTION	16
 
-#define	CAM_NONE				0x0
-#define	CAM_WEP40				0x01
-#define	CAM_TKIP				0x02
-#define	CAM_AES					0x04
-#define	CAM_WEP104				0x05
-
-#define	TOTAL_CAM_ENTRY				32
-#define	HALF_CAM_ENTRY				16
-
-
-int rtl92su_init_sw(struct ieee80211_hw *hw);
-void rtl92su_deinit_sw(struct ieee80211_hw *hw);
-void rtl92su_init_var_map(struct ieee80211_hw *hw);
+int rtl92se_init_sw(struct ieee80211_hw *hw);
+void rtl92se_deinit_sw(struct ieee80211_hw *hw);
+void rtl92se_init_var_map(struct ieee80211_hw *hw);
 
 #endif

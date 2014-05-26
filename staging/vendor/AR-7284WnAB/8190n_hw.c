@@ -6,7 +6,6 @@
 
 #define _8190N_HW_C_
 
-#ifdef __KERNEL__
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -15,24 +14,15 @@
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <asm/unistd.h>
-#endif
 
 #include "./8190n_cfg.h"
 #include "./8190n.h"
 #include "./8190n_hw.h"
 #include "./8190n_headers.h"
 #include "./8190n_debug.h"
-#ifdef RTL8192SU
 #include "./8190n_usb.h"
-#endif
 
-#ifdef __KERNEL__
-#ifdef __LINUX_2_6__
 #include <linux/syscalls.h>
-#else
-#include <linux/fs.h>
-#endif
-#endif
 
 #define MAX_CONFIG_FILE_SIZE (20*1024) // for 8192, added to 20k
 
@@ -163,43 +153,6 @@ int PHYCheckIsLegalRfPath8190Pci(struct rtl8190_priv *priv, unsigned int eRFPath
 {
 	unsigned int rtValue = TRUE;
 
-#ifdef RTL8190
-	if (get_rf_mimo_mode(priv) == MIMO_2T4R)
-	{
-		rtValue = TRUE;
-	}
-	else if (get_rf_mimo_mode(priv) == MIMO_1T2R)
-	{
-		if ((eRFPath == RF90_PATH_A) || (eRFPath == RF90_PATH_B))
-			rtValue = FALSE;
-		else
-			rtValue = TRUE;
-	}
-	else if (get_rf_mimo_mode(priv) == MIMO_2T2R)
-	{
-		if ((eRFPath == RF90_PATH_B) || (eRFPath == RF90_PATH_D))
-			rtValue = FALSE;
-		else
-			rtValue = TRUE;
-	}
-	else // MIMO_1T1R
-	{
-		if (eRFPath == RF90_PATH_C)
-			rtValue = TRUE;
-		else
-			rtValue = FALSE;
-	}
-#elif defined(RTL8192E)
-	if (get_rf_mimo_mode(priv) == MIMO_1T2R) {
-		if ((eRFPath == RF90_PATH_A) || (eRFPath == RF90_PATH_B))
-			rtValue = TRUE;
-		else
-			rtValue = FALSE;
-	}
-	else {
-		rtValue = FALSE;
-	}
-#endif
 
 	return rtValue;
 }
@@ -245,16 +198,9 @@ unsigned int phy_CalculateBitShift(unsigned int BitMask)
 */
 unsigned int PHY_QueryBBReg(struct rtl8190_priv *priv, unsigned int RegAddr, unsigned int BitMask)
 {
-#if !defined(RTL8192SU)
-	unsigned long ioaddr = priv->pshare->ioaddr;
-#else //RTL8192SU
 	unsigned int  offset = (RegAddr&0x3);
-#endif	
   	unsigned int ReturnValue = 0, OriginalValue, BitShift;
 
-#if !defined(RTL8192SU)
-	OriginalValue = RTL_R32(RegAddr);
-#else
   	unsigned char BBWaitCounter = 0, PollingCnt = 50;
 
   	while(priv->pshare->bChangeBBInProgress)
@@ -272,9 +218,7 @@ unsigned int PHY_QueryBBReg(struct rtl8190_priv *priv, unsigned int RegAddr, uns
 
 	priv->pshare->bChangeBBInProgress = TRUE;
 	OriginalValue = RTL_R32BaseBand(priv, (RegAddr&0xffc));
-#endif	
 	BitShift = phy_CalculateBitShift(BitMask);
-#ifdef RTL8192SU
 	do
 	{// Make sure that access could be done.
 		if((RTL_R8(PHY_REG)&BIT(0)) == 0)
@@ -334,7 +278,6 @@ unsigned int PHY_QueryBBReg(struct rtl8190_priv *priv, unsigned int RegAddr, uns
 		}
 	}
 	else
-#endif
 	ReturnValue = (OriginalValue & BitMask) >> BitShift;
 
 	return (ReturnValue);
@@ -360,12 +303,8 @@ unsigned int PHY_QueryBBReg(struct rtl8190_priv *priv, unsigned int RegAddr, uns
 */
 void PHY_SetBBReg(struct rtl8190_priv *priv, unsigned int RegAddr, unsigned int BitMask, unsigned int Data)
 {
-#if !defined(RTL8192SU)
-	unsigned long ioaddr = priv->pshare->ioaddr;
-#endif	
 	unsigned int OriginalValue, BitShift, NewValue;
 
-#ifdef RTL8192SU
 	unsigned char BBWaitCounter = 0;
 
 	while(priv->pshare->bChangeBBInProgress)
@@ -380,35 +319,23 @@ void PHY_SetBBReg(struct rtl8190_priv *priv, unsigned int RegAddr, unsigned int 
 		}
 	}
 
-#endif	
 
 	if (BitMask != bMaskDWord)
 	{//if not "double word" write
-#if !defined(RTL8192SU)
-		OriginalValue = RTL_R32(RegAddr);
-#else
 		OriginalValue = PHY_QueryBBReg(priv, RegAddr, bMaskDWord);
 		priv->pshare->bChangeBBInProgress = TRUE;
-#endif
 		BitShift = phy_CalculateBitShift(BitMask);
 		NewValue = ((OriginalValue & (~BitMask)) | (Data << BitShift));
 		RTL_W32(RegAddr, NewValue);
 	}
 	else
 	{
-#ifdef RTL8192SU	
 		priv->pshare->bChangeBBInProgress = TRUE;
-#endif		
 		RTL_W32(RegAddr, Data);
 	}
 
-#if defined(RTL8192E) && defined(CONFIG_X86)
-	delay_us(100);
-#endif
 
-#ifdef RTL8192SU	
 	priv->pshare->bChangeBBInProgress = FALSE;
-#endif	
 	return;
 }
 
@@ -451,97 +378,11 @@ void PHY_SetBBReg(struct rtl8190_priv *priv, unsigned int RegAddr, unsigned int 
 */
 void phy_RFSerialWrite(struct rtl8190_priv *priv, RF90_RADIO_PATH_E eRFPath, unsigned int Offset, unsigned int Data)
 {
-#if !defined(RTL8192SU)
-	struct rtl8190_hw			*phw = GET_HW(priv);
-	unsigned int				DataAndAddr = 0;
-	BB_REGISTER_DEFINITION_T	*pPhyReg = &phw->PHYRegDef[eRFPath];
-#else
 	unsigned char PollingCnt = 100;
 	unsigned char RFWaitCounter = 0;
-#endif	
 	
-#if	defined(RTL8190) || defined(RTL8192E)
-	unsigned long ioaddr = priv->pshare->ioaddr;
-	unsigned int				BBReg88C_OriginalValue = 0;
-#endif
 
-#if !defined(RTL8192SU)
-	// Joseph test
-	unsigned int				NewOffset;
-#endif	
 
-#if	defined(RTL8190) || defined(RTL8192E)
-	Offset &= 0x3f;
-
-	//
-	// Switch page for 8256 RF IC
-	//
-	if (priv->pmib->dot11RFEntry.dot11RFType == _11BGN_RF_8256_) {
-		BBReg88C_OriginalValue = RTL_R32(rFPGA0_AnalogParameter4);
-		RTL_W32(rFPGA0_AnalogParameter4, (BBReg88C_OriginalValue & 0xfffff0ff));
-
- 		if (Offset >= 31) {
-			phw->RfReg0Value[eRFPath] |= 0x140;
-			PHY_SetBBReg(priv, pPhyReg->rf3wireOffset, bMaskDWord, phw->RfReg0Value[eRFPath]<<16);
-
-			NewOffset = Offset - 30;
-		}
-		else if (Offset >= 16) {
-			phw->RfReg0Value[eRFPath] |= 0x100;
-			phw->RfReg0Value[eRFPath] &= (~0x40);
-			PHY_SetBBReg(priv, pPhyReg->rf3wireOffset, bMaskDWord, phw->RfReg0Value[eRFPath]<<16);
-
-			NewOffset = Offset - 15;
-		}
-		else
-			NewOffset = Offset;
-	}
-	else
-		NewOffset = Offset;
-
-	//
-	// Put write addr in [5:0]  and write data in [31:16]
-	//
-	DataAndAddr = (Data<<16) | (NewOffset&0x3f);
-
-	//
-	// Write Operation
-	//
-	PHY_SetBBReg(priv, pPhyReg->rf3wireOffset, bMaskDWord, DataAndAddr);
-
-	if (Offset == 0)
-		phw->RfReg0Value[eRFPath] = Data;
-
-	// Switch back to Reg_Mode0;
-	if ((priv->pmib->dot11RFEntry.dot11RFType == _11BGN_RF_8256_) && (Offset>=16)) {
-			phw->RfReg0Value[eRFPath] &= 0xebf;
-			PHY_SetBBReg(priv, pPhyReg->rf3wireOffset, bMaskDWord, phw->RfReg0Value[eRFPath]<<16);
-	}
-
-	if (priv->pmib->dot11RFEntry.dot11RFType == _11BGN_RF_8256_)
-		RTL_W32(rFPGA0_AnalogParameter4, BBReg88C_OriginalValue);
-
-#elif	defined(RTL8192SE)
-
-	Offset &= 0x3f;
-
-	//
-	// Switch page for 8256 RF IC
-	//
-		NewOffset = Offset;
-
-	//
-	// Put write addr in [5:0]  and write data in [31:16]
-	//
-	//DataAndAddr = (Data<<16) | (NewOffset&0x3f);
-	DataAndAddr = ((NewOffset<<20) | (Data&0x000fffff)) & 0x0fffffff;	// T65 RF
-
-	//
-	// Write Operation
-	//
-	PHY_SetBBReg(priv, pPhyReg->rf3wireOffset, bMaskDWord, DataAndAddr);
-
-#elif defined(RTL8192SU)
 	Offset &= 0x3f;
 
 	while(priv->pshare->bChangeRFInProgress)
@@ -576,7 +417,6 @@ void phy_RFSerialWrite(struct rtl8190_priv *priv, RF90_RADIO_PATH_E eRFPath, uns
 
 	priv->pshare->bChangeRFInProgress = FALSE;
 
-#endif
 }
 
 
@@ -600,135 +440,9 @@ void phy_RFSerialWrite(struct rtl8190_priv *priv, RF90_RADIO_PATH_E eRFPath, uns
 */
 unsigned int phy_RFSerialRead(struct rtl8190_priv *priv, RF90_RADIO_PATH_E eRFPath, unsigned int Offset, unsigned int dbg_avoid)
 {
-#if !defined(RTL8192SU)
-	struct rtl8190_hw			*phw = GET_HW(priv);
-#endif	
-#if	defined(RTL8192SE)
-	unsigned int 				tmplong, tmplong2;
-#endif
 	unsigned int				retValue = 0;
-#if !defined(RTL8192SU)
-	BB_REGISTER_DEFINITION_T	*pPhyReg = &phw->PHYRegDef[eRFPath];
-	unsigned long ioaddr = priv->pshare->ioaddr;
-
-	// Joseph test
-	unsigned int				NewOffset;
-#else //RTL8192SU
 	unsigned char PollingCnt = 100;
 	unsigned char RFWaitCounter = 0;
-#endif
-#if	defined(RTL8190) || defined(RTL8192E)
-	unsigned int				BBReg88C_OriginalValue = 0;
-
-	//
-	// Make sure RF register offset is correct
-	//
-	Offset &= 0x3f;
-
-	//
-	// Switch page for 8256 RF IC
-	//
-	if (priv->pmib->dot11RFEntry.dot11RFType == _11BGN_RF_8256_) {
-		BBReg88C_OriginalValue = RTL_R32(rFPGA0_AnalogParameter4);
-		RTL_W32(rFPGA0_AnalogParameter4, (BBReg88C_OriginalValue & 0xfffff0ff));
-
-		if (Offset >= 31) {
-			phw->RfReg0Value[eRFPath] |= 0x140;
-
-			// Switch to Reg_Mode2 for Reg31~45
-			PHY_SetBBReg(priv, pPhyReg->rf3wireOffset, bMaskDWord, phw->RfReg0Value[eRFPath]<<16);
-
-			// Modified Offset
-			NewOffset = Offset - 30;
-		}
-		else if (Offset >= 16) {
-			phw->RfReg0Value[eRFPath] |= 0x100;
-			phw->RfReg0Value[eRFPath] &= (~0x40);
-
-			// Switch to Reg_Mode1 for Reg16~30
-			PHY_SetBBReg(priv, pPhyReg->rf3wireOffset, bMaskDWord, phw->RfReg0Value[eRFPath]<<16);
-
-			// Modified Offset
-			NewOffset = Offset - 15;
-		}
-		else
-			NewOffset = Offset;
-	}
-	else
-		NewOffset = Offset;
-
-	//
-	// Put desired read address to LSSI control register
-	//
-	PHY_SetBBReg(priv, pPhyReg->rfHSSIPara2, bLSSIReadAddress, NewOffset);
-
-	// TODO: we should not delay such a  long time. Ask help from SD3
-	delay_ms(1);
-
-	//
-	// Issue a posedge trigger
-	//
-	PHY_SetBBReg(priv, pPhyReg->rfHSSIPara2,  bLSSIReadEdge, 0x0);
-	PHY_SetBBReg(priv, pPhyReg->rfHSSIPara2,  bLSSIReadEdge, 0x1);
-
-
-	// TODO: we should not delay such a  long time. Ask help from SD3
-	delay_ms(10);
-
-	retValue = PHY_QueryBBReg(priv, pPhyReg->rfLSSIReadBack, bLSSIReadBackData);
-
-	if ((priv->pmib->dot11RFEntry.dot11RFType == _11BGN_RF_8256_) && (Offset==0)) {
-		// for 8256, in case rf switchs to debug mode
-		// have to be refined when register 0 format has been changed
-		if (dbg_avoid)
-			retValue |= (BIT(11) | BIT(10) | BIT(7) | BIT(4) |BIT(3));
-		phw->RfReg0Value[eRFPath] = retValue;
-		PHY_SetBBReg(priv, pPhyReg->rf3wireOffset, bMaskDWord, phw->RfReg0Value[eRFPath]<<16);
-	}
-
-	// Switch back to Reg_Mode0;
-	if ((priv->pmib->dot11RFEntry.dot11RFType == _11BGN_RF_8256_) && (Offset>=16)) {
-		phw->RfReg0Value[eRFPath] &= 0xebf;
-		PHY_SetBBReg(priv, pPhyReg->rf3wireOffset, bMaskDWord, phw->RfReg0Value[eRFPath]<<16);
-	}
-
-	if (priv->pmib->dot11RFEntry.dot11RFType == _11BGN_RF_8256_)
-		RTL_W32(rFPGA0_AnalogParameter4, BBReg88C_OriginalValue);
-
-#elif defined(RTL8192SE)
-
-	//
-	// Make sure RF register offset is correct
-	//
-	Offset &= 0x3f;
-
-	//
-	// Switch page for 8256 RF IC
-	//
-	NewOffset = Offset;
-
-
-	// For 92S LSSI Read RFLSSIRead
-	// For RF A/B write 0x824/82c(does not work in the future)
-	// We must use 0x824 for RF A and B to execute read trigger
-	tmplong = RTL_R32(rFPGA0_XA_HSSIParameter2);
-	tmplong2 = RTL_R32(pPhyReg->rfHSSIPara2);
-	tmplong2 = (tmplong2 & (~bLSSIReadAddress)) | ((NewOffset<<23) | bLSSIReadEdge);	//T65 RF
-
-	RTL_W32(rFPGA0_XA_HSSIParameter2,tmplong&(~bLSSIReadEdge));
-	delay_ms(1);
-	RTL_W32(pPhyReg->rfHSSIPara2,tmplong2);
-	delay_ms(1);
-	RTL_W32(rFPGA0_XA_HSSIParameter2,tmplong|bLSSIReadEdge);
-	delay_ms(1);
-
-	//Read from BBreg8a0, 12 bits for 8190, 20 bits for T65 RF
-	if ((RTL_R32(0x820)&BIT(8)) && (RTL_R32(0x828)&BIT(8)))
-		retValue = PHY_QueryBBReg(priv, pPhyReg->rfLSSIReadBack_92S_PI, bLSSIReadBackData);
-	else
-		retValue = PHY_QueryBBReg(priv, pPhyReg->rfLSSIReadBack, bLSSIReadBackData);
-
-#elif defined(RTL8192SU)
 	//
 	// Make sure RF register offset is correct
 	//
@@ -763,7 +477,6 @@ unsigned int phy_RFSerialRead(struct rtl8190_priv *priv, RF90_RADIO_PATH_E eRFPa
 	priv->pshare->bChangeRFInProgress = FALSE;
 	
 	//printk("phy_QueryUsbRFReg(): eRFPath(%d), Offset(%#x) = %#x\n", eRFPath, Offset, retValue);
-#endif
 
 	return retValue;
 }
@@ -830,7 +543,7 @@ void PHY_SetRFReg(struct rtl8190_priv *priv, RF90_RADIO_PATH_E eRFPath, unsigned
 
 #if	defined(RTL8190) || defined(RTL8192)
    	if (BitMask != bMask12Bits) // RF data is 12 bits only
-#elif	defined(RTL8192SE) || defined(RTL8192SU)
+#else
    	if (BitMask != bMask20Bits) // RF data is 12 bits only
 #endif
    	{
@@ -924,7 +637,6 @@ static int get_offset_val(unsigned char *line_head, unsigned int *u4bRegOffset, 
 	return num;
 }
 
-#ifdef RTL8192SU
 static int get_offset_val_macreg(unsigned char *line_head, unsigned int *u4bRegOffset, unsigned int *u4bRegValue)
 {
 	unsigned char *next;
@@ -958,7 +670,6 @@ static int get_offset_val_macreg(unsigned char *line_head, unsigned int *u4bRegO
 
 	return num;
 }
-#endif
 
 static int get_offset_mask_val(unsigned char *line_head, unsigned int *u4bRegOffset, unsigned int *u4bMask, unsigned int *u4bRegValue)
 {
@@ -1060,110 +771,24 @@ unsigned char *get_line(unsigned char **line)
 int PHY_ConfigBBWithParaFile(struct rtl8190_priv *priv, int reg_file)
 {
 	int           read_bytes, num, len=0;
-#ifndef MERGE_FW
 	int           fd=0;
 	mm_segment_t  old_fs;
 	unsigned char *pFileName=NULL;
-#endif
 	unsigned int  u4bRegOffset, u4bRegValue, u4bRegMask;
 	unsigned char *mem_ptr, *line_head, *next_head;
 	struct PhyRegTable *reg_table=NULL;
 	struct MacRegTable *pg_reg_table = NULL;
 	unsigned short max_len=0;
 	int file_format = TWO_COLUMN;
-#if !defined(CONFIG_X86) && !defined(MERGE_FW)
-	extern ssize_t sys_read(unsigned int fd, char * buf, size_t count);
-#endif
 
-#ifdef MERGE_FW
-	if (reg_file == AGCTAB) {
-		reg_table = (struct PhyRegTable *)priv->pshare->agc_tab_buf;
-		next_head = __AGC_TAB_start;
-		read_bytes = (int)( __AGC_TAB_end - __AGC_TAB_start);
-		max_len = AGC_TAB_SIZE;
-	}
-	else if (reg_file == PHYREG_PG){
-		pg_reg_table = (struct MacRegTable *)priv->pshare->phy_reg_pg_buf;
-		next_head = __PHY_REG_PG_start;
-		read_bytes = (int)( __PHY_REG_PG_end - __PHY_REG_PG_start);
-		max_len = PHY_REG_PG_SIZE;
-		file_format = THREE_COLUMN;
-	}
-	else if (reg_file == PHYREG_1T2R){
-		if(priv->pshare->rf_ft_var.pathB_1T == 0){//PATH A
-			pg_reg_table = (struct MacRegTable *)priv->pshare->phy_reg_2to1;
-			next_head = __PHY_to1T2R_start;
-			read_bytes = (int)( __PHY_to1T2R_end - __PHY_to1T2R_start);
-			max_len = PHY_REG_1T2R;
-			file_format = THREE_COLUMN;
-		}else{//PATH B
-
-			pg_reg_table = (struct MacRegTable *)priv->pshare->phy_reg_2to1;
-			next_head = __PHY_to1T2R_b_start;
-			read_bytes = (int)( __PHY_to1T2R_b_end - __PHY_to1T2R_b_start);
-			max_len = PHY_REG_1T2R;
-			file_format = THREE_COLUMN;
-			printk("PHY_to1T2R_b\n");
-		}
-	}else if(reg_file == PHYREG_1T1R){
-		if(priv->pshare->rf_ft_var.pathB_1T == 0){
-			pg_reg_table = (struct MacRegTable *)priv->pshare->phy_reg_2to1;
-			next_head = __PHY_to1T1R_start;
-			read_bytes = (int)( __PHY_to1T1R_end - __PHY_to1T1R_start);
-			max_len = PHY_REG_1T1R;
-			file_format = THREE_COLUMN;
-			printk("PHY_to1T1R\n");
-		}else{//PATH B
-			pg_reg_table = (struct MacRegTable *)priv->pshare->phy_reg_2to1;
-			next_head = __PHY_to1T1R_b_start;
-			read_bytes = (int)( __PHY_to1T1R_b_end - __PHY_to1T1R_b_start);
-			max_len = PHY_REG_1T1R;
-			file_format = THREE_COLUMN;
-			printk("PHY_to1T1R_b\n");
-		}
-	}
-	else {
-#if (defined(RTL8192SE)||defined(RTL8192SU)) && defined(MP_TEST)
-		if (priv->pshare->rf_ft_var.mp_specific) {
-			reg_table = (struct PhyRegTable *)priv->pshare->phy_reg_mp_buf;
-			next_head = __phy_reg_MP_start;
-			read_bytes = (int)( __phy_reg_MP_end - __phy_reg_MP_start);
-		}
-		else
-#endif
-		{
-		reg_table = (struct PhyRegTable *)priv->pshare->phy_reg_buf;
-		next_head = __phy_reg_start;
-		read_bytes = (int)( __phy_reg_end - __phy_reg_start);
-		}
-		max_len = PHY_REG_SIZE;
-	}
-#else
 
 	switch (reg_file) {
 	case AGCTAB:
-#if	defined(RTL8190) || defined(RTL8192E)
-		pFileName = "/usr/rtl8190Pci/AGC_TAB.txt";
-#elif defined(RTL8192SE)
-		pFileName = "/usr/rtl8192Pci/AGC_TAB.txt";
-#elif defined(RTL8192SU)
 		pFileName = "/usr/rtl8192su/AGC_TAB.txt";
-#endif
 		reg_table = (struct PhyRegTable *)priv->pshare->agc_tab_buf;
 		max_len = AGC_TAB_SIZE;
 		break;
 	case PHYREG_1T2R:
-#if	defined(RTL8190) || defined(RTL8192E)
-		pFileName = "/usr/rtl8190Pci/PHY_REG_1T2R.txt";
-		reg_table = (struct PhyRegTable *)priv->pshare->phy_reg_buf;
-#elif defined(RTL8192SE)
-		if(priv->pshare->rf_ft_var.pathB_1T == 0)
-			pFileName = "/usr/rtl8192Pci/PHY_to1T2R.txt";
-		else
-			pFileName = "/usr/rtl8192Pci/PHY_to1T2R_b.txt";
-		pg_reg_table = (struct MacRegTable *)priv->pshare->phy_reg_pg_buf;
-		file_format = THREE_COLUMN;
-#elif defined(RTL8192SU)
 #if defined(MP_TEST)
 	if (priv->pshare->rf_ft_var.mp_specific) {
 		pFileName = "/usr/rtl8192su/phy_reg_MP.txt";
@@ -1176,31 +801,17 @@ int PHY_ConfigBBWithParaFile(struct rtl8190_priv *priv, int reg_file)
 
 		pFileName = "/usr/rtl8192su/PHY_REG_1T2R.txt";
 		reg_table = (struct PhyRegTable *)priv->pshare->phy_reg_buf;
-#endif
 		max_len = PHY_REG_SIZE;
 		break;
 	case PHYREG_2T4R:
-#if	defined(RTL8190) || defined(RTL8192E)
-		pFileName = "/usr/rtl8190Pci/PHY_REG.txt";
-#elif defined(RTL8192SE)
-		pFileName = "/usr/rtl8192Pci/phy_reg.txt";
-#elif defined(RTL8192SU)
 		pFileName = "/usr/rtl8192su/phy_reg.txt";
-#endif
 		reg_table = (struct PhyRegTable *)priv->pshare->phy_reg_buf;
 		max_len = PHY_REG_SIZE;
 		break;
 	case PHYREG_2T2R:
-#if	defined(RTL8190) || defined(RTL8192E)
-		pFileName = "/usr/rtl8190Pci/PHY_REG_2T2R.txt";
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 #if defined(MP_TEST)
 	if (priv->pshare->rf_ft_var.mp_specific) {
-#if !defined(RTL8192SU)
-		pFileName = "/usr/rtl8192Pci/phy_reg_MP.txt";
-#else
 		pFileName = "/usr/rtl8192su/phy_reg_MP.txt";
-#endif
 		reg_table = (struct PhyRegTable *)priv->pshare->phy_reg_mp_buf;
 		max_len = PHY_REG_SIZE;
 		break; 
@@ -1208,46 +819,18 @@ int PHY_ConfigBBWithParaFile(struct rtl8190_priv *priv, int reg_file)
 	else
 #endif
 	{
-#ifdef RTL8192SU
 		pFileName = "/usr/rtl8192su/phy_reg.txt";
-#else
-		pFileName = "/usr/rtl8192Pci/phy_reg.txt";
-#endif
-#endif
 		reg_table = (struct PhyRegTable *)priv->pshare->phy_reg_buf;
 		max_len = PHY_REG_SIZE;
 		break;
 	}
-#if !defined(RTL8192SU)
-	case PHYREG_1T1R:
-#if defined(RTL8190) || defined(RTL8192E)
-		pFileName = "/usr/rtl8192Pci/PHY_REG_1T1R.txt";
-		reg_table = (struct PhyRegTable *)priv->pshare->phy_reg_buf;
-#elif defined(RTL8192SE)
-		if(priv->pshare->rf_ft_var.pathB_1T == 0)
-			pFileName = "/usr/rtl8192Pci/PHY_to1T1R.txt";
-		else
-			pFileName = "/usr/rtl8192Pci/PHY_to1T1R_b.txt";
-		pg_reg_table = (struct MacRegTable *)priv->pshare->phy_reg_pg_buf;
-		file_format = THREE_COLUMN;
-#endif
-		max_len = PHY_REG_SIZE;
-		break;
-#endif
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	case PHYREG_PG:
-#if !defined(RTL8192SU)
-		pFileName = "/usr/rtl8192Pci/PHY_REG_PG.txt";
-#else
 		pFileName = "/usr/rtl8192su/PHY_REG_PG.txt";
-#endif
 		pg_reg_table = (struct MacRegTable *)priv->pshare->phy_reg_pg_buf;
 		max_len = PHY_REG_PG_SIZE;
 		file_format = THREE_COLUMN;
 		break;
-#endif
 	}
-#endif // MERGE_FW
 
 #ifdef CHECK_HANGUP
 	if (!priv->reset_hangup)
@@ -1260,18 +843,11 @@ int PHY_ConfigBBWithParaFile(struct rtl8190_priv *priv, int reg_file)
 
 		memset(mem_ptr, 0, MAX_CONFIG_FILE_SIZE); // clear memory
 
-#ifdef MERGE_FW
-		memcpy(mem_ptr, next_head, read_bytes);
-#else
 
 		old_fs = get_fs();
 		set_fs(KERNEL_DS);
 
-#if	defined(CONFIG_X86)
 		if ((fd = rtl8190n_fileopen(pFileName, O_RDONLY, 0)) < 0)
-#else
-		if ((fd = sys_open(pFileName, O_RDONLY, 0)) < 0)
-#endif
 		{
 			printk("PHY_ConfigBBWithParaFile(): cannot open %s\n", pFileName);
 			set_fs(old_fs);
@@ -1280,7 +856,6 @@ int PHY_ConfigBBWithParaFile(struct rtl8190_priv *priv, int reg_file)
 		}
 
 		read_bytes = sys_read(fd, mem_ptr, MAX_CONFIG_FILE_SIZE);
-#endif // MERGE_FW
 
 		next_head = mem_ptr;
 		while (1) {
@@ -1319,19 +894,13 @@ int PHY_ConfigBBWithParaFile(struct rtl8190_priv *priv, int reg_file)
 			}
 		}
 
-#ifndef MERGE_FW
 		sys_close(fd);
 		set_fs(old_fs);
-#endif
 
 		kfree(mem_ptr);
 
 		if ((len * sizeof(struct PhyRegTable)) > max_len) {
-#ifdef MERGE_FW
-			printk("PHY REG table buffer not large enough!\n");
-#else
 			printk("PHY REG table buffer not large enough! (%s)\n", pFileName);
-#endif
 			return -1;
 		}
 	}
@@ -1350,7 +919,6 @@ int PHY_ConfigBBWithParaFile(struct rtl8190_priv *priv, int reg_file)
 
 		if (u4bRegOffset == 0xff)
 			break;
-#ifdef RTL8192SU			
 		else if (u4bRegOffset == 0xfe)
 			delay_ms(50);
 		else if (u4bRegOffset == 0xfd)
@@ -1363,7 +931,6 @@ int PHY_ConfigBBWithParaFile(struct rtl8190_priv *priv, int reg_file)
 			delay_us(5);
 		else if (u4bRegOffset == 0xf9)
 			delay_us(1);
-#endif
 		else if (file_format == THREE_COLUMN)
 			PHY_SetBBReg(priv, u4bRegOffset, u4bRegMask, u4bRegValue);
 		else
@@ -1390,22 +957,13 @@ int PHY_ConfigBBWithParaFile(struct rtl8190_priv *priv, int reg_file)
  *
  * Note:		Delay may be required for RF configuration
  *---------------------------------------------------------------------------*/
-#ifdef MERGE_FW
-int PHY_ConfigRFWithParaFile(struct rtl8190_priv *priv, unsigned char *start, int read_bytes, RF90_RADIO_PATH_E eRFPath)
-#else
 int PHY_ConfigRFWithParaFile(struct rtl8190_priv *priv, unsigned char *pFileName, RF90_RADIO_PATH_E eRFPath)
-#endif
 {
 	int           num;
-#ifndef MERGE_FW
 	int           fd=0, read_bytes;
 	mm_segment_t  old_fs;
-#endif
 	unsigned int  u4bRegOffset, u4bRegValue;
 	unsigned char *mem_ptr, *line_head, *next_head;
-#if !defined(CONFIG_X86) && !defined(MERGE_FW)
-	extern ssize_t sys_read(unsigned int fd, char * buf, size_t count);
-#endif
 
 	if((mem_ptr = (unsigned char *)kmalloc(MAX_CONFIG_FILE_SIZE, GFP_ATOMIC)) == NULL) {
 
@@ -1415,17 +973,10 @@ int PHY_ConfigRFWithParaFile(struct rtl8190_priv *priv, unsigned char *pFileName
 
 	memset(mem_ptr, 0, MAX_CONFIG_FILE_SIZE); // clear memory
 
-#ifdef MERGE_FW
-	memcpy(mem_ptr, start, read_bytes);
-#else
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 
-#if	defined(CONFIG_X86)
 	if ((fd = rtl8190n_fileopen(pFileName, O_RDONLY, 0)) < 0)
-#else
-	if ((fd = sys_open(pFileName, O_RDONLY, 0)) < 0)
-#endif
 	{
 		printk("PHY_ConfigRFWithParaFile(): cannot open %s\n", pFileName);
 		set_fs(old_fs);
@@ -1434,7 +985,6 @@ int PHY_ConfigRFWithParaFile(struct rtl8190_priv *priv, unsigned char *pFileName
 	}
 
 	read_bytes = sys_read(fd, mem_ptr, MAX_CONFIG_FILE_SIZE);
-#endif // MERGE_FW
 
 	next_head = mem_ptr;
 	while (1) {
@@ -1453,20 +1003,14 @@ int PHY_ConfigRFWithParaFile(struct rtl8190_priv *priv, unsigned char *pFileName
 			else if (u4bRegOffset == 0xfe)
 				delay_ms(50);	// Delay 50 ms. Only RF configuration require delay
 			else if (num == 2) {
-#if	defined(RTL8190) || defined(RTL8192E)
-				PHY_SetRFReg(priv, eRFPath, u4bRegOffset, bMask12Bits, u4bRegValue);
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 				PHY_SetRFReg(priv, eRFPath, u4bRegOffset, bMask20Bits, u4bRegValue);
-#endif
 				delay_ms(1);
 			}
 		}
 	}
 
-#ifndef MERGE_FW
 	sys_close(fd);
 	set_fs(old_fs);
-#endif
 
 	kfree(mem_ptr);
 
@@ -1479,25 +1023,9 @@ int PHY_ConfigMACWithParaFile(struct rtl8190_priv *priv)
 	int  read_bytes, num, len=0;
 	unsigned int  u4bRegOffset, u4bRegMask, u4bRegValue;
 	unsigned char *mem_ptr, *line_head, *next_head;
-#ifdef MERGE_FW
-#ifdef RTL8192SE
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif
-#else
 	int fd=0;
 	mm_segment_t  old_fs;
-#if	defined(RTL8190) || defined(RTL8192E)
-	unsigned char *pFileName = "/usr/rtl8190Pci/MACPHY_REG.txt";
-#elif	defined(RTL8192SE)
-	unsigned char *pFileName = "/usr/rtl8192Pci/MACPHY_REG.txt";
-	ULONG ioaddr = priv->pshare->ioaddr;
-#elif	defined(RTL8192SU)
 	unsigned char *pFileName = "/usr/rtl8192su/macreg.txt";
-#endif
-#ifndef CONFIG_X86
-	extern ssize_t sys_read(unsigned int fd, char * buf, size_t count);
-#endif
-#endif
 	struct MacRegTable *reg_table = (struct MacRegTable *)priv->pshare->mac_reg_buf;
 
 #ifdef CHECK_HANGUP
@@ -1511,19 +1039,11 @@ int PHY_ConfigMACWithParaFile(struct rtl8190_priv *priv)
 
 		memset(mem_ptr, 0, MAX_CONFIG_FILE_SIZE); // clear memory
 
-#ifdef MERGE_FW
-		read_bytes = (int)(__MACPHY_REG_end - __MACPHY_REG_start);
-		memcpy(mem_ptr, __MACPHY_REG_start, read_bytes);
-#else
 
 		old_fs = get_fs();
 		set_fs(KERNEL_DS);
 
-#if	defined(CONFIG_X86)
 		if ((fd = rtl8190n_fileopen(pFileName, O_RDONLY, 0)) < 0)
-#else
-		if ((fd = sys_open(pFileName, O_RDONLY, 0)) < 0)
-#endif
 		{
 			printk("PHY_ConfigMACWithParaFile(): cannot open %s\n", pFileName);
 			set_fs(old_fs);
@@ -1532,7 +1052,6 @@ int PHY_ConfigMACWithParaFile(struct rtl8190_priv *priv)
 		}
 
 		read_bytes = sys_read(fd, mem_ptr, MAX_CONFIG_FILE_SIZE);
-#endif // MERGE_FW
 
 		next_head = mem_ptr;
 		while (1) {
@@ -1544,17 +1063,10 @@ int PHY_ConfigMACWithParaFile(struct rtl8190_priv *priv)
 			if (line_head[0] == '/')
 				continue;
 
-#if !defined(RTL8192SU)
-			num = get_offset_mask_val(line_head, &u4bRegOffset, &u4bRegMask, &u4bRegValue);
-#else
 			u4bRegMask = 0;
 			num = get_offset_val_macreg(line_head, &u4bRegOffset, &u4bRegValue);
-#endif		
 			if (num > 0) {
 				reg_table[len].offset = u4bRegOffset;
-#if !defined(RTL8192SU)
-				reg_table[len].mask = u4bRegMask;
-#endif			
 				reg_table[len].value = u4bRegValue;
 				len++;
 				if (u4bRegOffset == 0xff)
@@ -1564,10 +1076,8 @@ int PHY_ConfigMACWithParaFile(struct rtl8190_priv *priv)
 			}
 		}
 
-#ifndef MERGE_FW
 		sys_close(fd);
 		set_fs(old_fs);
-#endif
 
 		kfree(mem_ptr);
 
@@ -1580,19 +1090,12 @@ int PHY_ConfigMACWithParaFile(struct rtl8190_priv *priv)
 	num = 0;
 	while (1) {
 		u4bRegOffset = reg_table[num].offset;
-#if !defined(RTL8192SU)
-		u4bRegMask = reg_table[num].mask;
-#endif		
 		u4bRegValue = reg_table[num].value;
 
 		if (u4bRegOffset == 0xff)
 			break;
 		else
-#if defined(RTL8190) || defined(RTL8192E)
-			PHY_SetBBReg(priv, u4bRegOffset, u4bRegMask, u4bRegValue);
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 			RTL_W8(u4bRegOffset, u4bRegValue);
-#endif
 		num++;
 	}
 
@@ -1632,9 +1135,6 @@ static int get_shortslot_for_another_interface(struct rtl8190_priv *priv)
 
 void set_slot_time(struct rtl8190_priv *priv, int use_short)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 
 #ifdef UNIVERSAL_REPEATER
 	int is_short;
@@ -1651,104 +1151,11 @@ void set_slot_time(struct rtl8190_priv *priv, int use_short)
 }
 
 
-#if defined(RTL8190) || defined(RTL8192E)
-void SetTxPowerLevel(struct rtl8190_priv *priv)
-{
-#ifdef RTL8190
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif
-	unsigned char pwrlevel, val8;
-	unsigned int val32;
-	unsigned char *mcs_enhance_array;
-
-	mcs_enhance_array = priv->pshare->phw->MCSTxAgcOffset;
-
-	if (!priv->pshare->use_default_para) {
-		pwrlevel = priv->pmib->dot11RFEntry.pwrlevelOFDM[priv->pshare->working_channel-1];
-		val32 = 0;
-		// MCS11, MCS3, 24
-		val8 = pwrlevel + mcs_enhance_array[4];
-		if (val8 > 36)	val8 = 36;
-		val32 |= (val8 << 24);
-		// MCS10, MCS2, 18
-		val8 = pwrlevel + mcs_enhance_array[5];
-		if (val8 > 36)	val8 = 36;
-		val32 |= (val8 << 16);
-		// MCS9, MCS1, 12
-		val8 = pwrlevel + mcs_enhance_array[6];
-		if (val8 > 36)	val8 = 36;
-		val32 |= (val8 << 8);
-		// MCS8, MCS0, 9, 6
-		val8 = pwrlevel + mcs_enhance_array[7];
-		if (val8 > 36)	val8 = 36;
-		val32 |= val8;
-		priv->pshare->phw->MCSTxAgc0 = val32;
-
-		val32 = 0;
-		// MCS15, MCS7
-		val8 = pwrlevel + mcs_enhance_array[0];
-		if (val8 > 36)	val8 = 36;
-		val32 |= (val8 << 24);
-		// MCS14, MCS6, 54
-		val8 = pwrlevel + mcs_enhance_array[1];
-		if (val8 > 36)	val8 = 36;
-		val32 |= (val8 << 16);
-		// MCS13, MCS5, 48
-		val8 = pwrlevel + mcs_enhance_array[2];
-		if (val8 > 36)	val8 = 36;
-		val32 |= (val8 << 8);
-		// MCS12, MCS4, 36
-		val8 = pwrlevel + mcs_enhance_array[3];
-		if (val8 > 36)	val8 = 36;
-		val32 |= val8;
-		priv->pshare->phw->MCSTxAgc1 = val32;
-
-		pwrlevel = priv->pmib->dot11RFEntry.pwrlevelCCK[priv->pshare->working_channel-1];
-		val32 = 0;
-		// 11, 5.5
-		val8 = pwrlevel;
-		if (val8 > 36)	val8 = 36;
-		val32 |= (val8 << 8);
-		// 2, 1
-		val8 = pwrlevel + 0;
-		if (val8 > 36)	val8 = 36;
-		val32 |= val8;
-		priv->pshare->phw->CCKTxAgc = val32;
-
-#ifdef RTL8190
-		if (priv->pmib->dot11RFEntry.pwrlevelOFDM[priv->pshare->working_channel-1+14] != 0)
-			priv->pshare->channelAC_pwrdiff =
-			        (int)priv->pmib->dot11RFEntry.pwrlevelOFDM[priv->pshare->working_channel-1+14] -
-			        (int)priv->pmib->dot11RFEntry.pwrlevelOFDM[priv->pshare->working_channel-1];
-		else
-			priv->pshare->channelAC_pwrdiff = (int)priv->pmib->dot11RFEntry.antC_pwrdiff - 32;
-		PHY_SetBBReg(priv, rFPGA0_TxGainStage, bXCTxAGC, (priv->pshare->channelAC_pwrdiff & 0x0f));
-#endif
-	}
-
-#ifdef RTL8190
-	RTL_W32(_MCS_TXAGC_0_, priv->pshare->phw->MCSTxAgc0);
-	RTL_W32(_MCS_TXAGC_1_, priv->pshare->phw->MCSTxAgc1);
-	RTL_W32(_CCK_TXAGC_, priv->pshare->phw->CCKTxAgc);
-#elif defined(RTL8192E)
-	PHY_SetBBReg(priv, 0xe10, 0x7f7f7f7f, priv->pshare->phw->MCSTxAgc0);
-	PHY_SetBBReg(priv, 0xe18, 0x7f7f7f7f, priv->pshare->phw->MCSTxAgc0);
-	PHY_SetBBReg(priv, 0xe14, 0x7f7f7f7f, priv->pshare->phw->MCSTxAgc1);
-	PHY_SetBBReg(priv, 0xe1c, 0x7f7f7f7f, priv->pshare->phw->MCSTxAgc1);
-	PHY_SetBBReg(priv, rTxAGC_CCK_Mcs32, bTxAGCRateCCK, priv->pshare->phw->CCKTxAgc);
-#endif
-}
-#endif
 
 
 void SwChnl(struct rtl8190_priv *priv, unsigned char channel, int offset)
 {
-#if defined(RTL8190) || defined(RTL8192E)
-	static RF90_RADIO_PATH_E eRFPath;
-	static unsigned int val, RetryCnt, RfRetVal;
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 	static unsigned int val;
-#endif
 
 	val = channel;
 
@@ -1766,7 +1173,6 @@ void SwChnl(struct rtl8190_priv *priv, unsigned char channel, int offset)
 
 	if (priv->pshare->rf_ft_var.use_frq_2_3G)
 		val += 14;
-#if	defined(RTL8192SE) || defined(RTL8192SU)
 	{
 //		return ; // for 40Mhz
 		unsigned int val_read;
@@ -1794,48 +1200,6 @@ void SwChnl(struct rtl8190_priv *priv, unsigned char channel, int offset)
 	}
 
 	return;
-#else
-
-	for (eRFPath = RF90_PATH_A; eRFPath<priv->pshare->phw->NumTotalRFPath; eRFPath++) {
-#ifdef RTL8190
-		if ((get_rf_mimo_mode(priv) == MIMO_1T2R) || (get_rf_mimo_mode(priv) == MIMO_1T1R)) {
-			if ((eRFPath == RF90_PATH_A) || (eRFPath == RF90_PATH_B) || (eRFPath == RF90_PATH_D))
-				continue;
-		}
-		else if ((get_rf_mimo_mode(priv) == MIMO_2T4R) || (get_rf_mimo_mode(priv) == MIMO_2T2R)) {
-			if ((eRFPath == RF90_PATH_B) || (eRFPath == RF90_PATH_D))
-				continue;
-		}
-#elif defined(RTL8192E)
-		if ((eRFPath == RF90_PATH_B) || (eRFPath == RF90_PATH_C) || (eRFPath == RF90_PATH_D))
-			continue;
-#endif
-		RetryCnt = 3;
-		do {
-			PHY_SetRFReg(priv, eRFPath, rZebra1_Channel, bZebra1_ChannelNum, val);
-			delay_ms(10);
-
-			RfRetVal = PHY_QueryRFReg(priv, eRFPath, rZebra1_Channel, bZebra1_ChannelNum, 1);
-			RetryCnt--;
-		} while ((val!=RfRetVal) && (RetryCnt!=0));
-	}
-
-	if (priv->pshare->rf_ft_var.use_frq_2_3G)
-		val -= 14;
-
-	priv->pshare->working_channel = val;
-	SetTxPowerLevel(priv);
-
-	/*----------To ensure PHY operates correctly----------*/
-	if (priv->pmib->dot11RFEntry.dot11RFType == _11BGN_RF_8256_) {
-		// for 8256, in case rf switchs to debug mode
-		// have to be refined when register 0 format has been changed
-		PHY_SetRFReg(priv, RF90_PATH_A, 0, bMask12Bits, 0xc9f);
-		PHY_SetRFReg(priv, RF90_PATH_B, 0, bMask12Bits, 0xcbf);
-		PHY_SetRFReg(priv, RF90_PATH_C, 0, bMask12Bits, 0xc9f);
-		PHY_SetRFReg(priv, RF90_PATH_D, 0, bMask12Bits, 0xcbf);
-	}
-#endif
 }
 
 
@@ -1843,7 +1207,6 @@ void SwitchAntenna(struct rtl8190_priv *priv)
 {
 }
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
 
 
 #ifdef EXT_ANT_DVRY
@@ -1869,9 +1232,6 @@ void SwitchExtAnt(struct rtl8190_priv *priv, unsigned char EXT_ANT_PATH){
 //antPath: 01 for PathA,10 for PathB, 11for Path AB
 void Switch_1SS_Antenna(struct rtl8190_priv *priv, unsigned int antPath )
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 	unsigned int dword = 0;
 	if(get_rf_mimo_mode(priv) != MIMO_2T2R)
 		return;
@@ -1917,9 +1277,6 @@ switch_1ss_end:
 //antPath: 01 for PathA,10 for PathB, 11for Path AB
 void Switch_OFDM_Antenna(struct rtl8190_priv *priv, unsigned int antPath )
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 	unsigned int dword = 0;
 	if(get_rf_mimo_mode(priv) != MIMO_2T2R)
 		return;
@@ -1962,31 +1319,10 @@ switch_OFDM_end:
 }
 
 
-#endif
 
 void enable_hw_LED(struct rtl8190_priv *priv, unsigned int led_type)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 
-#if defined(RTL8190) || defined(RTL8192E)
-	switch (led_type) {
-	case LEDTYPE_HW_TX_RX:
-		RTL_W8(_LED0CFG_, 0x04);
-		RTL_W8(_LED1CFG_, 0x06);
-		break;
-	case LEDTYPE_HW_LINKACT_INFRA:
-		RTL_W8(_LED0CFG_, 0x02);
-		if ((OPMODE & WIFI_AP_STATE) || (OPMODE & WIFI_STATION_STATE))
-			RTL_W8(_LED1CFG_, 0x00);
-		else
-			RTL_W8(_LED1CFG_, 0x80);
-		break;
-	default:
-		break;
-	}
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 	switch (led_type) {
 	case LEDTYPE_HW_TX_RX:
 		RTL_W8(LEDCFG, 0x64);
@@ -2001,7 +1337,6 @@ void enable_hw_LED(struct rtl8190_priv *priv, unsigned int led_type)
 	default:
 		break;
 	}
-#endif
 }
 
 
@@ -2122,10 +1457,8 @@ void phy_InitBBRFRegisterDefinition(struct rtl8190_priv *priv)
 	phw->PHYRegDef[RF90_PATH_B].rfLSSIReadBack = rFPGA0_XB_LSSIReadBack;
 	phw->PHYRegDef[RF90_PATH_C].rfLSSIReadBack = rFPGA0_XC_LSSIReadBack;
 	phw->PHYRegDef[RF90_PATH_D].rfLSSIReadBack = rFPGA0_XD_LSSIReadBack;
-#if defined(RTL8192SE) || defined(RTL8192SU)
 	phw->PHYRegDef[RF90_PATH_A].rfLSSIReadBack_92S_PI = 0x8b8;
 	phw->PHYRegDef[RF90_PATH_B].rfLSSIReadBack_92S_PI = 0x8bc;
-#endif
 }
 
 
@@ -2147,9 +1480,6 @@ void phy_InitBBRFRegisterDefinition(struct rtl8190_priv *priv)
  *---------------------------------------------------------------------------*/
 int PHY_CheckBBAndRFOK(struct rtl8190_priv *priv, HW90_BLOCK_E CheckBlock, RF90_RADIO_PATH_E eRFPath)
 {
-#if !defined(RTL8192SU)
-	unsigned long ioaddr = priv->pshare->ioaddr;
-#endif	
 	int rtStatus = 0;
 	unsigned int i, CheckTimes = 4, ulRegRead = 0;
 	unsigned int WriteAddr[4];
@@ -2208,42 +1538,15 @@ int PHY_CheckBBAndRFOK(struct rtl8190_priv *priv, HW90_BLOCK_E CheckBlock, RF90_
 
 void check_MIMO_TR_status(struct rtl8190_priv *priv)
 {
-#ifdef RTL8190
-	unsigned long ioaddr = priv->pshare->ioaddr;
-	int MIMO_TR_status;
-
-	if ((GET_HW(priv)->MIMO_TR_hw_support == MIMO_2T4R) ||
-		(GET_HW(priv)->MIMO_TR_hw_support == MIMO_1T2R))
-		return;
-
-	RTL_W8(_BBGLBRESET_, RTL_R8(_BBGLBRESET_)|0x01);
-	RTL_W32(_CPURST_, RTL_R32(_CPURST_)|0x100);
-	RTL_W32(0x860, 0x001f0010);
-	RTL_W32(0x864, 0x007f0010);
-	PHY_SetRFReg(priv, RF90_PATH_A, 0, 0xfff, 0xbf);
-	MIMO_TR_status = PHY_QueryRFReg(priv, RF90_PATH_A, 0, 0xff, 0);
-	if ((MIMO_TR_status == 0xbf) || (MIMO_TR_status == 0xb8) || (MIMO_TR_status == 0x98) || (MIMO_TR_status == 0x9f))
-		GET_HW(priv)->MIMO_TR_hw_support = MIMO_2T4R;
-	else
-		GET_HW(priv)->MIMO_TR_hw_support = MIMO_1T2R;
-	PHY_QueryRFReg(priv, RF90_PATH_A, 0, 0xff, 1);
-#elif defined(RTL8192E)
-	GET_HW(priv)->MIMO_TR_hw_support = MIMO_1T2R;
-#elif defined(RTL8192SE) || defined(RTL8192SU)
-#if !defined(RTL8192SU)
-	unsigned long ioaddr = priv->pshare->ioaddr;
-#endif
 
 	if (RTL_R32(PMC_FSM) & BIT(24))
 		GET_HW(priv)->MIMO_TR_hw_support = MIMO_2T2R;
 	else
 		GET_HW(priv)->MIMO_TR_hw_support = MIMO_1T2R;
 	return;
-#endif
 }
 
 
-#if	defined(RTL8192SE) || defined(RTL8192SU)
 
 
 /*-----------------------------------------------------------------------------
@@ -2264,215 +1567,6 @@ void check_MIMO_TR_status(struct rtl8190_priv *priv)
  *						92S B-cut QFN 68 pin IQ calibration procedure.doc
  *
  *---------------------------------------------------------------------------*/
-#if 0
-void PHY_IQCalibrateBcut(	struct rtl8190_priv *priv)
-{
-//	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(pAdapter);
-//	PMGNT_INFO		pMgntInfo = &pAdapter->MgntInfo;
-	unsigned int	i, reg;
-	unsigned int	old_value;
-	int				X, Y, TX0[4];
-	unsigned int	TXA[4];
-	unsigned int	calibrate_set[13] = {0};
-	unsigned int	load_value[13];
-
-	// 0. Check QFN68 or 64 92S (Read from EEPROM/EFUSE)
-
-	//
-	// 1. Save e70~ee0 register setting, and load calibration setting
-	//
-	/*
-	0xee0[31:0]=0x3fed92fb;
-	0xedc[31:0] =0x3fed92fb;
-	0xe70[31:0] =0x3fed92fb;
-	0xe74[31:0] =0x3fed92fb;
-	0xe78[31:0] =0x3fed92fb;
-	0xe7c[31:0]= 0x3fed92fb;
-	0xe80[31:0]= 0x3fed92fb;
-	0xe84[31:0]= 0x3fed92fb;
-	0xe88[31:0]= 0x3fed92fb;
-	0xe8c[31:0]= 0x3fed92fb;
-	0xed0[31:0]= 0x3fed92fb;
-	0xed4[31:0]= 0x3fed92fb;
-	0xed8[31:0]= 0x3fed92fb;
-	*/
-	calibrate_set [0] = 0xee0;
-	calibrate_set [1] = 0xedc;
-	calibrate_set [2] = 0xe70;
-	calibrate_set [3] = 0xe74;
-	calibrate_set [4] = 0xe78;
-	calibrate_set [5] = 0xe7c;
-	calibrate_set [6] = 0xe80;
-	calibrate_set [7] = 0xe84;
-	calibrate_set [8] = 0xe88;
-	calibrate_set [9] = 0xe8c;
-	calibrate_set [10] = 0xed0;
-	calibrate_set [11] = 0xed4;
-	calibrate_set [12] = 0xed8;
-	//RT_TRACE(COMP_INIT, DBG_LOUD, ("Save e70~ee0 register setting\n"));
-	for (i = 0; i < 13; i++)
-	{
-		load_value[i] = PHY_QueryBBReg(priv, calibrate_set[i], bMaskDWord);
-		PHY_SetBBReg(priv, calibrate_set[i], bMaskDWord, 0x3fed92fb);
-
-	}
-
-	//
-	// 2. QFN 68
-	//
-	// For 1T2R IQK only now !!!
-	for (i = 0; i < 10; i++)
-	{
-		//BB switch to PI mode. If default is PI mode, ignoring 2 commands below.
-//if (pMgntInfo->bRFSiOrPi == 0)	// SI
-		{
-			PHY_SetBBReg(priv, 0x820, bMaskDWord, 0x01000100);
-			PHY_SetBBReg(priv, 0x828, bMaskDWord, 0x01000100);
-		}
-
-		// IQK
-		// 2. IQ calibration & LO leakage calibration
-		PHY_SetBBReg(priv, 0xc04, bMaskDWord, 0x00a05430);
-		delay_us(5);
-		PHY_SetBBReg(priv, 0xc08, bMaskDWord, 0x000800e4);
-		delay_us(5);
-		PHY_SetBBReg(priv, 0xe28, bMaskDWord, 0x80800000);
-		delay_us(5);
-		//path-A IQ K and LO K gain setting
-		PHY_SetBBReg(priv, 0xe40, bMaskDWord, 0x02140102);
-		delay_us(5);
-		PHY_SetBBReg(priv, 0xe44, bMaskDWord, 0x681604c2);
-		delay_us(5);
-		//set LO calibration
-		PHY_SetBBReg(priv, 0xe4c, bMaskDWord, 0x000028d1);
-		delay_us(5);
-		//path-B IQ K and LO K gain setting
-		PHY_SetBBReg(priv, 0xe60, bMaskDWord, 0x02140102);
-		delay_us(5);
-		PHY_SetBBReg(priv, 0xe64, bMaskDWord, 0x28160d05);
-		delay_us(5);
-		//K idac_I & IQ
-		PHY_SetBBReg(priv, 0xe48, bMaskDWord, 0xfb000000);
-		delay_us(5);
-		PHY_SetBBReg(priv, 0xe48, bMaskDWord, 0xf8000000);
-		delay_us(5);
-
-		// delay 2ms
-		delay_ms(2);
-
-		//idac_Q setting
-		PHY_SetBBReg(priv, 0xe6c, bMaskDWord, 0x020028d1);
-		delay_us(5);
-		//K idac_Q & IQ
-		PHY_SetBBReg(priv, 0xe48, bMaskDWord, 0xfb000000);
-		delay_us(5);
-		PHY_SetBBReg(priv, 0xe48, bMaskDWord, 0xf8000000);
-
-		// delay 2ms
-		delay_ms(2);
-
-		PHY_SetBBReg(priv, 0xc04, bMaskDWord, 0x00a05433);
-		delay_us(5);
-		PHY_SetBBReg(priv, 0xc08, bMaskDWord, 0x000000e4);
-		delay_us(5);
-		PHY_SetBBReg(priv, 0xe28, bMaskDWord, 0x0);
-
-//		if (pMgntInfo->bRFSiOrPi == 0)	// SI
-		{
-			PHY_SetBBReg(priv, 0x820, bMaskDWord, 0x01000000);
-			PHY_SetBBReg(priv, 0x828, bMaskDWord, 0x01000000);
-		}
-
-
-		reg = PHY_QueryBBReg(priv, 0xeac, bMaskDWord);
-
-		// 3.	check fail bit, and fill BB IQ matrix
-		// Readback IQK value and rewrite
-		if (!(reg&(BIT(27)|BIT(28)|BIT(30)|BIT(31))))
-		{
-			old_value = (PHY_QueryBBReg(priv, 0xc80, bMaskDWord) & 0x3FF);
-
-			// Calibrate init gain for A path for TX0
-			X = (PHY_QueryBBReg(priv, 0xe94, bMaskDWord) & 0x03FF0000)>>16;
-			TXA[RF90_PATH_A] = (X * old_value)/0x100;
-			reg = PHY_QueryBBReg(priv, 0xc80, bMaskDWord);
-			reg = (reg & 0xFFFFFC00) | (unsigned int)TXA[RF90_PATH_A];
-			PHY_SetBBReg(priv, 0xc80, bMaskDWord, reg);
-			delay_us(5);
-
-			// Calibrate init gain for C path for TX0
-			Y = ( PHY_QueryBBReg(priv, 0xe9C, bMaskDWord) & 0x03FF0000)>>16;
-			TX0[RF90_PATH_C] = ((Y * old_value)/0x100);
-			reg = PHY_QueryBBReg(priv, 0xc80, bMaskDWord);
-			reg = (reg & 0xffc0ffff) |((unsigned int) (TX0[RF90_PATH_C]&0x3F)<<16);
-			PHY_SetBBReg(priv, 0xc80, bMaskDWord, reg);
-			reg = PHY_QueryBBReg(priv, 0xc94, bMaskDWord);
-			reg = (reg & 0x0fffffff) |(((Y&0x3c0)>>6)<<28);
-			PHY_SetBBReg(priv, 0xc94, bMaskDWord, reg);
-			delay_us(5);
-
-			// Calibrate RX A and B for RX0
-			reg = PHY_QueryBBReg(priv, 0xc14, bMaskDWord);
-			X = (PHY_QueryBBReg(priv, 0xea4, bMaskDWord) & 0x03FF0000)>>16;
-			reg = (reg & 0xFFFFFC00) |X;
-			PHY_SetBBReg(priv, 0xc14, bMaskDWord, reg);
-			Y = (PHY_QueryBBReg(priv, 0xeac, bMaskDWord) & 0x003F0000)>>16;
-			reg = (reg & 0xFFFF03FF) |Y<<10;
-			PHY_SetBBReg(priv, 0xc14, bMaskDWord, reg);
-			delay_us(5);
-			old_value = (PHY_QueryBBReg(priv, 0xc88, bMaskDWord) & 0x3FF);
-
-			// Calibrate init gain for A path for TX1 !!!!!!
-			X = (PHY_QueryBBReg(priv, 0xeb4, bMaskDWord) & 0x03FF0000)>>16;
-			reg = PHY_QueryBBReg(priv, 0xc88, bMaskDWord);
-			TXA[RF90_PATH_A] = (X * old_value) / 0x100;
-			reg = (reg & 0xFFFFFC00) | TXA[RF90_PATH_A];
-			PHY_SetBBReg(priv, 0xc88, bMaskDWord, reg);
-			delay_us(5);
-
-			// Calibrate init gain for C path for TX1
-			Y = (PHY_QueryBBReg(priv, 0xebc, bMaskDWord)& 0x03FF0000)>>16;
-			TX0[RF90_PATH_C] = ((Y * old_value)/0x100);
-			reg = PHY_QueryBBReg(priv, 0xc88, bMaskDWord);
-			reg = (reg & 0xffc0ffff) |( (TX0[RF90_PATH_C]&0x3F)<<16);
-			PHY_SetBBReg(priv, 0xc88, bMaskDWord, reg);
-			reg = PHY_QueryBBReg(priv, 0xc9c, bMaskDWord);
-			reg = (reg & 0x0fffffff) |(((Y&0x3c0)>>6)<<28);
-			PHY_SetBBReg(priv, 0xc9c, bMaskDWord, reg);
-			delay_us(5);
-
-			// Calibrate RX A and B for RX1
-			reg = PHY_QueryBBReg(priv, 0xc1c, bMaskDWord);
-			X = (PHY_QueryBBReg(priv, 0xec4, bMaskDWord) & 0x03FF0000)>>16;
-			reg = (reg & 0xFFFFFC00) |X;
-			PHY_SetBBReg(priv, 0xc1c, bMaskDWord, reg);
-
-			Y = (PHY_QueryBBReg(priv, 0xecc, bMaskDWord) & 0x003F0000)>>16;
-			reg = (reg & 0xFFFF03FF) |Y<<10;
-			PHY_SetBBReg(priv, 0xc1c, bMaskDWord, reg);
-			delay_us(5);
-
-			break;
-		}
-
-	}
-
-	//
-	// 4. Reload e70~ee0 register setting.
-	//
-	//RT_TRACE(COMP_INIT, DBG_LOUD, ("Reload e70~ee0 register setting.\n"));
-	for (i = 0; i < 13; i++)
-		PHY_SetBBReg(priv, calibrate_set[i], bMaskDWord, load_value[i]);
-
-
-	//
-	// 3. QFN64. Not enabled now !!! We must use different gain table for 1T2R.
-	//
-
-
-
-}	// PHY_IQCalibrateBcut
-#endif
 
 
 /*-----------------------------------------------------------------------------
@@ -2497,9 +1591,6 @@ void PHY_IQCalibrateBcut(	struct rtl8190_priv *priv)
 void PHY_RF6052SetOFDMTxPower(struct rtl8190_priv *priv, unsigned char powerlevel_1ss, unsigned char powerlevel_2ss)
 {
 //	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
-#if !defined(RTL8192SU)
-	unsigned long ioaddr = priv->pshare->ioaddr;
-#endif	
 	unsigned int writeVal, powerBase0, powerBase1;
 	unsigned char index = 0;
 	unsigned short RegOffset1[2] = {rTxAGC_Rate18_06, rTxAGC_Rate54_24};
@@ -2639,66 +1730,6 @@ void PHY_RF6052SetOFDMTxPower(struct rtl8190_priv *priv, unsigned char powerleve
 		priv->pshare->channelAB_pwrdiff = 0;
 	PHY_SetBBReg(priv, rFPGA0_TxGainStage, bXBTxAGC, (priv->pshare->channelAB_pwrdiff & 0x0f));
 
-#if 0
-	//Legacy OFDM rates
-	powerBase0 = powerlevel + priv->pshare->legacyOFDM_pwrdiff;
-	powerBase0 = (powerBase0<<24) | (powerBase0<<16) |(powerBase0<<8) |powerBase0;
-
-	//MCS rates HT OFDM
-	powerBase1 = powerlevel;
-	powerBase1 = (powerBase1<<24) | (powerBase1<<16) |(powerBase1<<8) |powerBase1;
-
-	for(index=0; index<6; index++)
-	{
-		//
-		// Index 0 & 1= legacy OFDM, 2-5=HT_MCS rate
-		//
-		writeVal = 	RTL_R32(RegOffset[index])/*priv->MCSTxPowerLevelOriginalOffset[index]*/
-					+ ((index<2)?powerBase0:powerBase1);
-		byte0 = (writeVal & 0x7f);
-		byte1 = ((writeVal & 0x7f00)>>8);
-		byte2 = ((writeVal & 0x7f0000)>>16);
-		byte3 = ((writeVal & 0x7f000000)>>24);
-
-		// Max power index = 0x3F Range = 0-0x3F
-		if(byte0 > RF6052_MAX_TX_PWR)
-			byte0 = RF6052_MAX_TX_PWR;
-		if(byte1 > RF6052_MAX_TX_PWR)
-			byte1 = RF6052_MAX_TX_PWR;
-		if(byte2 > RF6052_MAX_TX_PWR)
-			byte2 = RF6052_MAX_TX_PWR;
-		if(byte3 > RF6052_MAX_TX_PWR)
-			byte3 = RF6052_MAX_TX_PWR;
-		//
-		// Add description: PWDB > threshold!!!High power issue!!
-		// We must decrease tx power !! Why is the value ???
-		//
-/*		if(priv->bDynamicTxHighPower == TRUE)
-		{
-			// For MCS rate
-			if(index > 1)
-			{
-				writeVal = 0x03030303;
-			}
-			// For Legacy rate
-			else
-			{
-				writeVal = (byte3<<24) | (byte2<<16) |(byte1<<8) |byte0;
-			}
-		}
-		else
-		{
-			writeVal = (byte3<<24) | (byte2<<16) |(byte1<<8) |byte0;
-		}
-*/
-		//
-		// Write different rate set tx power index.
-		//
-		writeVal = (byte3<<24) | (byte2<<16) |(byte1<<8) |byte0;
-		PHY_SetBBReg(priv, RegOffset[index], 0x7f7f7f7f, writeVal);
-
-	}
-#endif
 }	/* PHY_RF6052SetOFDMTxPower */
 
 
@@ -2711,31 +1742,16 @@ int phy_BB8192SE_Config_ParaFile(struct rtl8190_priv *priv)
 
 	phy_InitBBRFRegisterDefinition(priv);
 
-#if 0	// For 92SE we do not check FPGA board now!!!!!????? Enable will reboot~~~ when write IDR0!!!
-	/*----Set BB Global Reset----*/
-	u1RegValue = RTL_R8(_BBGLBRESET_);
-	RTL_W8(_BBGLBRESET_, (u1RegValue|BIT(0)));
-
-	/*----Set BB reset Active----*/
-	u4RegValue = RTL_R32(_CPURST_);
-	RTL_W32(_CPURST_, (u4RegValue&(~CPURST_BBRst)));
-#endif
 
 	/*----Check MIMO TR hw setting----*/
 	check_MIMO_TR_status(priv);
 
-#if 0
-	/*---- Set CCK and OFDM Block "OFF"----*/
-	PHY_SetBBReg(priv, rFPGA0_RFMOD, bCCKEn|bOFDMEn, 0x0);
-#endif
 
 	/*----BB Register Initilazation----*/
-#ifdef RTL8192SU
 	rtStatus = 0;
 	if (get_rf_mimo_mode(priv) == MIMO_1T2R)
 		rtStatus = PHY_ConfigBBWithParaFile(priv, PHYREG_1T2R);
 	else if (get_rf_mimo_mode(priv) == MIMO_2T2R)
-#endif
 	rtStatus = PHY_ConfigBBWithParaFile(priv, PHYREG_2T2R);
 	if (rtStatus) {
 		printk("phy_BB8192SE_Config_ParaFile(): Write BB Reg Fail!!\n");
@@ -2761,22 +1777,6 @@ int phy_BB8192SE_Config_ParaFile(struct rtl8190_priv *priv)
 		return rtStatus;
 	}
 
-#if !defined(RTL8192SU)
-	/*----For 1T2R Config----*/
-	if (get_rf_mimo_mode(priv) == MIMO_1T2R) {
-		rtStatus = PHY_ConfigBBWithParaFile(priv, PHYREG_1T2R);
-		if (rtStatus) {
-			printk("phy_BB8192SE_Config_ParaFile(): Write BB Reg for 1T2R Fail!!\n");
-			return rtStatus;
-		}
-	}else if (get_rf_mimo_mode(priv) == MIMO_1T1R){
-		rtStatus = PHY_ConfigBBWithParaFile(priv, PHYREG_1T1R);
-		if (rtStatus) {
-			printk("phy_BB8192SE_Config_ParaFile(): Write BB Reg for 1T1R Fail!!\n");
-			return rtStatus;
-		}
-	}
-#endif
 	DEBUG_INFO("PHY-BB Initialization Success\n");
 	return 0;
 }
@@ -2838,49 +1838,18 @@ int phy_RF8225_Config_ParaFile(struct rtl8190_priv *priv)
 		PHY_SetBBReg(priv, pPhyReg->rfHSSIPara2, b3WireAddressLength, 0x0); 	// Set 0 to 4 bits for Z-serial and set 1 to 6 bits for 8258
 		PHY_SetBBReg(priv, pPhyReg->rfHSSIPara2, b3WireDataLength, 0x0);	// Set 0 to 12 bits for Z-serial and 8258, and set 1 to 14 bits for ???
 
-#if 0
-		rtStatus  = PHY_CheckBBAndRFOK(priv, HW90_BLOCK_RF, eRFPath);
-		if(rtStatus!= 0)
-		{
-			DEBUG_INFO("PHY_RF8256_Config():Check Radio[%d] Fail!!\n", eRFPath);
-			goto phy_RF8256_Config_ParaFile_Fail;
-		}
-#endif
 //		RF0_Final_Value = 0;
 //		RetryTimes = 5;
 
 		/*----Initialize RF fom connfiguration file----*/
 		switch (eRFPath)
 		{
-#ifdef MERGE_FW
 			case RF90_PATH_A:
-				rtStatus = PHY_ConfigRFWithParaFile(priv, __radio_a_start,
-												(int)(__radio_a_end -__radio_a_start),  eRFPath);
-#ifdef HIGH_POWER_EXT_PA
-				if(priv->pshare->rf_ft_var.use_ext_pa)
-					PHY_ConfigRFWithParaFile(priv, __radio_a_hp_start,	(int)(__radio_a_hp_end -__radio_a_hp_start),  RF90_PATH_A);
-#endif
-				break;
-			case RF90_PATH_B:
-				rtStatus = PHY_ConfigRFWithParaFile(priv, __radio_b_start,
-												(int)(__radio_b_end -__radio_b_start),  eRFPath);
-				break;
-#else
-			case RF90_PATH_A:
-#if !defined(RTL8192SU)
-				rtStatus = PHY_ConfigRFWithParaFile(priv, "/usr/rtl8192Pci/radio_a.txt", eRFPath);
-#else
 				rtStatus = PHY_ConfigRFWithParaFile(priv, "/usr/rtl8192su/radio_a.txt", eRFPath);				
-#endif				
 				break;
 			case RF90_PATH_B:
-#if !defined(RTL8192SU)
-				rtStatus = PHY_ConfigRFWithParaFile(priv, "/usr/rtl8192Pci/radio_b.txt", eRFPath);
-#else				
 				rtStatus = PHY_ConfigRFWithParaFile(priv, "/usr/rtl8192su/radio_b.txt", eRFPath);
-#endif				
 				break;
-#endif
 			case RF90_PATH_C:
 			case RF90_PATH_D:
 			default:
@@ -2913,9 +1882,6 @@ int phy_RF8225_Config_ParaFile(struct rtl8190_priv *priv)
 
 void check_and_set_ampdu_spacing(struct rtl8190_priv *priv, struct stat_info *pstat)
 {
-#if !defined(RTL8192SU)
-	unsigned long ioaddr = priv->pshare->ioaddr;
-#endif	
 	unsigned char ampdu_des;
 
 	// set MCS15-Short GI spacing (8192SE hardware restriction),
@@ -2967,53 +1933,25 @@ static void rtl8192SE_ReadIMG(struct rtl8190_priv *priv)
 	unsigned char *swap_arr;
 	struct _RT_8192S_FIRMWARE_HDR *pFwHdr = NULL;
 	struct _RT_8192S_FIRMWARE_PRIV *pFwPriv = NULL;
-#ifdef MERGE_FW
-	unsigned long fw_ptr = (unsigned long)__fw_start;
-#else
 	mm_segment_t old_fs;
 //	unsigned int buf_len=0, read_bytes;
 	int fd=0;
-#ifndef	CONFIG_X86
-	extern ssize_t sys_read(unsigned int fd, char * buf, size_t count);
-#endif
-#endif
 
 	swap_arr = kmalloc(RT_8192S_FIRMWARE_HDR_SIZE, GFP_ATOMIC);
 	if (swap_arr == NULL)
 		return;
 
-#ifdef RTL8192SU
 	unsigned char *pFileName=NULL;
-#endif	
 
-#ifdef MERGE_FW
-	memcpy(swap_arr, (unsigned char *)fw_ptr, RT_8192S_FIRMWARE_HDR_SIZE);
-	fw_ptr += RT_8192S_FIRMWARE_HDR_SIZE;
-	priv->pshare->fw_DMEM_buf = (unsigned char *)fw_ptr;
-	fw_ptr += FW_DMEM_SIZE;
-#else
 
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 
 	//read from fw img and setup parameters
 
-#ifdef CONFIG_X86
 	if ((fd = rtl8190n_fileopen("/usr/rtl8192Pci/rtl8192sfw.bin", O_RDONLY, 0)) < 0)
-#else
-#if !defined(RTL8192SU)
-	if ((fd = sys_open("/usr/rtl8192Pci/rtl8192sfw.bin", O_RDONLY, 0)) < 0)
-#else
-	pFileName = "/usr/rtl8192su/rtl8192sfw.bin";
-	if ((fd = sys_open(pFileName, O_RDONLY, 0)) < 0)
-#endif	
-#endif
 	{
-#if !defined(RTL8192SU)
-		printk("/usr/rtl8192Pci/rtl8192sfw.bin cannot be opened\n");
-#else
 		printk("%s cannot be opened\n", pFileName);
-#endif			
 		BUG();
 	}
 
@@ -3021,7 +1959,6 @@ static void rtl8192SE_ReadIMG(struct rtl8190_priv *priv)
 	sys_read(fd, swap_arr, RT_8192S_FIRMWARE_HDR_SIZE);
 	sys_read(fd, priv->pshare->fw_DMEM_buf, FW_DMEM_SIZE);
 	rtl_cache_sync_wback(priv, (unsigned int)priv->pshare->fw_DMEM_buf, RT_8192S_FIRMWARE_HDR_SIZE, PCI_DMA_TODEVICE);
-#endif // MERGE_FW
 
 	rtl8192SE_FW_hdr_swap(swap_arr);
 	pFwHdr = (struct _RT_8192S_FIRMWARE_HDR *)swap_arr;
@@ -3044,14 +1981,7 @@ static void rtl8192SE_ReadIMG(struct rtl8190_priv *priv)
 		pFwPriv->rf_config = 0x12;
 	else // 2T2R
 		pFwPriv->rf_config = 0x22;
-#ifdef RTL8192SU
 	pFwPriv->hci_sel=HCISEL_USBAP;
-#if 0	
-	if (get_rf_mimo_mode(priv) == MIMO_1T2R ||get_rf_mimo_mode(priv) == MIMO_1T1R )
-		pFwPriv->rf_config=RFCONFIG_1T2R;
-	else
-		pFwPriv->rf_config=RFCONFIG_2T2R;
-#endif		
 	if (priv->pmib->efuseEntry.usb_epnum==USBEP_SIX)
 		pFwPriv->usb_ep_num=USBEP_SIX;
 	else
@@ -3059,78 +1989,25 @@ static void rtl8192SE_ReadIMG(struct rtl8190_priv *priv)
 #ifdef RTL8192SU_FWBCN
 	pFwPriv->beacon_offload=BCNOFFLOAD_FW;
 #endif
-#else
-
-	// root Fw beacon
-	if (priv->pshare->rf_ft_var.rootFwBeacon)
-		pFwPriv->beacon_offload = 3;
-	else
-		pFwPriv->beacon_offload = 0;
-#endif //RTL8192SU
 
 	//read IMEM
-#ifdef MERGE_FW
-	priv->pshare->fw_IMEM_buf = (unsigned char *)fw_ptr;
-	fw_ptr += priv->pshare->fw_IMEM_len;
-#else
 	sys_read(fd, priv->pshare->fw_IMEM_buf, priv->pshare->fw_IMEM_len);
 	rtl_cache_sync_wback(priv, (unsigned int)priv->pshare->fw_IMEM_buf,  priv->pshare->fw_IMEM_len, PCI_DMA_TODEVICE);
-#endif
 
 	//read EMEM
-#ifdef MERGE_FW
-	priv->pshare->fw_EMEM_buf = (unsigned char *)fw_ptr;
-	fw_ptr += priv->pshare->fw_EMEM_len;
-#else
 	sys_read(fd, priv->pshare->fw_EMEM_buf, priv->pshare->fw_EMEM_len);
 	rtl_cache_sync_wback(priv, (unsigned int)priv->pshare->fw_EMEM_buf,  priv->pshare->fw_EMEM_len, PCI_DMA_TODEVICE);
-#endif
 
-#ifndef MERGE_FW
 	sys_close(fd);
 	set_fs(old_fs);
-#endif
 	kfree(swap_arr);
 }
 
 
-#if 0
-/*-----------------------------------------------------------------------------
- * Function:	fw_SetRQPN()
- *
- * Overview:
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	04/30/2008	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
-static	void	fw_SetRQPN(struct rtl8190_priv *priv)
-{
-	// Only for 92SE HW bug, we have to set RAPN before every FW download
-	// We can remove the code later.
-	unsigned long ioaddr = priv->pshare->ioaddr;
-
-	RTL_W32(RQPN, 0xffffffff);
-	RTL_W32(RQPN+4, 0xffffffff);
-	RTL_W8(RQPN+8, 0xff);
-	RTL_W8(RQPN+0xB, 0x80);
-
-}	/* fw_SetRQPN */
-#endif
 
 
 static void LoadIMG(struct rtl8190_priv *priv, int fw_file)
 {
-#if !defined(RTL8192SU)
-	unsigned long ioaddr=priv->pshare->ioaddr;
-#endif	
 	int bResult=0;
 	unsigned char *mem_ptr=NULL;
 	unsigned int buf_len=0;
@@ -3160,9 +2037,6 @@ static void LoadIMG(struct rtl8190_priv *priv, int fw_file)
 		if ((i+LoadPktSize) < buf_len) {
 			//for test
 			bResult = rtl8192SE_SetupOneCmdPacket(priv, mem_ptr, LoadPktSize, 0);
-#if !defined(RTL8192SU)
-			RTL_W16(TPPoll, TPPoll_CQ);
-#endif			
 
 			if(bResult)
 				delay_ms(1);
@@ -3172,10 +2046,6 @@ static void LoadIMG(struct rtl8190_priv *priv, int fw_file)
 		}
 		else {
 			bResult = rtl8192SE_SetupOneCmdPacket(priv, mem_ptr, (buf_len-i), 1);
-#if !defined(RTL8192SU)			
-			if(bResult)
-				RTL_W8(TPPoll, POLL_CMD);
-#endif				
 			break;
 		}
 	}
@@ -3199,9 +2069,6 @@ unsigned int FirmwareEnableCPU(struct rtl8190_priv *priv)
 	unsigned char	tmpU1b, CPUStatus = 0;
 	unsigned short	tmpU2b;
 	unsigned int iCheckTime = 200;
-#if !defined(RTL8192SU)	
-	unsigned long ioaddr = priv->pshare->ioaddr;
-#endif	
 
 //	RT_TRACE(COMP_INIT, DBG_LOUD, ("-->FirmwareEnableCPU()\n") );
 
@@ -3246,14 +2113,9 @@ static int FirmwareCheckReady(struct rtl8190_priv *priv,int fw_file)
 	unsigned int rtStatus = SUCCESS;
 	int			PollingCnt = 100;
 	unsigned char	 	/*tmpU1b, */ CPUStatus = 0;
-#ifdef RTL8192SU
 	volatile
-#endif
 	unsigned int		tmpU4b;
 //	unsigned int		bOrgIMREnable;
-#if !defined(RTL8192SU)
-	unsigned long ioaddr = priv->pshare->ioaddr;
-#endif	
 
 //	DEBUG_INFO(("--->FirmwareCheckReady(): LoadStaus(%d)\n", LoadFWStatus));
 
@@ -3382,385 +2244,6 @@ int LoadEMEMIMG(struct rtl8190_priv *priv)
 }
 
 
-#if 0 // FPGA Version
-/*-----------------------------------------------------------------------------
- * Function:	MacConfigBeforeFwDownload()
- *
- * Overview:	Copy from WMAc for init setting. MAC config before FW download
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	04/29/2008	MHC		The same as 92SE MAC initialization.
- *	07/11/2008	MHC		MAC config before FW download
- *
- *---------------------------------------------------------------------------*/
-static void  MacConfigBeforeFwDownload(struct rtl8190_priv *priv)
-{
-//	HAL_DATA_TYPE		*pHalData	= GET_HAL_DATA(Adapter);
-	unsigned char		i;
-	unsigned char		tmpU1b;
-	unsigned short		tmpU2b;
-	unsigned int		addr;
-	unsigned long	ioaddr = priv->pshare->ioaddr;
-	struct rtl8192SE_hw *phw = GET_HW(priv);
-
-//	RT_TRACE(COMP_INIT, DBG_LOUD, ("--->MacConfig8192SE()\n"));
-
-	// 2008/05/14 MH For 92SE rest before init MAC data sheet not defined now.
-	// HW provide the method to prevent press reset bbutton every time.
-//	RT_TRACE(COMP_INIT, DBG_LOUD, ("Set some register before enable NIC\r\n"));
-
-	tmpU1b = RTL_R8(0x562);
-	tmpU1b |= 0x08;
-	RTL_W8(0x562, tmpU1b);
-	tmpU1b &= ~(BIT(3));
-	RTL_W8(0x562, tmpU1b);
-
-	tmpU1b = RTL_R8(SYS_FUNC_EN+1);
-	tmpU1b &= 0x73;
-	RTL_W8(SYS_FUNC_EN+1, tmpU1b);
-
-	tmpU1b = RTL_R8(SYS_CLKR);
-	tmpU1b &= 0xfa;
-	RTL_W8(SYS_CLKR, tmpU1b);
-
-//	RT_TRACE(COMP_INIT, DBG_LOUD,
-//	("Delay 1000ms before reset NIC. I dont know how long should we delay!!!!!\r\n"));
-	delay_ms(1000);
-
-	// Switch to 80M clock
-	RTL_W8(SYS_CLKR, SYS_CLKSEL_80M);
-
-	 // Enable VSPS12 LDO Macro block
-	tmpU1b = RTL_R8(SPS1_CTRL);
-	RTL_W8(SPS1_CTRL, (tmpU1b|SPS1_LDEN));
-
-	//Enable AFE Macro Block's Bandgap
-	tmpU1b = RTL_R8(AFE_MISC);
-	RTL_W8(AFE_MISC, (tmpU1b|AFE_BGEN));
-
-	//Enable LDOA15 block
-	tmpU1b = RTL_R8(LDOA15_CTRL);
-	RTL_W8(LDOA15_CTRL, (tmpU1b|LDA15_EN));
-
-	 //Enable VSPS12_SW Macro Block
-	tmpU1b = RTL_R8(SPS1_CTRL);
-	RTL_W8(SPS1_CTRL, (tmpU1b|SPS1_SWEN));
-
-	//Enable AFE Macro Block's Mbias
-	tmpU1b = RTL_R8(AFE_MISC);
-	RTL_W8(AFE_MISC, (tmpU1b|AFE_MBEN));
-
-	// Set Digital Vdd to Retention isolation Path.
-	tmpU2b = RTL_R16(SYS_ISO_CTRL);
-	RTL_W16(SYS_ISO_CTRL, (tmpU2b|ISO_PWC_DV2RP));
-
-	// Attatch AFE PLL to MACTOP/BB/PCIe Digital
-	tmpU2b = RTL_R16(SYS_ISO_CTRL);
-	RTL_W16(SYS_ISO_CTRL, (tmpU2b &(~ISO_PWC_RV2RP)));
-
-	//Enable AFE clock
-	tmpU2b = RTL_R16(AFE_XTAL_CTRL);
-	RTL_W16(AFE_XTAL_CTRL, (tmpU2b &(~XTAL_GATE_AFE)));
-
-	//Enable AFE PLL Macro Block
-	tmpU1b = RTL_R8(AFE_PLL_CTRL);
-	RTL_W8(AFE_PLL_CTRL, (tmpU1b|APLL_EN));
-
-	// Release isolation AFE PLL & MD
-	RTL_W8(SYS_ISO_CTRL, 0xEE);
-
-	//Enable MAC clock
-	tmpU2b = RTL_R16(SYS_CLKR);
-	RTL_W16(SYS_CLKR, (tmpU2b|SYS_MAC_CLK_EN));
-
-	//Enable Core digital and enable IOREG R/W
-	tmpU2b = RTL_R16(SYS_FUNC_EN);
-	RTL_W16(SYS_FUNC_EN, (tmpU2b|FEN_DCORE|FEN_MREGEN));
-
-	 //Switch the control path.
-	tmpU2b = RTL_R16(SYS_CLKR);
-	RTL_W16(SYS_CLKR, ((tmpU2b|SYS_FWHW_SEL)&(~SYS_SWHW_SEL)));
-
-
-	RTL_W16(CMDR, 0x37FC);
-
-#if 1
-	// Load MAC register from WMAc temporarily We simulate macreg.txt HW will provide
-	// MAC txt later
-	RTL_W8(0x6, 0x30);
-	RTL_W8(0x48, 0x2f);
-	RTL_W8(0x49, 0xf0);
-
-	RTL_W8(0x4b, 0x81);
-
-	RTL_W8(0xb5, 0x21);
-
-	RTL_W8(0xdc, 0xff);
-	RTL_W8(0xdd, 0xff);
-	RTL_W8(0xde, 0xff);
-	RTL_W8(0xdf, 0xff);
-
-	RTL_W8(0x11a, 0x00);
-	RTL_W8(0x11b, 0x00);
-
-	for (i = 0; i < 32; i++)
-		RTL_W8(INIMCS_SEL+i, 0x1b);	 // MCS 15
-
-	RTL_W8(0x236, 0xff);
-
-	RTL_W8(0x503, 0x22);
-	RTL_W8(0x560, 0x09);
-
-	RTL_W8(DBG_PORT, 0x91);
-#endif
-	//in this time, RQPN will be set before fw download procedure
-/*
-	if (pmib->dot11OperationEntry.wifi_specific) {
-		RTL_W32(RQPN1, (NUM_OF_PAGE_IN_FW_QUEUE_BK+(NUM_OF_PAGE_IN_FW_QUEUE_PUB/4)) << RSVD_FW_QUEUE_PAGE_BK_SHIFT | \
-						 (NUM_OF_PAGE_IN_FW_QUEUE_BE+(NUM_OF_PAGE_IN_FW_QUEUE_PUB/4)) << RSVD_FW_QUEUE_PAGE_BE_SHIFT | \
-						 (NUM_OF_PAGE_IN_FW_QUEUE_VI+(NUM_OF_PAGE_IN_FW_QUEUE_PUB/4)) << RSVD_FW_QUEUE_PAGE_VI_SHIFT | \
-						 (NUM_OF_PAGE_IN_FW_QUEUE_VO+(NUM_OF_PAGE_IN_FW_QUEUE_PUB/4)) << RSVD_FW_QUEUE_PAGE_VO_SHIFT);
-	}
-	else {
-		RTL_W32(RQPN1, 0 << RSVD_FW_QUEUE_PAGE_BK_SHIFT | \
-						 (NUM_OF_PAGE_IN_FW_QUEUE_BE +NUM_OF_PAGE_IN_FW_QUEUE_PUB) << RSVD_FW_QUEUE_PAGE_BE_SHIFT | \
-						 (NUM_OF_PAGE_IN_FW_QUEUE_VI + NUM_OF_PAGE_IN_FW_QUEUE_VO + NUM_OF_PAGE_IN_FW_QUEUE_BK)<< RSVD_FW_QUEUE_PAGE_VI_SHIFT | \
-						 0 << RSVD_FW_QUEUE_PAGE_VO_SHIFT);
-	}
-
-	RTL_W32(RQPN2, NUM_OF_PAGE_IN_FW_QUEUE_MGNT << RSVD_FW_QUEUE_PAGE_MGNT_SHIFT);
-	RTL_W32(RQPN3, APPLIED_RESERVED_QUEUE_IN_FW | \
-					 NUM_OF_PAGE_IN_FW_QUEUE_BCN << RSVD_FW_QUEUE_PAGE_BCN_SHIFT|\
-					 0 << RSVD_FW_QUEUE_PAGE_PUB_SHIFT);
-*/
-	RTL_W32(RDSA, phw->ring_dma_addr);
-	RTL_W32(TMDA, phw->tx_ring0_addr);
-	RTL_W32(TBKDA, phw->tx_ring1_addr);
-	RTL_W32(TBEDA, phw->tx_ring2_addr);
-	RTL_W32(TVIDA, phw->tx_ring3_addr);
-	RTL_W32(TVODA, phw->tx_ring4_addr);
-	RTL_W32(THPDA, phw->tx_ring5_addr);
-	RTL_W32(TBDA, phw->tx_ringB_addr);
-	RTL_W32(RCDA, phw->rxcmd_ring_addr);
-	RTL_W32(TCDA, phw->txcmd_ring_addr);
-//	RTL_W32(TCDA, phw->tx_ring5_addr);
-
-/*
-	//Set RX Desc Address
-	PlatformEFIOWrite4Byte(Adapter, RDSA,
-	pHalData->RxDescMemory[RX_MPDU_QUEUE].PhysicalAddressLow);
-	PlatformEFIOWrite4Byte(Adapter, RCDA,
-	pHalData->RxDescMemory[RX_CMD_QUEUE].PhysicalAddressLow);
-
-	//Set TX Desc Address
-	PlatformEFIOWrite4Byte(Adapter, TCDA,
-	pHalData->TxDescMemory[TXCMD_QUEUE].PhysicalAddressLow);
-	PlatformEFIOWrite4Byte(Adapter, TMDA,
-	pHalData->TxDescMemory[MGNT_QUEUE].PhysicalAddressLow);
-	PlatformEFIOWrite4Byte(Adapter, TVODA,
-	pHalData->TxDescMemory[VO_QUEUE].PhysicalAddressLow);
-	PlatformEFIOWrite4Byte(Adapter, TVIDA,
-	pHalData->TxDescMemory[VI_QUEUE].PhysicalAddressLow);
-	PlatformEFIOWrite4Byte(Adapter, TBEDA,
-	pHalData->TxDescMemory[BE_QUEUE].PhysicalAddressLow);
-	PlatformEFIOWrite4Byte(Adapter,
-	TBKDA, pHalData->TxDescMemory[BK_QUEUE].PhysicalAddressLow);
-	PlatformEFIOWrite4Byte(Adapter, TBDA,
-	pHalData->TxDescMemory[BEACON_QUEUE].PhysicalAddressLow);
-
-	RT_TRACE(COMP_INIT, DBG_LOUD, ("<---MacConfig8192SE()\n"));
-*/
-}	/* MacConfigBeforeFwDownload */
-
-
-/*-----------------------------------------------------------------------------
- * Function:	MacConfigAfterFwDownload()
- *
- * Overview:	After download Firmware, we must set some MAC register for some dedicaed
- *			purpose.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	07/02/2008	MHC		Create.
- *
- *---------------------------------------------------------------------------*/
-static void MacConfigAfterFwDownload(struct rtl8190_priv *priv)
-{
-	unsigned char	i;
-	unsigned char	tmpU1b;
-	unsigned short	tmpU2b;
-	unsigned long	ioaddr = priv->pshare->ioaddr;
-	//
-	// 1. System Configure Register (Offset: 0x0000 - 0x003F)
-	//
-
-	//
-	// 2. Command Control Register (Offset: 0x0040 - 0x004F)
-	//
-	// Turn on 0x40 Command register
-
-
-	// for sending beacon in current stage, disable RX
-	RTL_W16(CMDR, BBRSTn|BB_GLB_RSTn|SCHEDULE_EN|MACRXEN|MACTXEN|DDMA_EN|FW2HW_EN|	RXDMA_EN|TXDMA_EN|HCI_RXDMA_EN|HCI_TXDMA_EN);
-
-	// Set TCR TX DMA pre 2 FULL enable bit
-	RTL_W32(TCR, RTL_R32(TCR)|TXDMAPRE2FULL);
-	// Set RCR ... disable RX now, will enable later
-
-	RTL_W32(RCR, RCR_APPFCS |RCR_APP_PHYST_STAFF | RCR_APWRMGT | RCR_ADD3 |	RCR_AMF	| RCR_ADF | RCR_APP_MIC | RCR_APP_ICV |       RCR_AICV	/*| RCR_ACRC32*/	|				// Accept ICV error, CRC32 Error
-	RCR_AB 		| RCR_AM		|				// Accept Broadcast, Multicast
-    	RCR_APM 	|  								// Accept Physical match
-     	RCR_AAP		|     						// Accept Destination Address packets
-	(7/*pHalData->EarlyRxThreshold*/<<RCR_FIFO_OFFSET));
-
-//	RTL_W32(RCR, 0); //just dont receive anything
-
-	//
-	// 3. MACID Setting Register (Offset: 0x0050 - 0x007F)
-	//
-
-	//
-	// 4. Timing Control Register  (Offset: 0x0080 - 0x009F)
-	//
-	// Set CCK/OFDM SIFS
-	RTL_W16(SIFS_CCK, 0x0e0e);//0x1010
-	RTL_W16(SIFS_OFDM, 0x0e0e);// 0x1010
-	//3
-	//Set AckTimeout
-	RTL_W8(ACK_TIMEOUT, 0x40);
-
-	//Beacon related
-	RTL_W16(BCN_INTERVAL, 100);
-	RTL_W16(ATIMWND, 2);
-	//PlatformEFIOWrite2Byte(Adapter, BCN_DRV_EARLY_INT, 0x0022);
-	//PlatformEFIOWrite2Byte(Adapter, BCN_DMATIME, 0xC8);
-	//PlatformEFIOWrite2Byte(Adapter, BCN_ERR_THRESH, 0xFF);
-	//PlatformEFIOWrite1Byte(Adapter, MLT, 8);
-
-	//
-	// 5. FIFO Control Register (Offset: 0x00A0 - 0x015F)
-	//
-	// Initialize Number of Reserved Pages in Firmware Queue
-#if 0
-	PlatformEFIOWrite4Byte(Adapter, RQPN1,
-	NUM_OF_PAGE_IN_FW_QUEUE_BK<<0 | NUM_OF_PAGE_IN_FW_QUEUE_BE<<8 |\
-	NUM_OF_PAGE_IN_FW_QUEUE_VI<<16 | NUM_OF_PAGE_IN_FW_QUEUE_VO<<24);
-	PlatformEFIOWrite4Byte(Adapter, RQPN2,
-	NUM_OF_PAGE_IN_FW_QUEUE_HCCA << 0 | NUM_OF_PAGE_IN_FW_QUEUE_CMD << 8|\
-	NUM_OF_PAGE_IN_FW_QUEUE_MGNT << 16 |NUM_OF_PAGE_IN_FW_QUEUE_HIGH << 24);
-	PlatformEFIOWrite4Byte(Adapter, RQPN3,
-	NUM_OF_PAGE_IN_FW_QUEUE_BCN<<0 | NUM_OF_PAGE_IN_FW_QUEUE_PUB<<8);
-	// Active FW/MAC to load the new RQPN setting
-	PlatformEFIOWrite1Byte(Adapter, LD_RQPN, BIT7);
-#endif
-	// Setting TX/RX page size 0/1/2/3/4=64/128/256/512/1024
-	//PlatformEFIOWrite1Byte(Adapter, PBP, 0x22);
-
-
-	// Set RXDMA arbitration to control RXDMA/MAC/FW R/W for RXFIFO
-	RTL_W8( RXDMA_, RTL_R8(RXDMA_)|BIT(6));
-
-	//
-	// 6. Adaptive Control Register  (Offset: 0x0160 - 0x01CF)
-	//
-	// Set RRSR to all legacy rate and HT rate
-	// CCK rate is supported by default.
-	// CCK rate will be filtered out only when associated AP does not support it.
-	RTL_W8(RRSR, 0xff);
-	RTL_W8(RRSR+1, 0x01);
-//	RTL_W8(RRSR+1, 0xff);
-	RTL_W8(RRSR+2, 0x0);
-#if 0
-	//for (i = 0; i < 8; i++)
-		//PlatformEFIOWrite4Byte(Adapter, ARFR0+i*4, 0x1ffffff);
-	// MCS32/ MCS15_SG use max AMPDU size 15*2=30K
-	PlatformEFIOWrite1Byte(Adapter, AGGLEN_LMT_H, 0xff);
-	// MCS0/1/2/3 use max AMPDU size 4*2=8K
-	PlatformEFIOWrite2Byte(Adapter, AGGLEN_LMT_L, 0x4444);
-	// MCS4/5 use max AMPDU size 8*2=16K 6/7 use 10*2=20K
-	PlatformEFIOWrite2Byte(Adapter, AGGLEN_LMT_L+2, 0xAA88);
-	// MCS8/9 use max AMPDU size 8*2=16K 10/11 use 10*2=20K
-	PlatformEFIOWrite2Byte(Adapter, AGGLEN_LMT_L+4, 0xAA88);
-	// MCS12/13/14/15 use max AMPDU size 15*2=30K
-	PlatformEFIOWrite2Byte(Adapter, AGGLEN_LMT_L+4, 0xFFFF);
-#endif
-
-	// Set Data / Response auto rate fallack retry count
-	//PlatformEFIOWrite4Byte(Adapter, DARFRC, 0x04030201);
-	//PlatformEFIOWrite4Byte(Adapter, DARFRC+4, 0x08070605);
-	//PlatformEFIOWrite4Byte(Adapter, RARFRC, 0x04030201);
-	//PlatformEFIOWrite4Byte(Adapter, RARFRC+4, 0x08070605);
-
-	// MCS/CCK TX Auto Gain Control Register
-	//PlatformEFIOWrite4Byte(Adapter, MCS_TXAGC, 0x0D0C0C0C);
-	//PlatformEFIOWrite4Byte(Adapter, MCS_TXAGC+4, 0x0F0E0E0D);
-	//PlatformEFIOWrite2Byte(Adapter, CCK_TXAGC, 0x0000);
-
-
-	//
-	// 7. EDCA Setting Register (Offset: 0x01D0 - 0x01FF)
-	//
-	// BCNTCFG
-	//PlatformEFIOWrite2Byte(Adapter, BCNTCFG, 0x0000);
-	// Set all rate to support SG
-	RTL_W16(SG_RATE, 0xFFFF);
-
-
-	//
-	// 8. WMAC, BA, and CCX related Register (Offset: 0x0200 - 0x023F)
-	//
-	// Set NAV protection length
-	RTL_W16(NAV_PROT_LEN, 0x01C0);
-	// CF-END Threshold
-	RTL_W8(CFEND_TH, 0xFF);
-	// Set AMPSU minimum space
-	RTL_W8(AMPDU_MIN_SPACE, 0xFF);
-	// Set TXOP stall control for several queue/HI/BCN/MGT/
-	RTL_W8(TXOP_STALL_CTRL, 0x00);
-
-	RTL_W32(EDCAPARA_BE, 0xa44f);
-	// 9. Security Control Register (Offset: 0x0240 - 0x025F)
-	// 10. Power Save Control Register (Offset: 0x0260 - 0x02DF)
-	// 11. General Purpose Register (Offset: 0x02E0 - 0x02FF)
-	// 12. Host Interrupt Status Register (Offset: 0x0300 - 0x030F)
-	// 13. Test Mode and Debug Control Register (Offset: 0x0310 - 0x034F)
-
-	//
-	// 13. HOST/MAC PCIE Interface Setting
-	//
-	// For 92Se if we can not assign as 0x77 in init step~~~~ other wise TP is bad!!!!???,
-	// Set Tx dma burst
-	/*PlatformEFIOWrite1Byte(Adapter, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) | \
-											(MXDMA2_NoLimit<<MXDMA2_TX_SHIFT) | \
-											(1<<MULRW_SHIFT)));*/
-	//3 Set Tx/Rx Desc Address
-	/*PlatformEFIOWrite4Byte(Adapter, RDQDA, pHalData->RxDescMemory[RX_MPDU_QUEUE].PhysicalAddressLow);
-	PlatformEFIOWrite4Byte(Adapter, RCQDA, pHalData->RxDescMemory[RX_CMD_QUEUE].PhysicalAddressLow);
-
-	PlatformEFIOWrite4Byte(Adapter, TCDA	, pHalData->TxDescMemory[TXCMD_QUEUE].PhysicalAddressLow);  // Command queue address borrowed VI descriptors
-	PlatformEFIOWrite4Byte(Adapter, TMDA, 	pHalData->TxDescMemory[MGNT_QUEUE].PhysicalAddressLow);
-	PlatformEFIOWrite4Byte(Adapter, TVODA, pHalData->TxDescMemory[VO_QUEUE].PhysicalAddressLow);
-	PlatformEFIOWrite4Byte(Adapter, TVIDA, 	pHalData->TxDescMemory[VI_QUEUE].PhysicalAddressLow);
-	PlatformEFIOWrite4Byte(Adapter, TBEDA, pHalData->TxDescMemory[BE_QUEUE].PhysicalAddressLow);
-	PlatformEFIOWrite4Byte(Adapter, TBKDA, pHalData->TxDescMemory[BK_QUEUE].PhysicalAddressLow);
-	PlatformEFIOWrite4Byte(Adapter, TBDA, pHalData->TxDescMemory[BEACON_QUEUE].PhysicalAddressLow);
-	*/
-
-}	/* MacConfigAfterFwDownload */
-#endif
 
 
 //
@@ -3776,15 +2259,11 @@ static void MacConfigAfterFwDownload(struct rtl8190_priv *priv)
 unsigned char
 HalSetSysClk8192SE(	struct rtl8190_priv *priv,	unsigned char Data)
 {
-#if !defined(RTL8192SU)
-	unsigned long	ioaddr = priv->pshare->ioaddr;
-#endif	
 	RTL_W8((SYS_CLKR + 1), Data);
 	delay_us(200);
 	return TRUE;
 }
 
-#ifdef RTL8192SU
 static void  RTL8192SU_MacConfigBeforeFwDownload(struct rtl8190_priv *priv)
 {
 	//unsigned char		i;
@@ -3943,274 +2422,6 @@ static void  RTL8192SU_MacConfigBeforeFwDownload(struct rtl8190_priv *priv)
 //	RT_TRACE(COMP_INIT, DBG_LOUD, ("<---MacConfig8192SE()\n"));
 
 }
-#else
-// Chip version
-/*-----------------------------------------------------------------------------
- * Function:	MacConfigBeforeFwDownload()
- *
- * Overview:	Copy from WMAc for init setting. MAC config before FW download
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	04/29/2008	MHC		The same as 92SE MAC initialization.
- *	07/11/2008	MHC		MAC config before FW download
- *	09/02/2008	MHC		The initialize sequence can preven NIC reload fail
- *						NIC will not disappear when power domain init twice.
- *
- *---------------------------------------------------------------------------*/
-static void  MacConfigBeforeFwDownload(struct rtl8190_priv *priv)
-{
-	unsigned char		i;
-	unsigned char		tmpU1b;
-	unsigned short		tmpU2b;
-//	unsigned int		addr;
-	unsigned long	ioaddr = priv->pshare->ioaddr;
-	unsigned char PollingCnt = 20;
-	struct rtl8190_hw *phw = GET_HW(priv);
-
-//	RT_TRACE(COMP_INIT, DBG_LOUD, ("--->MacConfig8192SE()\n"));
-
-	// 2008/05/14 MH For 92SE rest before init MAC data sheet not defined now.
-	// HW provide the method to prevent press reset bbutton every time.
-//	RT_TRACE(COMP_INIT, DBG_LOUD, ("Set some register before enable NIC\r\n"));
-
-	// 2009/03/24 MH Reset PCIE Digital
-	tmpU1b = RTL_R8(SYS_FUNC_EN+1);
-	tmpU1b &= 0xFE;
-	RTL_W8(SYS_FUNC_EN+1, tmpU1b);
-	delay_ms(1);
-	RTL_W8(SYS_FUNC_EN+1, tmpU1b|BIT(0));
-
-	// Switch to SW IO control
-	tmpU1b = RTL_R8((SYS_CLKR + 1));
-	if(tmpU1b & BIT(7))
-	{
-		tmpU1b &= ~(BIT(6)|BIT(7));
-		if(!HalSetSysClk8192SE(priv, tmpU1b))
-			return; // Set failed, return to prevent hang.
-	}
-
-	// Clear FW RPWM for FW control LPS. by tynli. 2009.02.23
-	RTL_W8(RPWM, 0x0);
-
-	tmpU1b = RTL_R8(SYS_FUNC_EN+1);
-
-//	tmpU1b &= 0xfb;
-	tmpU1b &= 0x73;
-
-	RTL_W8(SYS_FUNC_EN+1, tmpU1b);
-	// wait for BIT 10/11/15 to pull high automatically!!
-	delay_ms(1000);
-	RTL_W16( CMDR, 0);
-	RTL_W32( TCR, 0);
-/*
-	tmpU1b = RTL_R8(SPS1_CTRL);
-	tmpU1b &= 0xfc;
-	RTL_W8(SPS1_CTRL, tmpU1b);
-*/
-
-	tmpU1b = RTL_R8(0x562);
-	tmpU1b |= 0x08;
-	RTL_W8(0x562, tmpU1b);
-	tmpU1b &= ~(BIT(3));
-	RTL_W8(0x562, tmpU1b);
-
-	//tmpU1b = PlatformEFIORead1Byte(Adapter, SYS_FUNC_EN+1);
-	//tmpU1b &= 0x73;
-	//PlatformEFIOWrite1Byte(Adapter, SYS_FUNC_EN+1, tmpU1b);
-
-	//tmpU1b = PlatformEFIORead1Byte(Adapter, SYS_CLKR);
-	//tmpU1b &= 0xfa;
-	//PlatformEFIOWrite1Byte(Adapter, SYS_CLKR, tmpU1b);
-
-	// Switch to 80M clock
-	//PlatformEFIOWrite1Byte(Adapter, SYS_CLKR, SYS_CLKSEL_80M);
-
-	 // Enable VSPS12 LDO Macro block
-	//tmpU1b = PlatformEFIORead1Byte(Adapter, SPS1_CTRL);
-	//PlatformEFIOWrite1Byte(Adapter, SPS1_CTRL, (tmpU1b|SPS1_LDEN));
-
-	//Enable AFE clock source
-//	RT_TRACE(COMP_INIT, DBG_LOUD, 	("Enable AFE clock source\r\n"));
-	tmpU1b = RTL_R8(AFE_XTAL_CTRL);
-	RTL_W8(AFE_XTAL_CTRL, (tmpU1b|0x01));
-	// Delay 1.5ms
-	delay_ms(2);
-	tmpU1b = RTL_R8(AFE_XTAL_CTRL+1);
-	RTL_W8(AFE_XTAL_CTRL+1, (tmpU1b&0xfb));
-
-
-
-	//Enable AFE Macro Block's Bandgap
-//	RT_TRACE(COMP_INIT, DBG_LOUD, 	("Enable AFE Macro Block's Bandgap\r\n"));
-	tmpU1b = RTL_R8(AFE_MISC);
-	RTL_W8(AFE_MISC, (tmpU1b|BIT(0)));
-	delay_ms(2);
-
-	//Enable AFE Mbias
-//	RT_TRACE(COMP_INIT, DBG_LOUD, 	("Enable AFE Mbias\r\n"));
-	tmpU1b = RTL_R8(AFE_MISC);
-	RTL_W8(AFE_MISC, (tmpU1b|0x02));
-	delay_ms(2);
-
-	//Enable LDOA15 block
-	tmpU1b = RTL_R8(LDOA15_CTRL);
-	RTL_W8(LDOA15_CTRL, (tmpU1b|BIT(0)));
-
-
-	 //Enable VSPS12_SW Macro Block
-	//tmpU1b = PlatformEFIORead1Byte(Adapter, SPS1_CTRL);
-	//PlatformEFIOWrite1Byte(Adapter, SPS1_CTRL, (tmpU1b|SPS1_SWEN));
-
-	//Enable AFE Macro Block's Mbias
-	//tmpU1b = PlatformEFIORead1Byte(Adapter, AFE_MISC);
-	//PlatformEFIOWrite1Byte(Adapter, AFE_MISC, (tmpU1b|AFE_MBEN));
-
-	// Set Digital Vdd to Retention isolation Path.
-	tmpU2b =RTL_R16(SYS_ISO_CTRL);
-	RTL_W16(SYS_ISO_CTRL, (tmpU2b|BIT(11)));
-
-	// 2008/09/25 MH From SD1 Jong, For warm reboot NIC disappera bug.
-	tmpU2b = RTL_R16(SYS_FUNC_EN);
-	RTL_W16( SYS_FUNC_EN, tmpU2b |= BIT(13));
-
-	RTL_W8(SYS_ISO_CTRL+1, 0x68);
-
-	tmpU1b = RTL_R8(AFE_PLL_CTRL);
-	RTL_W8(AFE_PLL_CTRL, (tmpU1b|BIT(0)|BIT(4)));
-	// Enable MAC 80MHZ clock
-	tmpU1b = RTL_R8(AFE_PLL_CTRL+1);
-	RTL_W8( AFE_PLL_CTRL+1, (tmpU1b|BIT(0)));
-	delay_ms(2);
-	// Attatch AFE PLL to MACTOP/BB/PCIe Digital
-//	tmpU2b = RTL_R16(SYS_ISO_CTRL);
-//	RTL_W16(SYS_ISO_CTRL, (tmpU2b &(~ BIT(12))));
-
-	//Enable AFE clock
-	//tmpU2b = PlatformEFIORead2Byte(Adapter, AFE_XTAL_CTRL);
-	//PlatformEFIOWrite2Byte(Adapter, AFE_XTAL_CTRL, (tmpU2b &(~XTAL_GATE_AFE)));
-
-	// Release isolation AFE PLL & MD
-	RTL_W8(SYS_ISO_CTRL, 0xA6);
-
-
-
-	//Enable MAC clock
-	tmpU2b = RTL_R16( SYS_CLKR);
-	//PlatformEFIOWrite2Byte(Adapter, SYS_CLKR, (tmpU2b|SYS_MAC_CLK_EN));
-	RTL_W16(SYS_CLKR, (tmpU2b|BIT(12)|BIT(11)));
-
-
-	//Enable Core digital and enable IOREG R/W
-	tmpU2b = RTL_R16(SYS_FUNC_EN);
-	RTL_W16(SYS_FUNC_EN, (tmpU2b|BIT(11)));
-
-	tmpU1b = RTL_R8(SYS_FUNC_EN+1);
-	RTL_W8(SYS_FUNC_EN+1, tmpU1b&~(BIT(7)));
-
-	// 2008/09/25 MH From SD1 Jong, For warm reboot NIC disappera bug.
-// 	tmpU2b = RTL_R16(SYS_FUNC_EN);
-//	RTL_W16(SYS_FUNC_EN, tmpU2b | BIT(13));
-
-	//enable REG_EN
-	RTL_W16(SYS_FUNC_EN, (tmpU2b|BIT(11)|BIT(15)));
-
-	 //Switch the control path.
-	 tmpU2b = RTL_R16(SYS_CLKR);
-	RTL_W16(SYS_CLKR, (tmpU2b&(~BIT(2))));
-
-	tmpU1b = RTL_R8((SYS_CLKR + 1));
-	tmpU1b = ((tmpU1b | BIT(7)) & (~BIT(6)));
-	if(!HalSetSysClk8192SE(priv, tmpU1b))
-		return; // Set failed, return to prevent hang.
-
-	RTL_W16(CMDR, 0x07FC);
-#if 1
-	// 2008/09/02 MH We must enable the section of code to prevent load IMEM fail.
-	// Load MAC register from WMAc temporarily We simulate macreg.txt HW will provide
-	// MAC txt later
-	RTL_W8(0x6, 0x30);
-//	RTL_W8(0x48, 0x3f);
-	RTL_W8(0x49, 0xf0);
-
-	RTL_W8(0x4b, 0x81);
-
-	RTL_W8(0xb5, 0x21);
-
-	RTL_W8(0xdc, 0xff);
-	RTL_W8(0xdd, 0xff);
-	RTL_W8(0xde, 0xff);
-	RTL_W8(0xdf, 0xff);
-
-	RTL_W8(0x11a, 0x00);
-	RTL_W8(0x11b, 0x00);
-
-	for (i = 0; i < 32; i++)
-		RTL_W8(INIMCS_SEL+i, 0x1b); // MCS15
-
-	RTL_W8(CFEND_TH, 0xff);
-
-	RTL_W8( 0x503, 0x22);
-//	RTL_W8( 0x560, 0x09);
-	RTL_W8( 0x560, 0x40);
-
-	RTL_W8( DBG_PORT, 0x91);
-#endif
-
-	RTL_W32(RDSA, phw->ring_dma_addr);
-	RTL_W32(TMDA, phw->tx_ring0_addr);
-	RTL_W32(TBKDA, phw->tx_ring1_addr);
-	RTL_W32(TBEDA, phw->tx_ring2_addr);
-	RTL_W32(TVIDA, phw->tx_ring3_addr);
-	RTL_W32(TVODA, phw->tx_ring4_addr);
-	RTL_W32(THPDA, phw->tx_ring5_addr);
-	RTL_W32(TBDA, phw->tx_ringB_addr);
-	RTL_W32(RCDA, phw->rxcmd_ring_addr);
-	RTL_W32(TCDA, phw->txcmd_ring_addr);
-//	RTL_W32(TCDA, phw->tx_ring5_addr);
-
-	// 2009/03/13 MH Prevent incorrect DMA write after accident reset !!!
-	RTL_W16(CMDR, 0x37FC);
-
-	//
-	// <Roger_EXP> To make sure that TxDMA can ready to download FW.
-	// We should reset TxDMA if IMEM RPT was not ready.
-	// Suggested by SD1 Alex. 2008.10.23.
-	//
-	do
-	{
-		tmpU1b = RTL_R8( TCR);
-		if((tmpU1b & (IMEM_CHK_RPT|EXT_IMEM_CHK_RPT)) == (IMEM_CHK_RPT|EXT_IMEM_CHK_RPT))
-			break;
-
-		delay_ms(5);
-	}while(PollingCnt--);	// Delay 1ms
-
-	if(PollingCnt <= 0 )
-	{
-		printk("MacConfigBeforeFwDownloadASIC(): Polling TXDMA_INIT_VALUE timeout!! Current TCR(%x)\n", tmpU1b);
-		tmpU1b = RTL_R8(CMDR);
-		RTL_W8(CMDR, tmpU1b&(~TXDMA_EN));
-		delay_ms(10);
-		RTL_W8(CMDR, tmpU1b|TXDMA_EN);// Reset TxDMA
-	}
-
-
-//	RT_TRACE(COMP_INIT, DBG_LOUD, ("<---MacConfig8192SE()\n"));
-
-	RTL_W16(BCN_DRV_EARLY_INT, (10<<4)); // 2
-#ifdef FW_SW_BEACON
-	if (priv->pmib->miscEntry.vap_enable)
-		RTL_W16(BCN_DRV_EARLY_INT, RTL_R16(BCN_DRV_EARLY_INT)|BIT(15)); // sw beacon
-#endif
-}	/* MacConfigBeforeFwDownload */
-#endif //RTL8192SU
 
 /*-----------------------------------------------------------------------------
  * Function:	MacConfigAfterFwDownload()
@@ -4231,16 +2442,12 @@ static void  MacConfigBeforeFwDownload(struct rtl8190_priv *priv)
  *---------------------------------------------------------------------------*/
 static void MacConfigAfterFwDownload(struct rtl8190_priv *priv)
 {
-#if !defined(RTL8192SU)
-	unsigned long	ioaddr = priv->pshare->ioaddr;
-#else	
 	unsigned char tmpU1b;
 
 #ifdef RTL867X_DMEM_ENABLE
 	if(priv->pshare->fw_IMEM_buf!=NULL) {kfree(priv->pshare->fw_IMEM_buf); priv->pshare->fw_IMEM_buf=NULL; }
 	if(priv->pshare->fw_EMEM_buf!=NULL) {kfree(priv->pshare->fw_EMEM_buf); priv->pshare->fw_EMEM_buf=NULL; }
 	if(priv->pshare->fw_DMEM_buf!=NULL) {kfree(priv->pshare->fw_DMEM_buf); priv->pshare->fw_DMEM_buf=NULL; }
-#endif
 #endif
 	//
 	// 1. System Configure Register (Offset: 0x0000 - 0x003F)
@@ -4298,18 +2505,6 @@ static void MacConfigAfterFwDownload(struct rtl8190_priv *priv)
 	// 5. FIFO Control Register (Offset: 0x00A0 - 0x015F)
 	//
 	// Initialize Number of Reserved Pages in Firmware Queue
-#if 0
-	PlatformEFIOWrite4Byte(Adapter, RQPN1,
-	NUM_OF_PAGE_IN_FW_QUEUE_BK<<0 | NUM_OF_PAGE_IN_FW_QUEUE_BE<<8 |\
-	NUM_OF_PAGE_IN_FW_QUEUE_VI<<16 | NUM_OF_PAGE_IN_FW_QUEUE_VO<<24);
-	PlatformEFIOWrite4Byte(Adapter, RQPN2,
-	NUM_OF_PAGE_IN_FW_QUEUE_HCCA << 0 | NUM_OF_PAGE_IN_FW_QUEUE_CMD << 8|\
-	NUM_OF_PAGE_IN_FW_QUEUE_MGNT << 16 |NUM_OF_PAGE_IN_FW_QUEUE_HIGH << 24);
-	PlatformEFIOWrite4Byte(Adapter, RQPN3,
-	NUM_OF_PAGE_IN_FW_QUEUE_BCN<<0 | NUM_OF_PAGE_IN_FW_QUEUE_PUB<<8);
-	// Active FW/MAC to load the new RQPN setting
-	PlatformEFIOWrite1Byte(Adapter, LD_RQPN, BIT7);
-#endif
 	// Setting TX/RX page size 0/1/2/3/4=64/128/256/512/1024
 	//PlatformEFIOWrite1Byte(Adapter, PBP, 0x22);
 
@@ -4342,16 +2537,6 @@ static void MacConfigAfterFwDownload(struct rtl8190_priv *priv)
 	// Only enable ACK rate to OFDM 24M
 
 	// ARFR table set by f/w, 20081130
-#if 0
-	RTL_W32(ARFR0, 0x1f0ff0f0);
-	RTL_W32(ARFR1, 0x1f0ff0f0);
-	RTL_W32(ARFR2, 0x1f0ff0f0);
-	RTL_W32(ARFR3, 0x1f0ff0f0);
-	RTL_W32(ARFR4, 0x1f0ff0f0);
-	RTL_W32(ARFR5, 0x1f0ff0f0);
-	RTL_W32(ARFR6, 0x1f0ff0f0);
-	RTL_W32(ARFR7, 0x1f0ff0f0);
-#endif
 	// Different rate use different AMPDU size
 	// MCS32/ MCS15_SG use max AMPDU size 15*2=30K
 	RTL_W8(AGGLEN_LMT_H, 0x0f);
@@ -4390,12 +2575,6 @@ static void MacConfigAfterFwDownload(struct rtl8190_priv *priv)
 	//
 	// 8. WMAC, BA, and CCX related Register (Offset: 0x0200 - 0x023F)
 	//
-#if 0
-	// Set NAV protection length
-	RTL_W16(NAV_PROT_LEN, 0x01C0);
-	// CF-END Threshold
-	RTL_W8(CFEND_TH, 0xFF);
-#endif
 
 #ifdef CHECK_HANGUP
 	if (!priv->reset_hangup)
@@ -4417,7 +2596,6 @@ static void MacConfigAfterFwDownload(struct rtl8190_priv *priv)
     //Set Driver INFO size
 	RTL_W8(RXDRVINFO_SZ, 0x4);
 
-#ifdef RTL8192SU
 	if (priv->pmib->efuseEntry.usb_epnum==USBEP_SIX)
 	{
 		tmpU1b = RTL_R8( 0xab); // RQPN
@@ -4428,13 +2606,7 @@ static void MacConfigAfterFwDownload(struct rtl8190_priv *priv)
 		tmpU1b = RTL_R8( 0xab); // RQPN 
 		RTL_W8( 0xab, (tmpU1b|BIT(5)|BIT(6)|BIT(7)));
 	}
-#endif
 	//Set RQPN
-#if 0
-	RTL_W32(RQPN1,0x15150707);
-	RTL_W32(RQPN2,0x03030000);
-	RTL_W32(RQPN3,0x8000bc00);
-#endif
 #if !defined(RTL8192SU_FWBCN)
 	if (!RTL_R8(RQPN3) && (RTL_R8(RQPN3+1)>1)) {
 		//default assign bcn q 2 page when pub q page >= 2 and bcn q page == 0
@@ -4442,7 +2614,6 @@ static void MacConfigAfterFwDownload(struct rtl8190_priv *priv)
 		RTL_W8(RQPN3, 2);
 	}
 #endif	
-#ifdef RTL8192SU
 	// Fix the RX FIFO issue(USB error), Rivesed by Roger, 2008-06-14
 	tmpU1b = RTL_R8( 0xfe5C);
 	RTL_W8(0xfe5C, tmpU1b|BIT(7));
@@ -4458,7 +2629,6 @@ static void MacConfigAfterFwDownload(struct rtl8190_priv *priv)
 	RTL_W8( 0xfe40,0x0f);
 	RTL_W8( 0xfe42,0x00); 
 	RTL_W8( 0xfe42,0x01);
-#endif
 
 	// for warm reboot.
         RTL_W8(0x03, RTL_R8(0x03) | BIT(4));
@@ -4491,9 +2661,6 @@ int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
 {
 	static struct wifi_mib *pmib;
 	static unsigned int opmode;
-#if !defined(RTL8192SU)	
-	static unsigned long ioaddr;
-#endif	
 	static unsigned long val32;
 	static unsigned short val16;
 	static int i;
@@ -4503,9 +2670,6 @@ int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
 
 	pmib = GET_MIB(priv);
 	opmode = priv->pmib->dot11OperationEntry.opmode;
-#if !defined(RTL8192SU)	
-	ioaddr = priv->pshare->ioaddr;
-#endif
 
 	DBFENTER;
 
@@ -4539,11 +2703,7 @@ int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
 
 //1 For Test, Firmware Downloading
 
-#if !defined(RTL8192SU)
-	MacConfigBeforeFwDownload(priv);
-#else
 	RTL8192SU_MacConfigBeforeFwDownload(priv);
-#endif	
 
 	DEBUG_INFO("MacConfigBeforeFwDownload\n");
 
@@ -4566,11 +2726,7 @@ int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
 		printk
 #endif
                 ("Load Firmware check!\n");
-#if !defined(RTL8192SU)
-		return -1;
-#else
 		return LOADFW_FAIL;
-#endif
 	}else {
 //		delay_ms(20);
 		PRINT_INFO("Load firmware successful! \n");
@@ -4652,11 +2808,7 @@ int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
 
 
 	// set RCR: RX_SHIFT and disable ACF
-#if !defined(RTL8192SU)
-	RTL_W8(0x48, 0x3e);
-#else	
 	RTL_W32(RCR, RTL_R32(RCR) | RCR_RXSHFT_EN);
-#endif
 	RTL_W32(0x48, RTL_R32(0x48) & ~ RCR_ACF  & ~RCR_ACRC32);
 	// for debug by victoryman, 20081119
 	RTL_W32(RCR, RTL_R32(RCR) | RCR_APP_PHYST_RXFF);
@@ -4775,63 +2927,6 @@ int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
 			(LoadPktSize), PCI_DMA_TODEVICE);
 #endif
 */
-#if	0
-//	RTL_W32(0x230, 0x40000000);	//for test
-////////////////////////////////////////////////////////////
-
-	printk("init_hw: 1\n");
-
-	RTL_W16(SIFS_OFDM, 0x1010);
-	RTL_W8(SLOT_TIME, 0x09);
-
-	RTL_W8(MSR, MSR_AP);
-
-//	RTL_W8(MSR,MSR_INFRA);
-	// for test, loopback
-//	RTL_W8(MSR, MSR_NOLINK);
-//	RTL_W8(LBKMD_SEL, BIT(0)| BIT(1) );
-//	RTL_W16(LBDLY, 0xffff);
-
-	//beacon related
-	RTL_W16(BCN_INTERVAL, pmib->dot11StationConfigEntry.dot11BeaconPeriod);
-	RTL_W16(ATIMWND, 2); //0
-	RTL_W16(BCN_DRV_EARLY_INT, 10<<4); // 2
-	RTL_W16(BCN_DMATIME, 256); // 0xf
-	RTL_W16(SIFS_OFDM, 0x0e0e);
-	RTL_W8(SLOT_TIME, 0x10);
-
-//	CamResetAllEntry(priv);
-	RTL_W16(SECR, 0x0000);
-
-// By H.Y. advice
-//	RTL_W16(_BCNTCFG_, 0x060a);
-//	if (OPMODE & WIFI_AP_STATE)
-//		RTL_W16(BCNTCFG, 0x000a);
-//	else
-// for debug
-//	RTL_W16(_BCNTCFG_, 0x060a);
-//	RTL_W16(BCNTCFG, 0x0204);
-
-
-	init_beacon(priv);
-
-	priv->pshare->InterruptMask = (IMR_ROK | IMR_VODOK | IMR_VIDOK | IMR_BEDOK | IMR_BKDOK |		\
-	IMR_HCCADOK | IMR_MGNTDOK | IMR_COMDOK | IMR_HIGHDOK | 					\
-	IMR_BDOK | /*IMR_RXCMDOK | IMR_TIMEOUT0 |*/ IMR_RDU | IMR_RXFOVW	|			\
-	IMR_BcnInt/* | IMR_TXFOVW*/ /*| IMR_TBDOK | IMR_TBDER*/) ;// IMR_ROK | IMR_BcnInt | IMR_RDU | IMR_RXFOVW | IMR_RXCMDOK;
-
-//	priv->pshare->InterruptMask = IMR_ROK| IMR_BDOK | IMR_BcnInt | IMR_MGNTDOK | IMR_TBDOK | IMR_RDU ;
-//	priv->pshare->InterruptMask  = 0;
-	priv->pshare->InterruptMaskExt = 0;
-	RTL_W32(IMR, priv->pshare->InterruptMask);
-	RTL_W32(IMR+4, priv->pshare->InterruptMaskExt);
-
-//////////////////////////////////////////////////////////////
-	printk("end of init hw\n");
-
-	return 0;
-
-#endif
 // clear TPPoll
 //	RTL_W16(TPPoll, 0x0);
 // Should 8192SE do this initialize? I don't know yet, 080812. Joshua
@@ -4960,12 +3055,6 @@ int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
 		else
 			RTL_W8(MSR, MSR_AP);
 // Move init beacon after f/w download
-#if 0
-		if (priv->auto_channel == 0) {
-			DEBUG_INFO("going to init beacon\n");
-			init_beacon(priv);
-		}
-#endif
 	}
 #ifdef CLIENT_MODE
 	else if (opmode & WIFI_STATION_STATE)
@@ -5019,34 +3108,6 @@ int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
 	}
 
 // for debug
-#if 0
-// when hangup reset, re-init TKIP/AES key in ad-hoc mode
-#ifdef CLIENT_MODE
-	if ((OPMODE & WIFI_ADHOC_STATE) && pmib->dot11OperationEntry.keep_rsnie &&
-		(pmib->dot1180211AuthEntry.dot11PrivacyAlgrthm == _TKIP_PRIVACY_ ||
-			pmib->dot1180211AuthEntry.dot11PrivacyAlgrthm == _CCMP_PRIVACY_)) {
-		DOT11_SET_KEY Set_Key;
-		Set_Key.KeyType = DOT11_KeyType_Group;
-		Set_Key.EncType = pmib->dot11GroupKeysTable.dot11Privacy;
-		DOT11_Process_Set_Key(priv->dev, NULL, &Set_Key, pmib->dot11GroupKeysTable.dot11EncryptKey.dot11TTKey.skey);
-	}
-	else
-#endif
-//-------------------------------------- david+2006-06-30
-	// restore group key if it has been set before open, david
-	if (pmib->dot11GroupKeysTable.keyInCam) {
-		int retVal;
-		retVal = CamAddOneEntry(priv, (unsigned char *)"\xff\xff\xff\xff\xff\xff",
-					pmib->dot11GroupKeysTable.keyid,
-					pmib->dot11GroupKeysTable.dot11Privacy<<2,
-					0, pmib->dot11GroupKeysTable.dot11EncryptKey.dot11TTKey.skey);
-		if (retVal)
-			priv->pshare->CamEntryOccupied++;
-		else {
-			DEBUG_ERR("Add group key failed!\n");
-		}
-	}
-#endif
 	//here add if legacy WEP
 	// if 1x is enabled, do not set default key, david
 //#if 0	// marked by victoryman, use pairwise key at present, 20070627
@@ -5078,28 +3139,12 @@ int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
 //	while(RTL_R32(0x2A0) != 0){};
 //	RTL_W16(ATIMWND, 0); //0
 
-#if !defined(RTL8192SU)
-	RTL_W16(BCN_DRV_EARLY_INT, (10<<4)); // 2
-#ifdef WDS
-	if (!((OPMODE & WIFI_AP_STATE) && priv->pmib->dot11WdsInfo.wdsEnabled && priv->pmib->dot11WdsInfo.wdsPure))
-#endif
-		RTL_W16(BCN_DRV_EARLY_INT, RTL_R16(BCN_DRV_EARLY_INT)|BIT(15)); // sw beacon
-
-#ifdef MBSSID
-	if (priv->pmib->miscEntry.vap_enable && RTL8190_NUM_VWLAN == 1 &&
-					priv->pmib->dot11StationConfigEntry.dot11BeaconPeriod < 30)
-		RTL_W16(BCN_DRV_EARLY_INT, (RTL_R16(BCN_DRV_EARLY_INT)&0xf00f) | ((6<<4)&0xff0));
-#endif
-
-	RTL_W16(BCN_DMATIME, 0x400); // 1ms
-#else //RTl8192SU
 #ifdef RTL8192SU_FWBCN
 	//RTL_W16(BCN_DRV_EARLY_INT, 0x0000);
 #else
 	RTL_W16(BCN_DRV_EARLY_INT, 0x8000); //enable software transmit beacon frame
 	RTL_W16(BCN_DMATIME, 0);
 #endif	
-#endif //!RTL8192SU
 
 // for debug
 #ifdef CLIENT_MODE
@@ -5119,17 +3164,6 @@ int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
 
 
 	// Ack ISR, and then unmask IMR
-#if 0
-	RTL_W32(ISR, RTL_R32(ISR));
-	RTL_W32(ISR+4, RTL_R16(ISR+4));
-	RTL_W32(IMR, 0x0);
-	RTL_W32(IMR+4, 0x0);
-	priv->pshare->InterruptMask = _ROK_ | _BCNDMAINT_ | _RDU_ | _RXFOVW_ | _RXCMDOK_;
-	priv->pshare->InterruptMask = (IMR_ROK | IMR_VODOK | IMR_VIDOK | IMR_BEDOK | IMR_BKDOK |		\
-	IMR_HCCADOK | IMR_MGNTDOK | IMR_COMDOK | IMR_HIGHDOK | 					\
-	IMR_BDOK | IMR_RXCMDOK | /*IMR_TIMEOUT0 |*/ IMR_RDU | IMR_RXFOVW	|			\
-	IMR_BcnInt/* | IMR_TXFOVW*/ /*| IMR_TBDOK | IMR_TBDER*/);// IMR_ROK | IMR_BcnInt | IMR_RDU | IMR_RXFOVW | IMR_RXCMDOK;
-#endif
 	priv->pshare->InterruptMask = IMR_ROK | IMR_BcnInt |IMR_RDU | IMR_RXFOVW ;
 #ifdef MP_TEST
 	priv->pshare->InterruptMask	|= IMR_BEDOK;
@@ -5184,10 +3218,6 @@ int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
 #endif	
 
 	//enable interrupt
-#if !defined(RTL8192SU) // usb interface don't need IMR setting.
-	RTL_W32(IMR, priv->pshare->InterruptMask);
-	RTL_W32(IMR+4, priv->pshare->InterruptMaskExt);
-#endif	
 //	RTL_W32(IMR, 0xffffffff);
 //	RTL_W8(IMR+4, 0x3f);
 
@@ -5213,11 +3243,7 @@ int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
 
 	if (get_rf_mimo_mode(priv) == MIMO_2T2R)
 	{
-#if !defined(RTL8192SU)
-		if ((priv->pmib->dot11RFEntry.LOFDM_pwd_A == 0) ||
-#else
 		if ((priv->pmib->dot11RFEntry.LOFDM_pwd_A == 0) &&
-#endif
 			(priv->pmib->dot11RFEntry.LOFDM_pwd_B == 0)) {
 			priv->pshare->use_default_para = 1;
 			priv->pshare->legacyOFDM_pwrdiff_A = 0;
@@ -5274,14 +3300,6 @@ int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
 	}
 
 	// get default Tx AGC offset
-#if !defined(RTL8192SU)
-	*(unsigned int *)(&priv->pshare->phw->MCSTxAgcOffset[0])  = RTL_R32(rTxAGC_Mcs03_Mcs00);
-	*(unsigned int *)(&priv->pshare->phw->MCSTxAgcOffset[4])  = RTL_R32(rTxAGC_Mcs07_Mcs04);
-	*(unsigned int *)(&priv->pshare->phw->MCSTxAgcOffset[8])  = RTL_R32(rTxAGC_Mcs11_Mcs08);
-	*(unsigned int *)(&priv->pshare->phw->MCSTxAgcOffset[12]) = RTL_R32(rTxAGC_Mcs15_Mcs12);
-	*(unsigned int *)(&priv->pshare->phw->OFDMTxAgcOffset[0]) = RTL_R32(rTxAGC_Rate18_06);
-	*(unsigned int *)(&priv->pshare->phw->OFDMTxAgcOffset[4]) = RTL_R32(rTxAGC_Rate54_24);
-#else
 	*(unsigned int *)(&priv->pshare->phw->MCSTxAgcOffset[0])  = PHY_QueryBBReg(priv, rTxAGC_Mcs03_Mcs00, bMaskDWord);
 	*(unsigned int *)(&priv->pshare->phw->MCSTxAgcOffset[4])  = PHY_QueryBBReg(priv, rTxAGC_Mcs07_Mcs04, bMaskDWord);
 	if (get_rf_mimo_mode(priv) == MIMO_2T2R)
@@ -5291,7 +3309,6 @@ int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
 	}
 	*(unsigned int *)(&priv->pshare->phw->OFDMTxAgcOffset[0]) = PHY_QueryBBReg(priv, rTxAGC_Rate18_06, bMaskDWord);
 	*(unsigned int *)(&priv->pshare->phw->OFDMTxAgcOffset[4]) = PHY_QueryBBReg(priv, rTxAGC_Rate54_24, bMaskDWord);
-#endif //RTL8192SU
 
 #ifdef ADD_TX_POWER_BY_CMD
 	ASSIGN_TX_POWER_OFFSET(priv->pshare->phw->OFDMTxAgcOffset[0], priv->pshare->rf_ft_var.txPowerPlus_ofdm_18);
@@ -5371,12 +3388,6 @@ int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
 	// set Max Short GI Rate
 	if (priv->pmib->dot11StationConfigEntry.autoRate == 1) {
 		// set by fw, 20090707
-#if 0
-		if (get_rf_mimo_mode(priv) == MIMO_2T2R)
-			RTL_W16(SG_RATE, 0xffff);
-		else // 1T2R, 1T1R?
-			RTL_W16(SG_RATE, 0x7777);
-#endif
 	}
 	else { // fixed rate
 		fixed_rate = (priv->pmib->dot11StationConfigEntry.fixedTxRate >> 12) & 0xffff;
@@ -5434,9 +3445,6 @@ int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
 // finetune PCIe analog PHY characteristic, by Pei-Si Wu, 20090227
 void rtl8192se_ePhyInit(struct rtl8190_priv *priv)
 {
-#if !defined(RTL8192SU)
-	unsigned int ioaddr = priv->pshare->ioaddr;
-#endif	
 
 	RTL_W16(MDIO_DATA, 0x1000);
 	RTL_W8(MDIO_CTRL, 0x20);
@@ -5475,43 +3483,6 @@ void rtl8192se_ePhyInit(struct rtl8190_priv *priv)
 	delay_ms(10);
 
 	// debug print
-#if 0
-	RTL_W8(MDIO_CTRL, 0x40);
-	delay_ms(1);
-	printk("ePhyReg0x%02x=0x%04x\n", 0x00, RTL_R16(MDIO_DATA+2));
-	RTL_W8(MDIO_CTRL, 0);
-	delay_ms(10);
-
-	RTL_W8(MDIO_CTRL, 0x43);
-	delay_ms(1);
-	printk("ePhyReg0x%02x=0x%04x\n", 0x03, RTL_R16(MDIO_DATA+2));
-	RTL_W8(MDIO_CTRL, 0);
-	delay_ms(10);
-
-	RTL_W8(MDIO_CTRL, 0x46);
-	delay_ms(1);
-	printk("ePhyReg0x%02x=0x%04x\n", 0x06, RTL_R16(MDIO_DATA+2));
-	RTL_W8(MDIO_CTRL, 0);
-	delay_ms(10);
-
-	RTL_W8(MDIO_CTRL, 0x47);
-	delay_ms(1);
-	printk("ePhyReg0x%02x=0x%04x\n", 0x07, RTL_R16(MDIO_DATA+2));
-	RTL_W8(MDIO_CTRL, 0);
-	delay_ms(10);
-
-	RTL_W8(MDIO_CTRL, 0x59);
-	delay_ms(1);
-	printk("ePhyReg0x%02x=0x%04x\n", 0x19, RTL_R16(MDIO_DATA+2));
-	RTL_W8(MDIO_CTRL, 0);
-	delay_ms(10);
-
-	RTL_W8(MDIO_CTRL, 0x5e);
-	delay_ms(1);
-	printk("ePhyReg0x%02x=0x%04x\n", 0x1e, RTL_R16(MDIO_DATA+2));
-	RTL_W8(MDIO_CTRL, 0);
-	delay_ms(10);
-#endif
 }
 
 
@@ -5814,12 +3785,6 @@ void rtl819x_start_hw_trx(struct rtl8190_priv *priv)
 	// set Max Short GI Rate
 	if (priv->pmib->dot11StationConfigEntry.autoRate == 1) {
 		// set by fw, 20090707
-#if 0
-		if (get_rf_mimo_mode(priv) == MIMO_2T2R)
-			RTL_W16(SG_RATE, 0xffff);
-		else // 1T2R, 1T1R?
-			RTL_W16(SG_RATE, 0x7777);
-#endif
 	}
 	else { // fixed rate
 		fixed_rate = (priv->pmib->dot11StationConfigEntry.fixedTxRate >> 12) & 0xffff;
@@ -5849,1010 +3814,12 @@ void rtl819x_stop_hw_trx(struct rtl8190_priv *priv)
 	RTL_W8(MSR, MSR_NOLINK);
 }
 #endif // HW_QUICK_INIT
-#endif
 
 
-#if defined(RTL8190) || defined(RTL8192E)
-int phy_BB8190_Config_ParaFile(struct rtl8190_priv *priv)
-{
-	unsigned long ioaddr = priv->pshare->ioaddr;
-	unsigned char u1RegValue;
-	unsigned int  u4RegValue;
-	int rtStatus;
-
-	phy_InitBBRFRegisterDefinition(priv);
-
-	/*----Set BB Global Reset----*/
-	u1RegValue = RTL_R8(_BBGLBRESET_);
-	RTL_W8(_BBGLBRESET_, (u1RegValue|BIT(0)));
-
-	/*----Set BB reset Active----*/
-	u4RegValue = RTL_R32(_CPURST_);
-	RTL_W32(_CPURST_, (u4RegValue&(~CPURST_BBRst)));
-
-	/*----Check MIMO TR hw setting----*/
-	check_MIMO_TR_status(priv);
-
-	/*---- Set CCK and OFDM Block "OFF"----*/
-	PHY_SetBBReg(priv, rFPGA0_RFMOD, bCCKEn|bOFDMEn, 0x0);
-
-	/*----BB Register Initilazation----*/
-	if (get_rf_mimo_mode(priv) == MIMO_1T2R)
-		rtStatus = PHY_ConfigBBWithParaFile(priv, PHYREG_1T2R);
-	else if (get_rf_mimo_mode(priv) == MIMO_1T1R)
-		rtStatus = PHY_ConfigBBWithParaFile(priv, PHYREG_1T1R);
-	else if (get_rf_mimo_mode(priv) == MIMO_2T2R)
-		rtStatus = PHY_ConfigBBWithParaFile(priv, PHYREG_2T2R);
-	else
-		rtStatus = PHY_ConfigBBWithParaFile(priv, PHYREG_2T4R);
-
-	if (rtStatus) {
-		printk("phy_BB8190_Config_ParaFile(): Write BB Reg Fail!!\n");
-		return rtStatus;
-	}
-
-	/*----Set BB reset de-Active----*/
-	u4RegValue = RTL_R32(_CPURST_);
-	RTL_W32(_CPURST_, u4RegValue|CPURST_BBRst);
-
-	/*----BB AGC table Initialization----*/
-	rtStatus = PHY_ConfigBBWithParaFile(priv, AGCTAB);
-	if (rtStatus) {
-		printk("phy_BB8190_Config_ParaFile(): Write BB AGC Table Fail!!\n");
-		return rtStatus;
-	}
-
-#ifdef RTL8192E
-	// if the cut version is bigger than BD, we are BE now
-	// FIXME should detect automatically
-	u4RegValue = 0x0;
-	PHY_SetBBReg(priv, rFPGA0_TxGainStage,(bXBTxAGC|bXCTxAGC|bXDTxAGC), u4RegValue);
-
-	// set Crystal Cap
-	u4RegValue = priv->EE_CrystalCap;
-	PHY_SetBBReg(priv, rFPGA0_AnalogParameter1, bXtalCap92x, u4RegValue);
-#endif
-
-	DEBUG_INFO("PHY-BB Initialization Success\n");
-	return 0;
-}
-
-
-int phy_RF8256_Config_ParaFile(struct rtl8190_priv *priv)
-{
-	int rtStatus=0;
-	RF90_RADIO_PATH_E eRFPath;
-	BB_REGISTER_DEFINITION_T *pPhyReg;
-	unsigned int  RF0_Final_Value;
-#ifdef RTL8192E
-	unsigned int  u4RegValue = 0;
-#endif
-	unsigned char RetryTimes;
-
-#ifdef RTL8190
-	priv->pshare->phw->NumTotalRFPath = 4;
-#elif defined(RTL8192E)
-	priv->pshare->phw->NumTotalRFPath = 2; // 8192e only 1T2R, joshua
-#endif
-
-	for (eRFPath = RF90_PATH_A; eRFPath<priv->pshare->phw->NumTotalRFPath; eRFPath++)
-	{
-		if (!PHYCheckIsLegalRfPath8190Pci(priv, eRFPath))
-			continue;
-/*
-  		if (get_rf_mimo_mode(priv) == MIMO_1T2R) {
-			if ((eRFPath == RF90_PATH_A) || (eRFPath == RF90_PATH_B))
-				continue;
-  		}
-		else if (get_rf_mimo_mode(priv) == MIMO_2T2R) {
-			if ((eRFPath == RF90_PATH_B) || (eRFPath == RF90_PATH_D))
-				continue;
-		}
-*/
-
-		pPhyReg = &priv->pshare->phw->PHYRegDef[eRFPath];
-
-#ifdef RTL8190
-		// Joseph test for shorten RF config
-		priv->pshare->phw->RfReg0Value[eRFPath] = PHY_QueryRFReg(priv, eRFPath, rGlobalCtrl, bMaskDWord, 1);
-#elif defined(RTL8192E)
-		/*----Store original RFENV control type----*/
-		switch(eRFPath) {
-			case RF90_PATH_A:
-				u4RegValue = PHY_QueryBBReg(priv, pPhyReg->rfintfs, bRFSI_RFENV);
-				break;
-			case RF90_PATH_B:
-				u4RegValue = PHY_QueryBBReg(priv, pPhyReg->rfintfs, bRFSI_RFENV<<16);
-				break;
-			default:
-				break;
-		}
-
-		// Joseph test for shorten RF config
-		priv->pshare->phw->RfReg0Value[eRFPath] = PHY_QueryRFReg(priv, eRFPath, rGlobalCtrl, bMaskDWord,0);
-		/*----Set RF_ENV enable----*/
-		PHY_SetBBReg(priv, pPhyReg->rfintfe, bRFSI_RFENV<<16, 0x1);
-
-		/*----Set RF_ENV output high----*/
-		PHY_SetBBReg(priv, pPhyReg->rfintfo, bRFSI_RFENV, 0x1);
-
-		/* Set bit number of Address and Data for RF register */
-		PHY_SetBBReg(priv, pPhyReg->rfHSSIPara2, b3WireAddressLength, 0x0); 	// Set 0 to 4 bits for Z-serial and set 1 to 6 bits for 8258
-		PHY_SetBBReg(priv, pPhyReg->rfHSSIPara2, b3WireDataLength, 0x0);	// Set 0 to 12 bits for Z-serial and 8258, and set 1 to 14 bits for ???
-		/*----Make sure RF is configurable----*/
-		PHY_SetRFReg(priv, eRFPath, 0x0, bMask12Bits, 0xbf);
-
-		rtStatus  = PHY_CheckBBAndRFOK(priv, HW90_BLOCK_RF, eRFPath);
-		if(rtStatus!= 0)
-		{
-			DEBUG_INFO("PHY_RF8256_Config():Check Radio[%d] Fail!!\n", eRFPath);
-			goto phy_RF8256_Config_ParaFile_Fail;
-		}
-#endif
-
-		RF0_Final_Value = 0;
-		RetryTimes = 5;
-
-		/*----Initialize RF fom connfiguration file----*/
-		switch (eRFPath)
-		{
-			case RF90_PATH_A:
-				while ((RF0_Final_Value!=0x7f1) && (RetryTimes!=0)) {
-					rtStatus = PHY_ConfigRFWithParaFile(priv, "/usr/rtl8190Pci/radio_a.txt", eRFPath);
-					RF0_Final_Value = PHY_QueryRFReg(priv, eRFPath, 3, bMask12Bits, 1);
-					PRINT_INFO("RF %d 3 register final value: %x\n", eRFPath, RF0_Final_Value);
-					RetryTimes--;
-				}
-				break;
-			case RF90_PATH_B:
-				while ((RF0_Final_Value!=0x7f1) && (RetryTimes!=0)) {
-					rtStatus = PHY_ConfigRFWithParaFile(priv, "/usr/rtl8190Pci/radio_b.txt", eRFPath);
-					RF0_Final_Value = PHY_QueryRFReg(priv, eRFPath, 3, bMask12Bits, 1);
-					PRINT_INFO("RF %d 3 register final value: %x\n", eRFPath, RF0_Final_Value);
-					RetryTimes--;
-				}
-				break;
-#ifdef RTL8190
-			case RF90_PATH_C:
-				while ((RF0_Final_Value!=0x7f1) && (RetryTimes!=0)) {
-					rtStatus = PHY_ConfigRFWithParaFile(priv, "/usr/rtl8190Pci/radio_c.txt", eRFPath);
-					RF0_Final_Value = PHY_QueryRFReg(priv, eRFPath, 3, bMask12Bits, 1);
-					PRINT_INFO("RF %d 3 register final value: %x\n", eRFPath, RF0_Final_Value);
-					RetryTimes--;
-				}
-				break;
-			case RF90_PATH_D:
-				while ((RF0_Final_Value!=0x7f1) && (RetryTimes!=0)) {
-					rtStatus = PHY_ConfigRFWithParaFile(priv, "/usr/rtl8190Pci/radio_d.txt", eRFPath);
-					RF0_Final_Value = PHY_QueryRFReg(priv, eRFPath, 3, bMask12Bits, 1);
-					PRINT_INFO("RF %d 3 register final value: %x\n", eRFPath, RF0_Final_Value);
-					RetryTimes--;
-				}
-				break;
-#endif
-			default:
-				break;
-		}
-
-#ifdef RTL8192E
-		/*----Restore RFENV control type----*/;
-		switch(eRFPath) {
-			case RF90_PATH_A:
-				PHY_SetBBReg(priv, pPhyReg->rfintfs, bRFSI_RFENV, u4RegValue);
-					break;
-			case RF90_PATH_B:
-				PHY_SetBBReg(priv, pPhyReg->rfintfs, bRFSI_RFENV<<16, u4RegValue);
-				break;
-			default:
-				break;
-		}
-#endif
-	}
-
-	DEBUG_INFO("PHY-RF Initialization Success\n");
-#ifdef RTL8192E
-phy_RF8256_Config_ParaFile_Fail:
-#endif
-	return rtStatus;
-}
-
-
-static unsigned int RegScan(struct rtl8190_priv *priv, unsigned int Offset,
-				unsigned long BitPosition, unsigned int CheckIteration)
-{
-	unsigned long ioaddr = priv->pshare->ioaddr;
-	unsigned long templong;
-	unsigned int i = 0;
-
-	while (1)
-	{
-		delay_ms(1);
-		templong = RTL_R32(Offset);
-		if ((templong & BitPosition) == BitPosition)
-			break;
-
-		if (i > CheckIteration)
-			break;
-
-		i++;
-	}
-
-	return i;
-}
-
-
-static void ReadIMG(struct rtl8190_priv *priv, int fw_file)
-{
-	unsigned int buf_len=0, read_bytes;
-	int fd=0, i = 0;
-	unsigned char *mem_ptr=NULL, tmpbuf[4];
-	mm_segment_t old_fs;
-#ifndef	CONFIG_X86
-	extern ssize_t sys_read(unsigned int fd, char * buf, size_t count);
-#endif
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	// open *.img to read
-	switch(fw_file) {
-	case BOOT:
-#ifdef CONFIG_X86
-		if ((fd = rtl8190n_fileopen("/usr/rtl8190Pci/boot.img", O_RDONLY, 0)) < 0)
-#else
-		if ((fd = sys_open("/usr/rtl8190Pci/boot.img", O_RDONLY, 0)) < 0)
-#endif
-		{
-			printk("boot.img cannot be opened\n");
-			BUG();
-		}
-		mem_ptr = priv->pshare->fw_boot_buf;
-		buf_len = FW_BOOT_SIZE;
-		break;
-	case MAIN:
-#ifdef CONFIG_X86
-		if ((fd = rtl8190n_fileopen("/usr/rtl8190Pci/main.img", O_RDONLY, 0)) < 0)
-#else
-		if ((fd = sys_open("/usr/rtl8190Pci/main.img", O_RDONLY, 0)) < 0)
-#endif
-		{
-			printk("main.img cannot be opened\n");
-			BUG();
-		}
-		mem_ptr = priv->pshare->fw_main_buf;
-		buf_len = FW_MAIN_SIZE;
-#ifdef RTL8192E
-		i = 128;
-#endif
-		break;
-	case DATA:
-#ifdef CONFIG_X86
-		if ((fd = rtl8190n_fileopen("/usr/rtl8190Pci/data.img", O_RDONLY, 0)) < 0)
-#else
-		if ((fd = sys_open("/usr/rtl8190Pci/data.img", O_RDONLY, 0)) < 0)
-#endif
-		{
-			printk("data.img cannot be opened\n");
-			BUG();
-		}
-		mem_ptr = priv->pshare->fw_data_buf;
-		buf_len = FW_DATA_SIZE;
-		break;
-	}
-
-	memset(mem_ptr, 0, buf_len); // clear memory
-
-	read_bytes = sys_read(fd, mem_ptr+i, buf_len-i);
-
-	sys_close(fd);
-	set_fs(old_fs);
-
-	if (read_bytes >= buf_len) {
-		printk("Firmware buffer not large enough!\n");
-		BUG();
-	}
-	else {
-		switch(fw_file) {
-		case BOOT:
-			priv->pshare->fw_boot_len = read_bytes;
-			break;
-		case MAIN:
-			priv->pshare->fw_main_len = read_bytes+i;
-			read_bytes = priv->pshare->fw_main_len;
-			break;
-		case DATA:
-			priv->pshare->fw_data_len = read_bytes;
-			break;
-		}
-	}
-
-	// do byte swap
-	for (; i<read_bytes;i+=4) {
-		tmpbuf[3]    = mem_ptr[i];
-		tmpbuf[2]    = mem_ptr[i+1];
-		tmpbuf[1]    = mem_ptr[i+2];
-		tmpbuf[0]    = mem_ptr[i+3];
-		mem_ptr[i]   = tmpbuf[0];
-		mem_ptr[i+1] = tmpbuf[1];
-		mem_ptr[i+2] = tmpbuf[2];
-		mem_ptr[i+3] = tmpbuf[3];
-	}
-}
-
-
-static void LoadIMG(struct rtl8190_priv *priv, int fw_file)
-{
-	unsigned long ioaddr=priv->pshare->ioaddr;
-	int bResult=0, i=0;
-	unsigned char *mem_ptr=NULL;
-	unsigned int buf_len=0;
-
-#ifdef CHECK_HANGUP
-	if (!priv->reset_hangup)
-#endif
-		ReadIMG(priv, fw_file);
-
-	switch(fw_file) {
-	case BOOT:
-		mem_ptr = priv->pshare->fw_boot_buf;
-		buf_len = priv->pshare->fw_boot_len;
-		break;
-	case MAIN:
-		mem_ptr = priv->pshare->fw_main_buf;
-		buf_len = priv->pshare->fw_main_len;
-		break;
-	case DATA:
-		mem_ptr = priv->pshare->fw_data_buf;
-		buf_len = priv->pshare->fw_data_len;
-		break;
-	}
-
-	while(1)
-	{
-		if ((i+LoadPktSize) < buf_len) {
-			bResult = SetupOneCmdPacket(priv, mem_ptr, LoadPktSize, 0);
-			if(bResult)
-				RTL_W8(_TXPOLL_, POLL_CMD);
-			delay_ms(1);
-			mem_ptr += LoadPktSize;
-			i += LoadPktSize;
-		}
-		else {
-			bResult = SetupOneCmdPacket(priv, mem_ptr, (buf_len-i), 1);
-			if(bResult)
-				RTL_W8(_TXPOLL_, POLL_CMD);
-			break;
-		}
-	}
-
-	if (bResult == 0)
-		printk("desc not available, firmware cannot be loaded ");
-}
-
-
-static int LoadBOOTIMG(struct rtl8190_priv *priv)
-{
-#ifdef RTL8190
-	unsigned long ioaddr = priv->pshare->ioaddr;
-	unsigned char *mem_ptr;
-	int bResult = 0;
-#endif
-
-	LoadIMG(priv, BOOT);
-
-#ifdef RTL8190
-	// allocate memory for storing binary files
-	if((mem_ptr=(unsigned char *)kmalloc((LoadPktSize), GFP_ATOMIC)) == NULL) 	{
-		printk("not enough memory\n");
-		return FALSE;
-	}
-
-	memset(mem_ptr, 0, LoadPktSize); // clear memory
-	bResult = SetupOneCmdPacket(priv, mem_ptr, 128, 0); // 128 = 0x80, offset for CPU read from 0x800080
-	if (bResult)
-		RTL_W8(_TXPOLL_, POLL_CMD);
-
-	kfree(mem_ptr);
-#endif
-	return TRUE;
-}
-
-
-static int LoadMAINIMG(struct rtl8190_priv *priv)
-{
-	unsigned long ioaddr = priv->pshare->ioaddr;
-	unsigned int RegScanIteration;
-	unsigned int RegScanLimit = 1000; // number of times to scan for bit ready, the speed varies depending on processor speed
-
-	LoadIMG(priv, MAIN);
-
-	RegScanIteration = RegScan(priv, _CPURST_, CPURST_PutCode, RegScanLimit);
-	if(RegScanIteration < RegScanLimit) {
-		//printk("Put Code OK!\n");
-	}
-	else {
-		printk("Put Code Fail!!!\n");
-		return FALSE;
-	}
-
-	//Turn on CPU
-	RTL_W8(_CPURST_, RTL_R8(_CPURST_) | CPURST_Pwron);
-
-	RegScanIteration = RegScan(priv, _CPURST_, CPURST_Brdy, RegScanLimit);
-	if(RegScanIteration < RegScanLimit) {
-		//printk("Boot Ready!\n");
-	}
-	else {
-		printk("Boot Fail!!!\n");
-		return FALSE;
-	}
-
-	return TRUE;
-}
-
-
-static int LoadDATAIMG(struct rtl8190_priv *priv)
-{
-	unsigned int RegScanIteration;
-	unsigned int RegScanLimit = 1000;
-
-	LoadIMG(priv, DATA);
-
-	RegScanIteration = RegScan(priv, _CPURST_, CPURST_FwRdy, RegScanLimit);
-	if (RegScanIteration < RegScanLimit) {
-		//printk("Firmware Ready!\n");
-		return TRUE;
-	}
-	else {
-		printk("Firmware Not Ready!!!\n");
-		return FALSE;
-	}
-}
-
-
-int rtl819x_init_hw_PCI(struct rtl8190_priv *priv)
-{
-	struct wifi_mib	*pmib = GET_MIB(priv);
-	struct rtl8190_hw *phw = GET_HW(priv);
-	unsigned int	opmode = priv->pmib->dot11OperationEntry.opmode;
-	unsigned long	ioaddr = priv->pshare->ioaddr;
-	static unsigned long	val32;
-	static unsigned short	val16;
-	int i = 0;
-#ifdef RTL8192E
-	unsigned int ulRegRead;
-#endif
-
-	DBFENTER;
-
-	GetHardwareVersion(priv);
-
-#ifdef DRVMAC_LB
-	if (!priv->pmib->miscEntry.drvmac_lb)
-#endif
-	{
-		val32 = phy_BB8190_Config_ParaFile(priv);
-		if (val32)
-			return -1;
-	}
-
-	// support up to MCS13 for 1T2R, modify rx capability here
-	if ((get_rf_mimo_mode(priv) == MIMO_1T2R) || (get_rf_mimo_mode(priv) == MIMO_2T2R))
-		GET_MIB(priv)->dot11nConfigEntry.dot11nSupportedMCS &= 0x3fff;
-	else if (get_rf_mimo_mode(priv) == MIMO_1T1R)
-		GET_MIB(priv)->dot11nConfigEntry.dot11nSupportedMCS &= 0x00ff;
-
-#ifdef RTL8192E
-	//3//
-	//3//Set Loopback mode or Normal mode
-	//3//
-	//2006.12.13 by emily. Note!We should not merge these two CPU_GEN register writings
-	//      because setting of System_Reset bit reset MAC to default transmission mode.
-	ulRegRead = RTL_R32(_CPURST_);
-	ulRegRead = ((ulRegRead & 0xFFF8FFFF) | 0x00080000);
-	RTL_W32(_CPURST_, ulRegRead);
-	// 2006.11.29. After reset cpu, we sholud wait for a second, otherwise, it may fail to write registers. Emily
-	delay_us(500);
-        //3//
-        //3 //Fix the issue of E-cut high temperature issue
-        //3//
-        // TODO: E cut only
-        {
-                unsigned char ICVersion = RTL_R8(0x301);// here is IC version
-                unsigned char SwitchingRegulatorOutput;
-                if(ICVersion >= 0x4) //E-cut only
-                {
-                 // HW SD suggest that we should not wirte this register too often, so driver
-                 // should readback this register. This register will be modified only when
-                 // power on reset
-                        SwitchingRegulatorOutput = RTL_R8(0xb8);
-                        if(SwitchingRegulatorOutput  != 0xb8)
-                        {
-                                RTL_W8(0xb8, 0xa8);
-                                delay_ms(100);
-                                RTL_W8(0xb8, 0xb8);
-                        }
-                }
-        }
-
-#endif
-
-	PHY_ConfigMACWithParaFile(priv);
-
-	// PJ 1-5-2007 Reset PHY parameter counters
-	RTL_W32(0xD00, RTL_R32(0xD00)|BIT(27));
-	RTL_W32(0xD00, RTL_R32(0xD00)&(~(BIT(27))));
-
-// By H.Y. advice
-//	RTL_W16(_BCNTCFG_, 0x060a);
-	if (OPMODE & WIFI_AP_STATE)
-		RTL_W16(_BCNTCFG_, 0x000a);
-	else
-// for debug
-//	RTL_W16(_BCNTCFG_, 0x060a);
-	RTL_W16(_BCNTCFG_, 0x0204);
-
-
-	// Initialize Number of Reserved Pages in Firmware Queue
-// for debug ----------------------
-#if 0
-	RTL_W32(_RQPN1_, NUM_OF_PAGE_IN_FW_QUEUE_BK << RSVD_FW_QUEUE_PAGE_BK_SHIFT | \
-					 NUM_OF_PAGE_IN_FW_QUEUE_BE << RSVD_FW_QUEUE_PAGE_BE_SHIFT | \
-					 NUM_OF_PAGE_IN_FW_QUEUE_VI << RSVD_FW_QUEUE_PAGE_VI_SHIFT | \
-					 NUM_OF_PAGE_IN_FW_QUEUE_VO << RSVD_FW_QUEUE_PAGE_VO_SHIFT);
-	RTL_W32(_RQPN2_, NUM_OF_PAGE_IN_FW_QUEUE_MGNT << RSVD_FW_QUEUE_PAGE_MGNT_SHIFT);
-	RTL_W32(_RQPN3_, APPLIED_RESERVED_QUEUE_IN_FW | \
-					 NUM_OF_PAGE_IN_FW_QUEUE_BCN << RSVD_FW_QUEUE_PAGE_BCN_SHIFT|\
-					 NUM_OF_PAGE_IN_FW_QUEUE_PUB << RSVD_FW_QUEUE_PAGE_PUB_SHIFT);
-#else
-	if (pmib->dot11OperationEntry.wifi_specific) {
-		RTL_W32(_RQPN1_, (NUM_OF_PAGE_IN_FW_QUEUE_BK+(NUM_OF_PAGE_IN_FW_QUEUE_PUB/4)) << RSVD_FW_QUEUE_PAGE_BK_SHIFT | \
-						 (NUM_OF_PAGE_IN_FW_QUEUE_BE+(NUM_OF_PAGE_IN_FW_QUEUE_PUB/4)) << RSVD_FW_QUEUE_PAGE_BE_SHIFT | \
-						 (NUM_OF_PAGE_IN_FW_QUEUE_VI+(NUM_OF_PAGE_IN_FW_QUEUE_PUB/4)) << RSVD_FW_QUEUE_PAGE_VI_SHIFT | \
-						 (NUM_OF_PAGE_IN_FW_QUEUE_VO+(NUM_OF_PAGE_IN_FW_QUEUE_PUB/4)) << RSVD_FW_QUEUE_PAGE_VO_SHIFT);
-	}
-	else {
-		RTL_W32(_RQPN1_, 0 << RSVD_FW_QUEUE_PAGE_BK_SHIFT | \
-						 (NUM_OF_PAGE_IN_FW_QUEUE_BE +NUM_OF_PAGE_IN_FW_QUEUE_PUB) << RSVD_FW_QUEUE_PAGE_BE_SHIFT | \
-						 (NUM_OF_PAGE_IN_FW_QUEUE_VI + NUM_OF_PAGE_IN_FW_QUEUE_VO + NUM_OF_PAGE_IN_FW_QUEUE_BK)<< RSVD_FW_QUEUE_PAGE_VI_SHIFT | \
-						 0 << RSVD_FW_QUEUE_PAGE_VO_SHIFT);
-	}
-
-	RTL_W32(_RQPN2_, NUM_OF_PAGE_IN_FW_QUEUE_MGNT << RSVD_FW_QUEUE_PAGE_MGNT_SHIFT);
-	RTL_W32(_RQPN3_, APPLIED_RESERVED_QUEUE_IN_FW | \
-					 NUM_OF_PAGE_IN_FW_QUEUE_BCN << RSVD_FW_QUEUE_PAGE_BCN_SHIFT|\
-					 0 << RSVD_FW_QUEUE_PAGE_PUB_SHIFT);
-#endif
-//-----------------------------
-
-
-	// configure timing parameter
-	RTL_W32(0x4C, 0x00501330);
-	RTL_W16(0x306, 0x060F);
-	if (priv->pmib->dot11BssType.net_work_type & WIRELESS_11N) {
-		RTL_W16(_SIFS_OFDM_, 0x1010);
-		RTL_W8(_SLOT_, 0x09);
-	}
-	else if (priv->pmib->dot11BssType.net_work_type & WIRELESS_11A) {
-		RTL_W16(_SIFS_OFDM_, 0x1010);
-		RTL_W8(_SLOT_, 0x09);
-	}
-	else if (priv->pmib->dot11BssType.net_work_type & WIRELESS_11G) {
-		RTL_W16(_SIFS_OFDM_, 0x0a0a);
-		RTL_W8(_SLOT_, 0x09);
-	}
-	else { // WIRELESS_11B
-		RTL_W16(_SIFS_OFDM_, 0x0a0a);
-		RTL_W8(_SLOT_, 0x14);
-	}
-
-	init_EDCA_para(priv, pmib->dot11BssType.net_work_type);
-
-	RTL_W8(0x1fc, 0x0f);
-	RTL_W8(0xb2, 0x8f);
-	RTL_W8(0xb3, 0xc7);		//c7 for fix P-bit Mask, d7 for P-bit valid
-
-	RTL_W8(_9346CR_, CR9346_CFGRW);
-
-
-	// Set Tx and Rx DMA burst size
-	RTL_W8(_PCIF_, 0x77);
-	// Enable byte shift
-	RTL_W8(_PCIF_+2, 0x01);
-
-
-	RTL_W32(_RDSAR_, phw->ring_dma_addr);
-	RTL_W32(_TMGDA_, phw->tx_ring0_addr);
-	RTL_W32(_TBKDA_, phw->tx_ring1_addr);
-	RTL_W32(_TBEDA_, phw->tx_ring2_addr);
-	RTL_W32(_TLPDA_, phw->tx_ring3_addr);
-	RTL_W32(_TNPDA_, phw->tx_ring4_addr);
-	RTL_W32(_THPDA_, phw->tx_ring5_addr);
-	RTL_W32(_TBDA_, phw->tx_ringB_addr);
-	RTL_W32(_RCDSA_, phw->rxcmd_ring_addr);
-	RTL_W32(_TCDA_, phw->txcmd_ring_addr);
-
-	// Retry Limit
-	if (priv->pmib->dot11OperationEntry.dot11LongRetryLimit)
-		val16 = priv->pmib->dot11OperationEntry.dot11LongRetryLimit & 0xff;
-	else {
-		if (priv->pmib->dot11BssType.net_work_type & WIRELESS_11N)
-			val16 = 0x20;
-		else
-			val16 = 0x06;
-	}
-	if (priv->pmib->dot11OperationEntry.dot11ShortRetryLimit)
-		val16 |= ((priv->pmib->dot11OperationEntry.dot11ShortRetryLimit & 0xff) << 8);
-	else {
-		if (priv->pmib->dot11BssType.net_work_type & WIRELESS_11N)
-			val16 |= (0x20 << 8);
-		else
-			val16 |= (0x06 << 8);
-	}
-	RTL_W16(_RETRYCNT_, val16);
-
-	// Response Rate Set
-	// let ACK sent by highest of 24Mbps
-	val32 = 0x1ff;
-	if (pmib->dot11RFEntry.shortpreamble)
-		val32 |= BIT(23);
-	RTL_W32(_RRSR_, val32);
-
-	// Adaptive Rate Table for Basic Rate
-	val32 = 0;
-	for (i=0; i<32; i++) {
-		if (AP_BSSRATE[i]) {
-			if (AP_BSSRATE[i] & 0x80)
-				val32 |= get_bit_value_from_ieee_value(AP_BSSRATE[i] & 0x7f);
-		}
-	}
-	val32 |= (priv->pmib->dot11nConfigEntry.dot11nBasicMCS << 12);
-	RTL_W32(_RATR7_, val32);
-
-	//setting MAR
-	RTL_W32(_MAR0_, 0xffffffff);
-	RTL_W32(_MAR4_, 0xffffffff);
-
-	//setting BSSID, not matter AH/AP/station
-	memcpy((void *)&val16, (pmib->dot11OperationEntry.hwaddr), 2);
-	memcpy((void *)&val32, (pmib->dot11OperationEntry.hwaddr + 2), 4);
-	RTL_W16(_BSSID_, cpu_to_le16(val16));
-	RTL_W32(_BSSID_ + 2, cpu_to_le32(val32));
-
-	//setting TCR
-	//TCR, use default value
-
-	//setting RCR
-	RTL_W32(_RCR_, _APWRMGT_ | _AMF_ | _ADF_ | _AICV_ | _ACRC32_ | _AB_ | _AM_ | _APM_);
-//	if (pmib->dot11OperationEntry.crc_log)
-//		RTL_W32(_RCR_, RTL_R32(_RCR_) | _ACRC32_);
-
-	//setting MSR
-	if (opmode & WIFI_AP_STATE)
-	{
-		DEBUG_INFO("AP-mode enabled...\n");
-
-		if (priv->pmib->dot11WdsInfo.wdsPure)
-			RTL_W8(_MSR_, _HW_STATE_NOLINK_);
-		else
-			RTL_W8(_MSR_, _HW_STATE_AP_);
-// Move init beacon after f/w download
-#if 0
-		if (priv->auto_channel == 0) {
-			DEBUG_INFO("going to init beacon\n");
-			init_beacon(priv);
-		}
-#endif
-	}
-#ifdef CLIENT_MODE
-	else if (opmode & WIFI_STATION_STATE)
-	{
-		DEBUG_INFO("Station-mode enabled...\n");
-		RTL_W8(_MSR_, _HW_STATE_STATION_);
-	}
-	else if (opmode & WIFI_ADHOC_STATE)
-	{
-		DEBUG_INFO("Adhoc-mode enabled...\n");
-		RTL_W8(_MSR_, _HW_STATE_ADHOC_);
-	}
-#endif
-	else
-	{
-		printk("Operation mode error!\n");
-		return 2;
-	}
-
-	CamResetAllEntry(priv);
-	RTL_W16(_WPACFG_, 0x0000);
-	if ((OPMODE & (WIFI_AP_STATE|WIFI_STATION_STATE|WIFI_ADHOC_STATE)) &&
-		!priv->pmib->dot118021xAuthEntry.dot118021xAlgrthm &&
-			(pmib->dot1180211AuthEntry.dot11PrivacyAlgrthm == _WEP_40_PRIVACY_ ||
-				pmib->dot1180211AuthEntry.dot11PrivacyAlgrthm == _WEP_104_PRIVACY_)) {
-		pmib->dot11GroupKeysTable.dot11Privacy = pmib->dot1180211AuthEntry.dot11PrivacyAlgrthm;
-		if (pmib->dot1180211AuthEntry.dot11PrivacyAlgrthm == _WEP_40_PRIVACY_)
-			i = 5;
-		else
-			i = 13;
-//#if defined(CONFIG_RTL865X_KLD) || defined(CONFIG_RTL8196B_KLD)
-#ifdef USE_WEP_DEFAULT_KEY
-		memcpy(pmib->dot11GroupKeysTable.dot11EncryptKey.dot11TTKey.skey,
-			&priv->pmib->dot11DefaultKeysTable.keytype[pmib->dot1180211AuthEntry.dot11PrivacyKeyIndex].skey[0], i);
-		pmib->dot11GroupKeysTable.dot11EncryptKey.dot11TTKeyLen = i;
-		pmib->dot11GroupKeysTable.keyid = pmib->dot1180211AuthEntry.dot11PrivacyKeyIndex;
-		pmib->dot11GroupKeysTable.keyInCam = 1;
-#else
-		memcpy(pmib->dot11GroupKeysTable.dot11EncryptKey.dot11TTKey.skey,
-							&priv->pmib->dot11DefaultKeysTable.keytype[0].skey[0], i);
-		pmib->dot11GroupKeysTable.dot11EncryptKey.dot11TTKeyLen = i;
-		pmib->dot11GroupKeysTable.keyid = pmib->dot1180211AuthEntry.dot11PrivacyKeyIndex;
-		pmib->dot11GroupKeysTable.keyInCam = 0;
-#endif
-	}
-
-// for debug
-#if 0
-// when hangup reset, re-init TKIP/AES key in ad-hoc mode
-#ifdef CLIENT_MODE
-	if ((OPMODE & WIFI_ADHOC_STATE) && pmib->dot11OperationEntry.keep_rsnie &&
-		(pmib->dot1180211AuthEntry.dot11PrivacyAlgrthm == _TKIP_PRIVACY_ ||
-			pmib->dot1180211AuthEntry.dot11PrivacyAlgrthm == _CCMP_PRIVACY_)) {
-		DOT11_SET_KEY Set_Key;
-		Set_Key.KeyType = DOT11_KeyType_Group;
-		Set_Key.EncType = pmib->dot11GroupKeysTable.dot11Privacy;
-		DOT11_Process_Set_Key(priv->dev, NULL, &Set_Key, pmib->dot11GroupKeysTable.dot11EncryptKey.dot11TTKey.skey);
-	}
-	else
-#endif
-//-------------------------------------- david+2006-06-30
-	// restore group key if it has been set before open, david
-	if (pmib->dot11GroupKeysTable.keyInCam) {
-		int retVal;
-		retVal = CamAddOneEntry(priv, (unsigned char *)"\xff\xff\xff\xff\xff\xff",
-					pmib->dot11GroupKeysTable.keyid,
-					pmib->dot11GroupKeysTable.dot11Privacy<<2,
-					0, pmib->dot11GroupKeysTable.dot11EncryptKey.dot11TTKey.skey);
-		if (retVal)
-			priv->pshare->CamEntryOccupied++;
-		else {
-			DEBUG_ERR("Add group key failed!\n");
-		}
-	}
-#endif
-	//here add if legacy WEP
-	// if 1x is enabled, do not set default key, david
-//#if 0	// marked by victoryman, use pairwise key at present, 20070627
-//#if defined(CONFIG_RTL865X_KLD) || defined(CONFIG_RTL8196B_KLD)
-#ifdef USE_WEP_DEFAULT_KEY
-#ifdef MBSSID
-	if (!(OPMODE & WIFI_AP_STATE))
-#endif
-	if(!SWCRYPTO && !IEEE8021X_FUN &&
-		(pmib->dot1180211AuthEntry.dot11PrivacyAlgrthm == _WEP_104_PRIVACY_ ||
-		 pmib->dot1180211AuthEntry.dot11PrivacyAlgrthm == _WEP_40_PRIVACY_))
-		init_DefaultKey_Enc(priv, NULL, 0);
-#endif
-
-
-	//Setup Beacon Interval/interrupt interval, ATIM-WIND ATIM-Interrupt
-	RTL_W16(_BCNITV_, pmib->dot11StationConfigEntry.dot11BeaconPeriod);
-	RTL_W16(_ATIMWIN_, 0);
-	RTL_W16(_DRVERLYINT_, 2);
-	RTL_W16(_BCNDMA_, 0xf);
-
-// for debug
-#ifdef CLIENT_MODE
-	if (OPMODE & WIFI_ADHOC_STATE)
-		RTL_W8(0x78, 100);
-#endif
-//--------------
-
-
-	// Ack ISR, and then unmask IMR
-	RTL_W32(_ISR_, RTL_R32(_ISR_));
-	RTL_W32(_IMR_, 0x0);
-	priv->pshare->InterruptMask = _ROK_ | _BCNDMAINT_ | _RDU_ | _RXFOVW_ | _RXCMDOK_;
-
-	if (opmode & WIFI_AP_STATE)
-		priv->pshare->InterruptMask |= _BCNDOK_;
-#ifdef CLIENT_MODE
-	else if (opmode & WIFI_ADHOC_STATE)
-		priv->pshare->InterruptMask |= (_TBDER_ | _TBDOK_);
-#endif
-
-	if (priv->pmib->miscEntry.ack_timeout && (priv->pmib->miscEntry.ack_timeout < 0xff))
-		RTL_W8(_ACKTIMEOUT_, priv->pmib->miscEntry.ack_timeout);
-
-	RTL_W8(_9346CR_, 0);
-
-	// ===========================================================================================
-	// Download Firmware
-	// allocate memory for tx cmd packet
-	if((priv->pshare->txcmd_buf = (unsigned char *)kmalloc((LoadPktSize), GFP_ATOMIC)) == NULL) {
-		printk("not enough memory for txcmd_buf\n");
-		return -1;
-	}
-
-	RTL_W8(_CR_, BIT(2) | BIT(3));
-	delay_ms(10);
-
-	priv->pshare->cmdbuf_phyaddr = get_physical_addr(priv, priv->pshare->txcmd_buf,
-			LoadPktSize, PCI_DMA_TODEVICE);
-
-	if(LoadFirmware(priv) == FALSE) {
-		printk("Load firmware fail!\n");
-		return -1;
-	}
-	else {
-//		delay_ms(20);
-		PRINT_INFO("Load firmware successful! \n");
-	}
-
-#ifdef CONFIG_NET_PCI
-	if (IS_PCIBIOS_TYPE)
-		pci_unmap_single(priv->pshare->pdev, priv->pshare->cmdbuf_phyaddr,
-			(LoadPktSize), PCI_DMA_TODEVICE);
-#endif
-	kfree(priv->pshare->txcmd_buf);
-	//enable interrupt
-	RTL_W32(_IMR_, priv->pshare->InterruptMask);
-	// ===========================================================================================
-
-
-#ifdef DRVMAC_LB
-	if (priv->pmib->miscEntry.drvmac_lb) {
-		RTL_W8(_MSR_, _HW_STATE_NOLINK_);
-		drvmac_loopback(priv);
-	}
-	else
-#endif
-	{
-#ifdef CHECK_HANGUP
-		if (!priv->reset_hangup
-#ifdef CLIENT_MODE
-				|| (!(OPMODE & WIFI_AP_STATE) &&
-						(priv->join_res != STATE_Sta_Bss) && (priv->join_res != STATE_Sta_Ibss_Active))
-#endif
-			)
-#endif
-		{
-			val32 = phy_RF8256_Config_ParaFile(priv);
-			if (val32)
-				return -1;
-		}
-	}
-
-#ifdef CHECK_HANGUP
-	if (priv->reset_hangup)
-		priv->pshare->CurrentChannelBW = priv->pshare->is_40m_bw;
-	else
-#endif
-	{
-		if (opmode & WIFI_AP_STATE)
-			priv->pshare->CurrentChannelBW = priv->pshare->is_40m_bw;
-		else
-			priv->pshare->CurrentChannelBW = HT_CHANNEL_WIDTH_20;
-	}
-
-#if	defined(RTL8190)
-	if ((priv->pmib->dot11RFEntry.legacyOFDM_pwrdiff == 0) ||
-		(priv->pmib->dot11RFEntry.crystalCap == 0)) {
-		priv->pshare->use_default_para = 1;
-		priv->pshare->legacyOFDM_pwrdiff = 0;
-	}
-	else
-#endif
-	{
-		int value;
-
-		priv->pshare->use_default_para = 0;
-		if (priv->pmib->dot11RFEntry.legacyOFDM_pwrdiff >= 32)
-			priv->pshare->legacyOFDM_pwrdiff = (priv->pmib->dot11RFEntry.legacyOFDM_pwrdiff - 32) & 0x0f;
-		else {
-			priv->pshare->legacyOFDM_pwrdiff = (32 - priv->pmib->dot11RFEntry.legacyOFDM_pwrdiff) & 0x0f;
-			priv->pshare->legacyOFDM_pwrdiff |= 0x80;
-		}
-
-#ifdef RTL8190
-		value = (int)priv->pmib->dot11RFEntry.crystalCap - 32;
-		PHY_SetBBReg(priv, rFPGA0_AnalogParameter1, bXtalCap01, (value & 0x00000003));
-		PHY_SetBBReg(priv, rFPGA0_AnalogParameter2, bXtalCap23, ((value & 0x0000000c) >> 2));
-#elif defined(RTL8192E)
-		value = priv->EE_CrystalCap;
-		PHY_SetBBReg(priv, rFPGA0_AnalogParameter1, bXtalCap92x, value);
-#endif
-	}
-
-#ifdef RTL8190
-	// get default Tx AGC offset
-	*(unsigned int *)(&priv->pshare->phw->MCSTxAgcOffset[4]) = RTL_R32(_MCS_TXAGC_0_);
-	*(unsigned int *)(&priv->pshare->phw->MCSTxAgcOffset[0]) = RTL_R32(_MCS_TXAGC_1_);
-#endif
-
-	if ((priv->pmib->dot11RFEntry.ther_rfic < 10) || (priv->pmib->dot11RFEntry.ther_rfic > 100)) {
-		//printk("TPT: unreasonable target TSSI %d\n", priv->pmib->dot11RFEntry.ther_rfic);
-		priv->pmib->dot11RFEntry.ther_rfic = 0;
-	}
-
-	// get bandwidth power difference (40M to 20M)
-	if ((priv->pmib->dot11RFEntry.bw_pwrdiff >= 24) && (priv->pmib->dot11RFEntry.bw_pwrdiff <= 39)) {
-		if (priv->pmib->dot11RFEntry.bw_pwrdiff >= 32) {
-			priv->pshare->bw_pwrdiff_sign = 0;
-			priv->pshare->bw_pwrdiff_ofst = priv->pmib->dot11RFEntry.bw_pwrdiff - 32;
-		}
-		else {
-			priv->pshare->bw_pwrdiff_sign = 1;
-			priv->pshare->bw_pwrdiff_ofst = 32 - priv->pmib->dot11RFEntry.bw_pwrdiff;
-		}
-	}
-	else {
-		priv->pshare->bw_pwrdiff_sign = 0;
-		priv->pshare->bw_pwrdiff_ofst = 0;
-	}
-
-	if (opmode & WIFI_AP_STATE)
-	{
-		if (priv->auto_channel == 0) {
-			DEBUG_INFO("going to init beacon\n");
-			init_beacon(priv);
-		}
-	}
-
-	/*---- Set CCK and OFDM Block "ON"----*/
-	PHY_SetBBReg(priv, rFPGA0_RFMOD, bCCKEn, 0x1);
-	PHY_SetBBReg(priv, rFPGA0_RFMOD, bOFDMEn, 0x1);
-	delay_ms(2);
-
-#ifdef RTL8192E
-	//Turn on the RF8256, joshua
-	PHY_SetBBReg(priv, rFPGA0_XA_RFInterfaceOE, 1<<4, 0x1);		// 0x860[4]
-	PHY_SetBBReg(priv, rFPGA0_AnalogParameter4, 0x300, 0x3);		// 0x88c[4]
-	PHY_SetBBReg(priv, rFPGA0_AnalogParameter1, 0x60, 0x3); 		// 0x880[6:5]
-	PHY_SetBBReg(priv, rOFDM0_TRxPathEnable, 0xf, 0x3);			// 0xc04[3:0]
-	PHY_SetBBReg(priv, rOFDM1_TRxPathEnable, 0xf, 0x3);			// 0xd04[3:0]
-	PHY_SetBBReg(priv, rFPGA0_AnalogParameter2, 0x7000, 0x3);
-
-	//Enable LED
-	RTL_W32(0x87, 0x0);
-#endif
-
-	SwBWMode(priv, priv->pshare->CurrentChannelBW, priv->pshare->offset_2nd_chan);
-	SwChnl(priv, priv->pmib->dot11RFEntry.dot11channel, priv->pshare->offset_2nd_chan);
-	delay_ms(100);
-
-	//RTL_W32(0x100, RTL_R32(0x100) | BIT(14)); //for 8190 fw debug
-
-	DBFEXIT;
-
-	return 0;
-}
-#endif // defined(RTL8190) || defined(RTL8192E)
 
 
 static int LoadFirmware(struct rtl8190_priv *priv)
 {
-#if defined(RTL8190) || defined(RTL8192E)
-	unsigned long ioaddr = priv->pshare->ioaddr;
-	unsigned int val32, year, month, day, hour, min;
-
-	if (LoadBOOTIMG(priv) == FALSE)
-		return FALSE;
-
-	if (LoadMAINIMG(priv) == FALSE)
-		return FALSE;
-
-	if (LoadDATAIMG(priv) == FALSE)
-		return FALSE;
-
-	val32 = RTL_R32(_BLDTIME_);
-	year = val32 & 0xff;
-	month = (val32 >> 8) & 0x0f;
-	day = (val32 >> 12) & 0x3f;
-	hour = (val32 >> 18) & 0x3f;
-	min = (val32 >> 24) & 0x3f;
-	PRINT_INFO("RTL8190 Firmware buildtime: %02d-%02d-%02d %02d:%02d\n", year, month, day, hour, min);
-	priv->pshare->fw_version = val32;
-
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 
 	//we should read header first
 	rtl8192SE_ReadIMG(priv);
@@ -6869,22 +3836,11 @@ static int LoadFirmware(struct rtl8190_priv *priv)
 	if(LoadDMEMIMG(priv) == FALSE)
 		return FALSE;
 
-#if 0
-	val32 = RTL_R32(BUILDTIME);
-	year = val32 & 0xff;
-	month = (val32 >> 8) & 0x0f;
-	day = (val32 >> 12) & 0x3f;
-	hour = (val32 >> 18) & 0x3f;
-	min = (val32 >> 24) & 0x3f;
-	PRINT_INFO("RTL8190 Firmware buildtime: %02d-%02d-%02d %02d:%02d\n", year, month, day, hour, min);
-	priv->pshare->fw_version = val32;
-#endif
 
 	PRINT_INFO("RTL8192 Firmware version: %04x(%d.%d)\n",
 		priv->pshare->fw_version, priv->pshare->fw_src_version, priv->pshare->fw_sub_version);
 
 	return TRUE;
-#endif
 	return TRUE;
 }
 
@@ -6931,16 +3887,10 @@ static int LoadFirmware(struct rtl8190_priv *priv)
 
 int rtl819x_stop_hw(struct rtl8190_priv *priv, int reset_bb)
 {
-#if !defined(RTL8192SU)
-	static unsigned long ioaddr;
-#endif
 	static RF90_RADIO_PATH_E eRFPath;
 	static BB_REGISTER_DEFINITION_T *pPhyReg;
 	static int do_mac_reset;
     do_mac_reset = 1;
-#if !defined(RTL8192SU)
-	ioaddr=priv->pshare->ioaddr;
-#endif
 
 	if (reset_bb) {
 		for (eRFPath = RF90_PATH_A; eRFPath<priv->pshare->phw->NumTotalRFPath; eRFPath++) {
@@ -6949,29 +3899,8 @@ int rtl819x_stop_hw(struct rtl8190_priv *priv, int reset_bb)
 			PHY_SetBBReg(priv, pPhyReg->rfintfo, bRFSI_RFENV, 0);
 		}
 
-#if	defined(RTL8190) || defined(RTL8192E)
-		RTL_W32(_IMR_, 0);
-		RTL_W8(_MSR_, _HW_STATE_NOLINK_);
-
-#ifdef CHECK_HANGUP
-		if (!priv->reset_hangup)
-#endif
-		{
-			RTL_W8(_CR_, 0);
-			delay_ms(1);
-		}
-
-#elif defined(RTL8192SE) || defined(RTL8192SU)
-#if !defined(RTL8192SU)
-		RTL_W32(IMR, 0);
-		RTL_W32(IMR+4, 0);
-#endif		
 		RTL_W8(MSR, MSR_NOLINK);
 
-#if !defined(RTL8192SU)
-		SET_RTL8192SE_RF_HALT(priv);
-		delay_us(120);
-#endif		
 
 #ifdef CHECK_HANGUP
 		if (!priv->reset_hangup)
@@ -6998,22 +3927,11 @@ int rtl819x_stop_hw(struct rtl8190_priv *priv, int reset_bb)
 		RTL_W16(0x2, RTL_R16(0x2) | BIT(15));
 		delay_ms(1);
 */
-#endif // if(8190, 8192) else 8192SE
 	}
 	if (reset_bb)
 		do_mac_reset = 0;
 
 	if (do_mac_reset) {
-#ifdef RTL8190
-		RTL_W8(_CPURST_, RTL_R8(_CPURST_) | CPURST_SysRst);
-#elif defined(RTL8192E)
-		//reference to 8129e driver, must write 32bits
-		unsigned int Val;
-		Val = RTL_R32(_CPURST_);
-		//Val &= ~(0x00000100);
-		Val |= CPURST_SysRst;
-		RTL_W32(_CPURST_, Val);
-#endif
 		delay_us(800); // it is critial!
 	}
 	printk("stop hw finished!\n");
@@ -7023,16 +3941,7 @@ int rtl819x_stop_hw(struct rtl8190_priv *priv, int reset_bb)
 
 void SwBWMode(struct rtl8190_priv *priv, unsigned int bandwidth, int offset)
 {
-#if !defined(RTL8192SU)
-	static unsigned long ioaddr;
-#endif
 	static unsigned char regBwOpMode, nCur40MhzPrimeSC;
-#if	defined(RTL8190) || defined(RTL8192E)
-	static RF90_RADIO_PATH_E eRFPath;
-#endif
-#if !defined(RTL8192SU)
-	ioaddr = priv->pshare->ioaddr;
-#endif
 
 	DEBUG_INFO("SwBWMode(): Switch to %s bandwidth\n", bandwidth?"40MHz":"20MHz");
 
@@ -7048,9 +3957,7 @@ void SwBWMode(struct rtl8190_priv *priv, unsigned int bandwidth, int offset)
 		case HT_CHANNEL_WIDTH_20_40:
 			regBwOpMode &= ~BW_OPMODE_20MHZ;
 			RTL_W8(_BWOPMODE_, regBwOpMode);
-#ifdef 	RTL8192SU
 			//RTL_W8(RRSR+2, 0xe0);
-#endif
 			break;
 		default:
 			DEBUG_ERR("SwBWMode(): bandwidth mode error!\n");
@@ -7068,17 +3975,10 @@ void SwBWMode(struct rtl8190_priv *priv, unsigned int bandwidth, int offset)
 		case HT_CHANNEL_WIDTH_20:
 			PHY_SetBBReg(priv, rFPGA0_RFMOD, bRFMOD, 0x0);
 			PHY_SetBBReg(priv, rFPGA1_RFMOD, bRFMOD, 0x0);
-#ifdef RTL8190
-			PHY_SetBBReg(priv, rFPGA0_AnalogParameter1, bADClkPhase, 1);
-			PHY_SetBBReg(priv, rOFDM0_RxDetector1, bMaskByte0, 0x44);		//suggest by jerry, by emily
-#elif defined(RTL8192E)
-			PHY_SetBBReg(priv, rFPGA0_AnalogParameter1, 0x00100000, 1);
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 			PHY_SetBBReg(priv, rFPGA0_AnalogParameter1, 0x00100000, 1);
 			PHY_SetBBReg(priv, rFPGA0_AnalogParameter2, 0x000000ff, 0x58);
 						// From SD3 WHChang
 			PHY_SetBBReg(priv, rFPGA0_AnalogParameter1, 0x00300000, 3);
-#endif
 			PHY_SetBBReg(priv, rCCK0_TxFilter1, bMaskDWord, 0x1a1b0000);	//suggest by YN
 			PHY_SetBBReg(priv, rCCK0_TxFilter2, bMaskDWord, 0x090e1317);	//suggest by YN
 			PHY_SetBBReg(priv, rCCK0_DebugPort, bMaskDWord, 0x00000204);	//suggest by YN
@@ -7087,18 +3987,7 @@ void SwBWMode(struct rtl8190_priv *priv, unsigned int bandwidth, int offset)
 			PHY_SetBBReg(priv, rFPGA0_RFMOD, bRFMOD, 0x1);
 			PHY_SetBBReg(priv, rFPGA1_RFMOD, bRFMOD, 0x1);
 			PHY_SetBBReg(priv, rCCK0_System, bCCKSideBand, (nCur40MhzPrimeSC>>1));
-#if defined(RTL8192SE) || defined(RTL8192SU)
 			PHY_SetBBReg(priv, rOFDM1_LSTF, 0xC00, nCur40MhzPrimeSC);
-#endif
-#ifdef RTL8190
-			PHY_SetBBReg(priv, rFPGA0_AnalogParameter1, bADClkPhase, 0);
-			PHY_SetBBReg(priv, rOFDM1_LSTF, 0xC00, nCur40MhzPrimeSC);
-			PHY_SetBBReg(priv, rOFDM0_RxDetector1, bMaskByte0, 0x42);		//suggest by jerry, by emily
-			PHY_SetBBReg(priv, rFPGA0_RFMOD, 0x00000060, offset);			//suggest by YN
-#elif defined(RTL8192E)
-			PHY_SetBBReg(priv, rFPGA0_AnalogParameter1, 0x00100000, 0);
-			PHY_SetBBReg(priv, rOFDM1_LSTF, 0xC00, nCur40MhzPrimeSC);
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 			// From SD3 WHChang
 			PHY_SetBBReg(priv, rFPGA0_AnalogParameter1, 0x00300000, 3);
 			// Set Control channel to upper or lower. These settings are required only for 40MHz
@@ -7106,7 +3995,6 @@ void SwBWMode(struct rtl8190_priv *priv, unsigned int bandwidth, int offset)
 			PHY_SetBBReg(priv, rFPGA0_AnalogParameter2, 0x000000ff, 0x18);
 //			PHY_SetBBReg(priv, rCCK0_System, bCCKSideBand, (nCur40MhzPrimeSC>>1));
 //			PHY_SetBBReg(priv, rOFDM1_LSTF, 0xC00, nCur40MhzPrimeSC);
-#endif
                         PHY_SetBBReg(priv, rCCK0_TxFilter1, bMaskDWord, 0x1a1b0000);    //suggest by YN
                         PHY_SetBBReg(priv, rCCK0_TxFilter2, bMaskDWord, 0x090e1317);    //suggest by YN
                         PHY_SetBBReg(priv, rCCK0_DebugPort, bMaskDWord, 0x00000204);    //suggest by YN
@@ -7117,43 +4005,6 @@ void SwBWMode(struct rtl8190_priv *priv, unsigned int bandwidth, int offset)
 			break;
 	}
 
-#if	defined(RTL8190) || defined(RTL8192E)
-
-	//3 <3> Set RF related register
-	for (eRFPath = RF90_PATH_A; eRFPath<priv->pshare->phw->NumTotalRFPath; eRFPath++)
-	{
-		if (!PHYCheckIsLegalRfPath8190Pci(priv, eRFPath))
-			continue;
-/*
-		if (get_rf_mimo_mode(priv) == MIMO_1T2R) {
-			if ((eRFPath == RF90_PATH_A) || (eRFPath == RF90_PATH_B))
-				continue;
-		}
-		else if (get_rf_mimo_mode(priv) == MIMO_2T2R) {
-			if ((eRFPath == RF90_PATH_B) || (eRFPath == RF90_PATH_D))
-				continue;
-		}
-*/
-		switch(bandwidth)
-		{
-		case HT_CHANNEL_WIDTH_20:
-			PHY_SetRFReg(priv, (RF90_RADIO_PATH_E)eRFPath, 0x0b, bMask12Bits, 0x100); //phy para:1ba
-			PHY_SetRFReg(priv, (RF90_RADIO_PATH_E)eRFPath, 0x2c, bMask12Bits, 0x3d7);
-			PHY_SetRFReg(priv, (RF90_RADIO_PATH_E)eRFPath, 0x0e, bMask12Bits, 0x021);
-			break;
-		case HT_CHANNEL_WIDTH_20_40:
-			PHY_SetRFReg(priv, (RF90_RADIO_PATH_E)eRFPath, 0x0b, bMask12Bits, 0x300); //phy para:3ba
-			PHY_SetRFReg(priv, (RF90_RADIO_PATH_E)eRFPath, 0x2c, bMask12Bits, 0x3ff); // suggested by Bryant 20080125
-			PHY_SetRFReg(priv, (RF90_RADIO_PATH_E)eRFPath, 0x0e, bMask12Bits, 0x0e1); // suggested by Bryant 20080125
-			break;
-		default:
-			DEBUG_ERR("SwBWMode(): bandwidth mode error!\n");
-			return;
-			break;
-		}
-	}
-
-#elif	defined(RTL8192SE) || defined(RTL8192SU)
 
 /*
 	delay_us(100);
@@ -7170,9 +4021,7 @@ void SwBWMode(struct rtl8190_priv *priv, unsigned int bandwidth, int offset)
 		unsigned int val_read;
 
 		val_read = PHY_QueryRFReg(priv, 0, 0x18, bMask20Bits, 1);
-#ifdef RTL8192SU
 		delay_ms(600);
-#endif
 		val_read &= ~(BIT(10)|BIT(11));
 		PHY_SetRFReg(priv, 0, 0x18, bMask20Bits, val_read);
 		delay_ms(10);
@@ -7185,9 +4034,7 @@ void SwBWMode(struct rtl8190_priv *priv, unsigned int bandwidth, int offset)
 	}else{ // 20Mhz mode
 		unsigned int val_read;
 		val_read = PHY_QueryRFReg(priv, 0, 0x18, bMask20Bits, 1);
-#ifdef RTL8192SU
 		delay_ms(600);
-#endif		
 		val_read |= (BIT(10)|BIT(11));
 		PHY_SetRFReg(priv, 0, 0x18, bMask20Bits, val_read);
 
@@ -7197,7 +4044,6 @@ void SwBWMode(struct rtl8190_priv *priv, unsigned int bandwidth, int offset)
 
 		PHY_SetBBReg(priv, 0x840,0x0000ffff, 0x7406);
 	}
-#endif
 	if (priv->pshare->rf_ft_var.use_frq_2_3G)
 		PHY_SetRFReg(priv, RF90_PATH_C, 0x2c, 0x60, 0);
 }
@@ -7205,9 +4051,6 @@ void SwBWMode(struct rtl8190_priv *priv, unsigned int bandwidth, int offset)
 
 void GetHardwareVersion(struct rtl8190_priv *priv)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 
 	if (RTL_R8(0x301) == 0x02)
 		priv->pshare->VersionID = VERSION_8190_C;
@@ -7218,13 +4061,7 @@ void GetHardwareVersion(struct rtl8190_priv *priv)
 
 void init_EDCA_para(struct rtl8190_priv *priv, int mode)
 {
-#if !defined(RTL8192SU)
-	static ULONG ioaddr;
-#endif	
 	static unsigned int slot_time, VO_TXOP, VI_TXOP, sifs_time;
-#if !defined(RTL8192SU)
-	ioaddr = priv->pshare->ioaddr;
-#endif
 	slot_time = 20;
 	VO_TXOP = 47;
 	VI_TXOP = 94;
@@ -7261,9 +4098,6 @@ void init_EDCA_para(struct rtl8190_priv *priv, int mode)
 #ifdef SEMI_QOS
 void BE_switch_to_VI(struct rtl8190_priv *priv, int mode, char enable)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 	unsigned int slot_time = 20, TXOP = 47, sifs_time = 10;
 
 	if ((mode & WIRELESS_11N) && (priv->pshare->ht_sta_num
@@ -7282,7 +4116,6 @@ void BE_switch_to_VI(struct rtl8190_priv *priv, int mode, char enable)
 	}
 
 	if (!enable) {
-#if defined(RTL8192SE) || defined(RTL8192SU)
 		if (priv->pmib->dot11OperationEntry.wifi_specific == 2) {
 			RTL_W16(NAV_PROT_LEN, 0x80);
 			RTL_W8(CFEND_TH, 0x2);
@@ -7293,7 +4126,6 @@ void BE_switch_to_VI(struct rtl8190_priv *priv, int mode, char enable)
 				RTL_W32(_ACBE_PARM_, (6 << 12) | (4 << 8) | (sifs_time + 3 * slot_time));
 		}
 		else
-#endif
 			RTL_W32(_ACBE_PARM_, (6 << 12) | (4 << 8) | (sifs_time + 3 * slot_time));
 	}
 	else {
@@ -7303,7 +4135,6 @@ void BE_switch_to_VI(struct rtl8190_priv *priv, int mode, char enable)
 			priv->pmib->dot11WdsInfo.wdsEnabled && priv->pmib->dot11WdsInfo.wdsNum)
 #endif
 			) {
-#if defined(RTL8192SE) || defined(RTL8192SU)
 			if (priv->pshare->txop_enlarge == 0xf) {
 				// is 8192S client
 				RTL_W32(_ACBE_PARM_, ((TXOP*2) << 16) |
@@ -7316,26 +4147,19 @@ void BE_switch_to_VI(struct rtl8190_priv *priv, int mode, char enable)
 				priv->pshare->txop_enlarge = 1;
 			}
 			else
-#endif
 			RTL_W32(_ACBE_PARM_, ((TXOP*priv->pshare->txop_enlarge) << 16) |
 			(6 << 12) | (4 << 8) | (sifs_time + slot_time));
 		}
 		else {
 			// for intel 4965 IOT issue with 92SE, temporary solution, victoryman 20081201
-#if defined(RTL8190) || defined(RTL8192E)
-			RTL_W32(_ACBE_PARM_, ((TXOP*2) << 16) | (4 << 12) | (3 << 8) | (sifs_time + slot_time));
-#else	// RTL8192SE
 			RTL_W32(_ACBE_PARM_, (6 << 12) | (4 << 8) | 0x19);
-#endif
 		}
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
 		if (priv->pmib->dot11OperationEntry.wifi_specific == 2) {
 			RTL_W16(NAV_PROT_LEN, 0x01C0);
 			RTL_W8(CFEND_TH, 0xFF);
 			set_fw_reg(priv, 0xfd000ab0, 0, 0);
 		}
-#endif
 	}
 }
 #endif
@@ -7343,90 +4167,50 @@ void BE_switch_to_VI(struct rtl8190_priv *priv, int mode, char enable)
 
 void setup_timer1(struct rtl8190_priv *priv, int timeout)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 
 	RTL_W32(_TIMER1_, timeout);
 
-#if !defined(RTL8192SU)
-	RTL_W32(_IMR_, RTL_R32(_IMR_) | _TIMEOUT1_);
-#endif
 }
 
 
 void cancel_timer1(struct rtl8190_priv *priv)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-
-	RTL_W32(_IMR_, RTL_R32(_IMR_) & ~_TIMEOUT1_);
-#endif
 }
 
 
 void setup_timer2(struct rtl8190_priv *priv, unsigned int timeout)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 	unsigned int current_value=RTL_R32(_TSFTR_L_);
 
 	if (TSF_LESS(timeout, current_value))
 		timeout = current_value+20;
 
 	RTL_W32(_TIMER2_, timeout);
-#if !defined(RTL8192SU)	
-	RTL_W32(_IMR_, RTL_R32(_IMR_) | _TIMEOUT2_);
-#endif
 }
 
 
 void cancel_timer2(struct rtl8190_priv *priv)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-
-	RTL_W32(_IMR_, RTL_R32(_IMR_) & ~_TIMEOUT2_);
-#endif
 }
 
 
 // dynamic DC_TH of Fsync in regC38 for non-BCM solution
 void check_DC_TH_by_rssi(struct rtl8190_priv *priv, unsigned char rssi_strength)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 
-#if defined(RTL8190) || defined(RTL8192E)
-	if (!priv->fsync_monitor_pstat)
-#endif
 	{
 		if ((priv->dc_th_current_state != DC_TH_USE_UPPER) &&
 			(rssi_strength >= priv->pshare->rf_ft_var.dcThUpper)) {
-#if	defined(RTL8192SE) || defined(RTL8192SU)
 			RTL_W8(0xc38, 0x94);
-#else
-			RTL_W8(0xc38, 0x14);
-#endif
 			priv->dc_th_current_state = DC_TH_USE_UPPER;
 		}
 		else if ((priv->dc_th_current_state != DC_TH_USE_LOWER) &&
 			(rssi_strength <= priv->pshare->rf_ft_var.dcThLower)) {
-#if	defined(RTL8192SE) || defined(RTL8192SU)
 			RTL_W8(0xc38, 0x90);
-#else
-			RTL_W8(0xc38, 0x10);
-#endif
 			priv->dc_th_current_state = DC_TH_USE_LOWER;
 		}
 		else if (priv->dc_th_current_state == DC_TH_USE_NONE) {
-#if	defined(RTL8192SE) || defined(RTL8192SU)
 			RTL_W8(0xc38, 0x94);
-#else
-			RTL_W8(0xc38, 0x14);
-#endif
 			priv->dc_th_current_state = DC_TH_USE_UPPER;
 		}
 	}
@@ -7435,157 +4219,11 @@ void check_DC_TH_by_rssi(struct rtl8190_priv *priv, unsigned char rssi_strength)
 
 void check_DIG_by_rssi(struct rtl8190_priv *priv, unsigned char rssi_strength)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 	unsigned int dig_on = 0;
-#if defined(CLIENT_MODE) && (defined(RTL8190) || defined(RTL8192E))
-	unsigned char val8;
-	unsigned int data_delta, mlcst_delta;
-#endif
 
 	if (OPMODE & WIFI_SITE_MONITOR)
 		return;
 
-#if defined(RTL8190) || defined(RTL8192E)
-#ifdef CLIENT_MODE
-	if ((OPMODE & (WIFI_STATION_STATE | WIFI_ASOC_STATE)) == (WIFI_STATION_STATE | WIFI_ASOC_STATE))
-	{
-		data_delta = UINT32_DIFF(priv->rxDataNumInPeriod, priv->rxDataNumInPeriod_pre);
-		mlcst_delta = UINT32_DIFF(priv->rxMlcstDataNumInPeriod, priv->rxMlcstDataNumInPeriod_pre);
-		priv->rxDataNumInPeriod_pre = priv->rxDataNumInPeriod;
-		priv->rxMlcstDataNumInPeriod_pre = priv->rxMlcstDataNumInPeriod;
-
-		if (((mlcst_delta * 10) > (data_delta * 9)) || (priv->pshare->phw->rxmlcst_rssi != 0))
-		{
-			if ((mlcst_delta * 10) > (data_delta * 9)) {
-				if (priv->pshare->phw->rxmlcst_rssi == 0) {
-					if (priv->pshare->phw->signal_strength != 0) {
-						if (priv->pshare->phw->signal_strength == 1) {
-							// set CS_ratio for CCK
-							RTL_W8(0xa0a, 0xcd);
-
-							// degrade ED_CCA
-							RTL_W32(0xc4c, 0x314);
-						}
-						RTL_W8(0xc30, 0x44);
-						priv->pshare->phw->signal_strength = 0;
-					}
-
-					// DIG off
-					RTL_W32(_RATR_POLL_, 0x800);
-					RTL_W8(0xa09, 0x86);
-				}
-
-				if (priv->pshare->phw->rxmlcst_rssi != rssi_strength) {
-					priv->pshare->phw->rxmlcst_rssi = rssi_strength;
-					val8 = 110 - (100 - rssi_strength) - 15;
-					if (val8 > priv->pshare->rf_ft_var.mlcstRxIgUpperBound)
-						val8 = priv->pshare->rf_ft_var.mlcstRxIgUpperBound;
-					else if (val8 < 0x20)
-						val8 = 0x20;
-
-					if (priv->pshare->phw->initial_gain != val8) {
-						priv->pshare->phw->initial_gain = val8;
-
-						// set initial gain
-						RTL_W8(0xc50, val8);
-						RTL_W8(0xc58, val8);
-						RTL_W8(0xc60, val8);
-						RTL_W8(0xc68, val8);
-					}
-				}
-			}
-			else {
-				priv->pshare->phw->rxmlcst_rssi = 0;
-				priv->pshare->phw->initial_gain = 0;
-
-				// set initial gain
-				RTL_W8(0xc50, 0x20);
-				RTL_W8(0xc58, 0x20);
-				RTL_W8(0xc60, 0x20);
-				RTL_W8(0xc68, 0x20);
-
-				RTL_W8(0xa09, 0x83);
-
-				// DIG on
-				RTL_W32(_RATR_POLL_, 0x100);
-			}
-
-			return;
-		}
-	}
-#endif
-
-	if ((rssi_strength < priv->pshare->rf_ft_var.digGoLowerLevel)
-		&& (priv->pshare->phw->signal_strength != 1)) {
-		// DIG off
-		RTL_W32(_RATR_POLL_, 0x800);
-
-		// set initial gain
-		RTL_W8(0xc50, 0x20);
-		RTL_W8(0xc58, 0x20);
-		RTL_W8(0xc60, 0x20);
-		RTL_W8(0xc68, 0x20);
-
-		// degrade PD_TH for OFDM
-		if (priv->pshare->is_40m_bw)
-			RTL_W8(0xc30, 0x40);
-		else
-			RTL_W8(0xc30, 0x42);
-
-		// degrade CS_ratio for CCK
-		RTL_W8(0xa0a, 0x8);
-
-		// enhance ED_CCA
-		RTL_W32(0xc4c, 0x300);
-
-		priv->pshare->phw->signal_strength = 1;
-	}
-	else if ((rssi_strength > priv->pshare->rf_ft_var.digGoUpperLevel)
-		&& (rssi_strength < 71) && (priv->pshare->phw->signal_strength != 2)) {
-		// set PD_TH for OFDM
-		if (priv->pshare->is_40m_bw)
-			RTL_W8(0xc30, 0x42);
-		else
-			RTL_W8(0xc30, 0x44);
-
-		if (priv->pshare->phw->signal_strength != 3)
-			dig_on++;
-
-		priv->pshare->phw->signal_strength = 2;
-	}
-	else if ((rssi_strength > 75) && (priv->pshare->phw->signal_strength != 3)) {
-		// set PD_TH for OFDM
-		if (priv->pshare->is_40m_bw)
-			RTL_W8(0xc30, 0x41);
-		else
-			RTL_W8(0xc30, 0x43);
-
-		if (priv->pshare->phw->signal_strength != 2)
-			dig_on++;
-
-		priv->pshare->phw->signal_strength = 3;
-	}
-
-	if (dig_on) {
-		// set initial gain
-		RTL_W8(0xc50, 0x20);
-		RTL_W8(0xc58, 0x20);
-		RTL_W8(0xc60, 0x20);
-		RTL_W8(0xc68, 0x20);
-
-		// set CS_ratio for CCK
-		RTL_W8(0xa0a, 0xcd);
-
-		// degrade ED_CCA
-		RTL_W32(0xc4c, 0x314);
-
-		// DIG on
-		RTL_W32(_RATR_POLL_, 0x100);
-	}
-
-#else	// RTL8192SE
 
 	if ((rssi_strength > priv->pshare->rf_ft_var.digGoUpperLevel)
 		&& (rssi_strength < 71) && (priv->pshare->phw->signal_strength != 2)) {
@@ -7629,7 +4267,6 @@ void check_DIG_by_rssi(struct rtl8190_priv *priv, unsigned char rssi_strength)
 //		set_fw_reg(priv, 0xfd000002, 0, 0);
 		RTL_W8(0x364, RTL_R8(0x364) | FW_REG364_DIG);
 	}
-#endif
 
 	check_DC_TH_by_rssi(priv, rssi_strength);
 }
@@ -7637,43 +4274,7 @@ void check_DIG_by_rssi(struct rtl8190_priv *priv, unsigned char rssi_strength)
 
 void DIG_for_site_survey(struct rtl8190_priv *priv, int do_ss)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 
-#if defined(RTL8190) || defined(RTL8192E)
-	if (do_ss) {
-		if (priv->pshare->phw->rxmlcst_rssi) {
-			RTL_W8(0xa09, 0x83);
-			priv->pshare->phw->rxmlcst_rssi = 0;
-			priv->pshare->phw->initial_gain = 0;
-		}
-		else if (priv->pshare->phw->signal_strength != 0) {
-			if (priv->pshare->phw->signal_strength == 1) {
-				// set CS_ratio for CCK
-				RTL_W8(0xa0a, 0xcd);
-
-				// degrade ED_CCA
-				RTL_W32(0xc4c, 0x314);
-			}
-			RTL_W8(0xc30, 0x44);
-			priv->pshare->phw->signal_strength = 0;
-		}
-
-		// DIG off
-		RTL_W32(_RATR_POLL_, 0x800);
-
-		// set initial gain
-		RTL_W8(0xc50, 0x20);
-		RTL_W8(0xc58, 0x20);
-		RTL_W8(0xc60, 0x20);
-		RTL_W8(0xc68, 0x20);
-	}
-	else {
-		// DIG on
-		RTL_W32(_RATR_POLL_, 0x100);
-	}
-#else	// RTL8192SE
 	if (do_ss) {
 		if (priv->pshare->phw->signal_strength) {
 			if (priv->pshare->is_40m_bw)
@@ -7690,71 +4291,14 @@ void DIG_for_site_survey(struct rtl8190_priv *priv, int do_ss)
 	else {
 		// let check_DIG_by_rssi() re-init DIG state again
 		// and do nothing here
-#if 0
-		// DIG on
-//		set_fw_reg(priv, 0xfd000002, 0, 0);
-		RTL_W8(0x364, RTL_R8(0x364) | FW_REG364_DIG);
-#endif
-	}
-#endif
-}
-
-#if defined(RTL8190)
-// dynamic CCK Tx power by rssi
-void CCK_txpower_by_rssi(struct rtl8190_priv *priv, unsigned char rssi_strength)
-{
-	ULONG ioaddr = priv->pshare->ioaddr;
-	unsigned int val32;
-
-	if (priv->pshare->phw->CCKTxAgc_enhanced) {
-		if (rssi_strength > priv->pshare->rf_ft_var.digGoUpperLevel) {
-			priv->pshare->phw->CCKTxAgc_enhanced = 0;
-			RTL_W32(_CCK_TXAGC_, priv->pshare->phw->CCKTxAgc);
-			DEBUG_INFO("Return CCK Tx power to 0x%08x\n", priv->pshare->phw->CCKTxAgc);
-		}
-	}
-	else {
-		if (rssi_strength < priv->pshare->rf_ft_var.digGoLowerLevel) {
-			priv->pshare->phw->CCKTxAgc_enhanced = 1;
-			if (priv->pshare->rf_ft_var.cck_enhance == 1) {
-				if (priv->pshare->channelAC_pwrdiff <= 2)
-					val32 = (0x22 << 8) | 0x22;
-				else
-					val32 = ((0x24 - priv->pshare->channelAC_pwrdiff) << 8) | (0x24 - priv->pshare->channelAC_pwrdiff);
-			}
-			else {
-				if (priv->pshare->rf_ft_var.cck_enhance == 6)
-					val32 = (priv->pshare->phw->CCKTxAgc & 0xff) + 6;
-				else if (priv->pshare->rf_ft_var.cck_enhance == 8)
-					val32 = (priv->pshare->phw->CCKTxAgc & 0xff) + 8;
-				else if (priv->pshare->rf_ft_var.cck_enhance == 10)
-					val32 = (priv->pshare->phw->CCKTxAgc & 0xff) + 10;
-				else {
-					printk("cck_enhance=%d not acceptable! set to 6\n", priv->pshare->rf_ft_var.cck_enhance);
-					priv->pshare->rf_ft_var.cck_enhance = 6;
-					val32 = (priv->pshare->phw->CCKTxAgc & 0xff) + 6;
-				}
-				if (val32 > 0x22)
-					val32 = 0x22;
-				if ((priv->pshare->channelAC_pwrdiff > 2) && (val32 == 0x22))
-					val32 = 0x24 - priv->pshare->channelAC_pwrdiff;
-				val32 = (val32 << 8) | val32;
-			}
-			RTL_W32(_CCK_TXAGC_, val32);
-			DEBUG_INFO("Enchance CCK Tx power to 0x%08x\n", val32);
-		}
 	}
 }
-#endif
 
 
-#if defined(RTL8192SE) || defined(RTL8192SU)
+
 // dynamic CCK CCA enhance by rssi
 void CCK_CCA_dynamic_enhance(struct rtl8190_priv *priv, unsigned char rssi_strength)
 {
-#if !defined(RTL8192SU)
-	unsigned long ioaddr = priv->pshare->ioaddr;
-#endif
 
 	if (!priv->pshare->phw->CCK_CCA_enhanced && (rssi_strength < 20)) {
 		priv->pshare->phw->CCK_CCA_enhanced = TRUE;
@@ -7765,75 +4309,10 @@ void CCK_CCA_dynamic_enhance(struct rtl8190_priv *priv, unsigned char rssi_stren
 		RTL_W8(0xa0a, 0xcd);
 	}
 }
-#endif
 
 
 // bcm old 11n chipset iot debug
-#if defined(RTL8190) || defined(RTL8192E)
-void fsync_refine_switch(struct rtl8190_priv *priv, unsigned int refine_on)
-{
-	ULONG ioaddr = priv->pshare->ioaddr;
 
-	if (refine_on) {
-		// late
-#ifdef RTL8190
-		RTL_W8(0xc36, 0x00);
-#elif defined(RTL8192E)
-		RTL_W8(0xc36, 0x14);
-#endif
-		RTL_W8(0xc3e, 0x90);
-	}
-	else {
-		// default
-#ifdef RTL8190
-		RTL_W8(0xc36, 0x40);
-#elif defined(RTL8192E)
-		RTL_W8(0xc36, 0x54);
-#endif
-		RTL_W8(0xc3e, 0x96);
-	}
-}
-
-
-// bcm old 11n chipset iot debug
-void rtl8190_fsync_timer(unsigned long task_priv)
-{
-	struct rtl8190_priv *priv = (struct rtl8190_priv *)task_priv;
-	if (timer_pending(&priv->fsync_timer))
-		del_timer_sync(&priv->fsync_timer);
-
-	if ((priv->pshare->rf_ft_var.fsync_func_on) && (priv->fsync_monitor_pstat)) {
-		if ((priv->fsync_monitor_pstat->rssi > priv->pshare->rf_ft_var.fsync_rssi_th) &&
-			((!(priv->fsync_monitor_pstat->rx_rate_bitmap)) ||
-			(!(priv->fsync_monitor_pstat->rx_rate_bitmap >> (priv->pshare->rf_ft_var.fsync_mcs_th+1))))) {
-			if (priv->pshare->fsync_refine_on)
-				priv->pshare->fsync_refine_on = 0;
-			else
-				priv->pshare->fsync_refine_on++;
-			fsync_refine_switch(priv, priv->pshare->fsync_refine_on);
-		}
-		else if (priv->fsync_monitor_pstat->rssi <= priv->pshare->rf_ft_var.fsync_rssi_th) {
-			if (priv->pshare->fsync_refine_on) {
-				priv->pshare->fsync_refine_on = 0;
-				fsync_refine_switch(priv, priv->pshare->fsync_refine_on);
-			}
-		}
-
-		mod_timer(&priv->fsync_timer, jiffies + 50);	// 500 ms
-	}
-	else {
-		if (priv->pshare->fsync_refine_on) {
-			priv->pshare->fsync_refine_on = 0;
-			fsync_refine_switch(priv, priv->pshare->fsync_refine_on);
-		}
-	}
-
-	if (priv->fsync_monitor_pstat)
-		priv->fsync_monitor_pstat->rx_rate_bitmap = 0;
-}
-#endif
-
-#if defined(RTL8192SE) || defined(RTL8192SU)
 void tx_path_by_rssi(struct rtl8190_priv *priv, struct stat_info *pstat, unsigned char enable){
 
 	if((get_rf_mimo_mode(priv) != MIMO_2T2R))
@@ -7877,40 +4356,14 @@ void tx_path_by_rssi(struct rtl8190_priv *priv, struct stat_info *pstat, unsigne
 			Switch_OFDM_Antenna(priv, 3);
   }
 
-#if 0  // original  setup
-	if (priv->pmib->dot11BssType.net_work_type & WIRELESS_11N){ // for 11n 1ss sta
-		if(enable){
-			if(pstat->rf_info.mimorssi[0] > pstat->rf_info.mimorssi[1])
-				Switch_1SS_Antenna(priv, 1);
-			else
-				Switch_1SS_Antenna(priv, 2);
-		}
-		else
-			Switch_1SS_Antenna(priv, 3);
-	}
-	else if (priv->pmib->dot11BssType.net_work_type & WIRELESS_11G){ // for 11g
-		if(enable){
-			if(pstat->rf_info.mimorssi[0] > pstat->rf_info.mimorssi[1])
-				Switch_OFDM_Antenna(priv, 1);
-			else
-				Switch_OFDM_Antenna(priv, 2);
-		}
-		else
-			Switch_OFDM_Antenna(priv, 3);
-	}
-#endif
 
 
 }
-#endif
 
 
 // dynamic Rx path selection by signal strength
 void rx_path_by_rssi(struct rtl8190_priv *priv, struct stat_info *pstat, int enable)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 	unsigned char highest_rssi=0, higher_rssi=0, under_ss_th_low=0;
 	RF90_RADIO_PATH_E eRFPath, eRFPath_highest=0, eRFPath_higher=0;
 	int ant_on_processing=0;
@@ -8009,9 +4462,6 @@ void rx_path_by_rssi(struct rtl8190_priv *priv, struct stat_info *pstat, int ena
 // dynamic Rx path selection by signal strength
 void rx_path_by_rssi_cck_v2(struct rtl8190_priv *priv, struct stat_info *pstat)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 	int highest_rssi=-1000, higher_rssi=-1000;
 	RF90_RADIO_PATH_E eRFPath, eRFPath_highest=0, eRFPath_higher=0;
 #ifdef _DEBUG_RTL8190_
@@ -8046,53 +4496,6 @@ void rx_path_by_rssi_cck_v2(struct rtl8190_priv *priv, struct stat_info *pstat)
 // Tx power control
 void tx_power_control(struct rtl8190_priv *priv, struct stat_info *pstat, int enable)
 {
-#if defined(RTL8190) || defined(RTL8192E)
-#ifdef RTL8190
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif
-
-	if (enable == FALSE) {
-		if (priv->pshare->phw->lower_tx_power) {
-			priv->pshare->phw->lower_tx_power = 0;
-#ifdef RTL8190
-			RTL_W32(_MCS_TXAGC_1_, priv->pshare->phw->MCSTxAgc1);
-#elif defined(RTL8192E)
-			PHY_SetBBReg(priv, 0xe14, 0x7f7f7f7f,  priv->pshare->phw->MCSTxAgc1);
-			PHY_SetBBReg(priv, 0xe1c, 0x7f7f7f7f,  priv->pshare->phw->MCSTxAgc1);
-#endif
-			DEBUG_INFO("More than 1 sta, back to normal power state\n");
-		}
-		return;
-	}
-
-	if (priv->pshare->phw->lower_tx_power == 0) {
-		if (pstat->rssi > 75) {
-			priv->pshare->phw->lower_tx_power = 1;
-#ifdef RTL8190
-			RTL_W32(_MCS_TXAGC_1_, 0x03030303);
-#elif defined(RTL8192E)
-			PHY_SetBBReg(priv, 0xe14, 0x7f7f7f7f,  0x03030303);
-			PHY_SetBBReg(priv, 0xe1c, 0x7f7f7f7f,  0x03030303);
-#endif
-			DEBUG_INFO("Rssi > 75, enter high power state\n");
-		}
-	}
-	else {
-		if (pstat->rssi < 70) {
-			priv->pshare->phw->lower_tx_power = 0;
-#ifdef RTL8190
-			RTL_W32(_MCS_TXAGC_1_, priv->pshare->phw->MCSTxAgc1);
-#elif defined(RTL8192E)
-			PHY_SetBBReg(priv, 0xe14, 0x7f7f7f7f,  priv->pshare->phw->MCSTxAgc1);
-			PHY_SetBBReg(priv, 0xe1c, 0x7f7f7f7f,  priv->pshare->phw->MCSTxAgc1);
-#endif
-			DEBUG_INFO("Rssi < 70, back to normal power state\n");
-		}
-	}
-#else	// RTL8192SE
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 	if (enable) {
 		if (!priv->pshare->phw->lower_tx_power) {
 			// TX High power enable
@@ -8109,60 +4512,11 @@ void tx_power_control(struct rtl8190_priv *priv, struct stat_info *pstat, int en
 			priv->pshare->phw->lower_tx_power = 0;
 		}
 	}
-#endif
 }
 
 
 void tx_power_tracking(struct rtl8190_priv *priv)
 {
-#if defined(RTL8190) || defined(RTL8192E)
-	ULONG ioaddr = priv->pshare->ioaddr;
-	unsigned int regval;
-	int i;
-
-	if (!priv->pshare->phw->tpt_inited)
-	{
-		regval = PHY_QueryBBReg(priv, rOFDM0_XCTxIQImbalance, bMaskDWord);
-		for (i=0; i<TxPwrTrk_OFDM_SwingTbl_Len; i++) {
-			if (regval == TxPwrTrk_OFDM_SwingTbl[i]) {
-				priv->pshare->phw->tpt_ofdm_swing_idx = (unsigned char)i;
-				break;
-			}
-		}
-
-		priv->pshare->phw->tpt_cck_swing_idx = get_cck_swing_idx(priv->pshare->CurrentChannelBW, priv->pshare->phw->tpt_ofdm_swing_idx);
-
-		DEBUG_INFO("TPT: started, target_tssi=%d, ofdm_swing_idx=%d, cck_swing_idx=%d\n",
-			priv->pmib->dot11RFEntry.ther_rfic, priv->pshare->phw->tpt_ofdm_swing_idx, priv->pshare->phw->tpt_cck_swing_idx);
-
-		priv->pshare->phw->tpt_inited = TRUE;
-	}
-
-	if (priv->pshare->phw->tpt_tracking_num == 0) {
-		priv->pshare->phw->tpt_tssi_total = 0;
-		priv->pshare->phw->tpt_tssi_num = 0;
-		if (priv->pshare->phw->lower_tx_power) {
-			RTL_W32(_MCS_TXAGC_1_, priv->pshare->phw->MCSTxAgc1);
-			DEBUG_INFO("TPT: back to normal power state\n");
-		}
-	}
-
-	if (priv->pshare->phw->tpt_tracking_num < 15) {
-		priv->pshare->phw->tpt_tracking_num++;
-		issue_tpt_tstpkt(priv);
-		mod_timer(&priv->pshare->phw->tpt_timer, jiffies + 1);
-	}
-	else {
-		DEBUG_INFO("TPT: too busy, ofdm_swing_idx=%d, cck_swing_idx=%d\n",
-			priv->pshare->phw->tpt_ofdm_swing_idx,  priv->pshare->phw->tpt_cck_swing_idx);
-		priv->pshare->phw->tpt_tracking_num = 0;
-		if (priv->pshare->phw->lower_tx_power) {
-			RTL_W32(_MCS_TXAGC_1_, 0x03030303);
-			DEBUG_INFO("TPT: enter high power state\n");
-		}
-	}
-
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 
 	if (priv->pmib->dot11RFEntry.ther) {
 		DEBUG_INFO("TPT: triggered(every %d seconds)\n", priv->pshare->rf_ft_var.tpt_period);
@@ -8171,7 +4525,6 @@ void tx_power_tracking(struct rtl8190_priv *priv)
 		PHY_SetRFReg(priv, RF90_PATH_A, 0x24, bMask20Bits, 0x60);
 		mod_timer(&priv->pshare->phw->tpt_timer, jiffies + 100); // 1000ms
 	}
-#endif
 }
 
 
@@ -8180,126 +4533,6 @@ void rtl8190_tpt_timer(unsigned long task_priv)
 	struct rtl8190_priv *priv = (struct rtl8190_priv *)task_priv;
 	unsigned int val32;
 
-#if defined(RTL8190) || defined(RTL8192E)
-	ULONG ioaddr = priv->pshare->ioaddr;
-	unsigned short tssi, target_tssi=priv->pmib->dot11RFEntry.ther_rfic;
-	unsigned char pwr_flag, *CCK_SwingEntry;
-
-	pwr_flag = RTL_R8(0x136);
-	if (pwr_flag == 0) {
-		if (priv->pshare->phw->tpt_tssi_waiting < 20) {
-			priv->pshare->phw->tpt_tssi_waiting++;
-			mod_timer(&priv->pshare->phw->tpt_timer, jiffies + 1);
-			return;
-		}
-		else {
-			DEBUG_INFO("TPT: waiting too long\n");
-			priv->pshare->phw->tpt_tssi_waiting = 0;
-			tx_power_tracking(priv);
-			return;
-		}
-	}
-
-	priv->pshare->phw->tpt_tssi_waiting = 0;
-	tssi = RTL_R16(0x134) / 100;
-	RTL_W8(0x136, 0);
-	DEBUG_INFO("TPT: tssi = %d (%d)\n", tssi, priv->pshare->phw->tpt_tssi_num);
-	if (tssi == 0) {
-		tx_power_tracking(priv);
-		return;
-	}
-	else {
-		priv->pshare->phw->tpt_tssi_total += tssi;
-		priv->pshare->phw->tpt_tssi_num++;
-
-		if (priv->pshare->phw->tpt_tssi_num < 3) {
-			tx_power_tracking(priv);
-			return;
-		}
-		else
-			tssi = priv->pshare->phw->tpt_tssi_total / 3;
-	}
-
-	if (tssi >= target_tssi) {
-		if ((tssi - target_tssi) <= TxPwrTrk_E_Val) {
-			DEBUG_INFO("TPT: done, ofdm_swing_idx=%d, cck_swing_idx=%d\n",
-				priv->pshare->phw->tpt_ofdm_swing_idx,  priv->pshare->phw->tpt_cck_swing_idx);
-			priv->pshare->phw->tpt_tracking_num = 0;
-			if (priv->pshare->phw->lower_tx_power) {
-				RTL_W32(_MCS_TXAGC_1_, 0x03030303);
-				DEBUG_INFO("TPT: enter high power state\n");
-			}
-			return;
-		}
-		else {
-			if (priv->pshare->phw->tpt_ofdm_swing_idx < (TxPwrTrk_OFDM_SwingTbl_Len-1)) {
-				priv->pshare->phw->tpt_ofdm_swing_idx++;
-				priv->pshare->phw->tpt_cck_swing_idx = get_cck_swing_idx(priv->pshare->CurrentChannelBW, priv->pshare->phw->tpt_ofdm_swing_idx);
-			}
-			else {
-				DEBUG_INFO("TPT: limited, ofdm_swing_idx=%d, cck_swing_idx=%d\n",
-					priv->pshare->phw->tpt_ofdm_swing_idx,  priv->pshare->phw->tpt_cck_swing_idx);
-				priv->pshare->phw->tpt_tracking_num = 0;
-				if (priv->pshare->phw->lower_tx_power) {
-					RTL_W32(_MCS_TXAGC_1_, 0x03030303);
-					DEBUG_INFO("TPT: enter high power state\n");
-				}
-				return;
-			}
-		}
-	}
-	else {
-		if ((target_tssi - tssi) <= TxPwrTrk_E_Val) {
-			DEBUG_INFO("TPT: done, ofdm_swing_idx=%d, cck_swing_idx=%d\n",
-				priv->pshare->phw->tpt_ofdm_swing_idx,  priv->pshare->phw->tpt_cck_swing_idx);
-			priv->pshare->phw->tpt_tracking_num = 0;
-			if (priv->pshare->phw->lower_tx_power) {
-				RTL_W32(_MCS_TXAGC_1_, 0x03030303);
-				DEBUG_INFO("TPT: enter high power state\n");
-			}
-			return;
-		}
-		else {
-			if (priv->pshare->phw->tpt_ofdm_swing_idx > 0) {
-				priv->pshare->phw->tpt_ofdm_swing_idx--;
-				priv->pshare->phw->tpt_cck_swing_idx = get_cck_swing_idx(priv->pshare->CurrentChannelBW, priv->pshare->phw->tpt_ofdm_swing_idx);
-			}
-			else {
-				DEBUG_INFO("TPT: limited, ofdm_swing_idx=%d, cck_swing_idx=%d\n",
-					priv->pshare->phw->tpt_ofdm_swing_idx,  priv->pshare->phw->tpt_cck_swing_idx);
-				priv->pshare->phw->tpt_tracking_num = 0;
-				if (priv->pshare->phw->lower_tx_power) {
-					RTL_W32(_MCS_TXAGC_1_, 0x03030303);
-					DEBUG_INFO("TPT: enter high power state\n");
-				}
-				return;
-			}
-		}
-	}
-
-	val32 = TxPwrTrk_OFDM_SwingTbl[priv->pshare->phw->tpt_ofdm_swing_idx];
-	PHY_SetBBReg(priv, rOFDM0_XATxIQImbalance, bMaskDWord, val32);
-	PHY_SetBBReg(priv, rOFDM0_XBTxIQImbalance, bMaskDWord, val32);
-	PHY_SetBBReg(priv, rOFDM0_XCTxIQImbalance, bMaskDWord, val32);
-	PHY_SetBBReg(priv, rOFDM0_XDTxIQImbalance, bMaskDWord, val32);
-	if (priv->pmib->dot11RFEntry.dot11channel == 14)
-		CCK_SwingEntry = &TxPwrTrk_CCK_SwingTbl_CH14[priv->pshare->phw->tpt_cck_swing_idx][0];
-	else
-		CCK_SwingEntry = &TxPwrTrk_CCK_SwingTbl[priv->pshare->phw->tpt_cck_swing_idx][0];
-	val32 = CCK_SwingEntry[0] | (CCK_SwingEntry[1] << 8);
-	PHY_SetBBReg(priv, rCCK0_TxFilter1, bMaskHWord, val32);
-	val32 = CCK_SwingEntry[2] | (CCK_SwingEntry[3] << 8) | (CCK_SwingEntry[4] << 16) | (CCK_SwingEntry[5] << 24);
-	PHY_SetBBReg(priv, rCCK0_TxFilter2, bMaskDWord, val32);
-	val32 = CCK_SwingEntry[6] | (CCK_SwingEntry[7] << 8);
-	PHY_SetBBReg(priv, rCCK0_DebugPort, bMaskLWord, val32);
-
-	DEBUG_INFO("TPT: finished once\n");
-
-	priv->pshare->phw->tpt_tssi_total = 0;
-	priv->pshare->phw->tpt_tssi_num = 0;
-	tx_power_tracking(priv);
-
-#elif defined(RTL8192SE) || defined(RTL8192SU)
 
 	if (timer_pending(&priv->pshare->phw->tpt_timer))
 		del_timer_sync(&priv->pshare->phw->tpt_timer);
@@ -8317,7 +4550,6 @@ void rtl8190_tpt_timer(unsigned long task_priv)
 			DEBUG_WARN("TPT: cannot finish, since wrong current ther value report\n");
 		}
 	}
-#endif
 }
 
 
@@ -8354,9 +4586,6 @@ void rtl8190_tpt_timer(unsigned long task_priv)
 //return first not invalid entry back.
 static UCHAR CAM_find_usable(struct rtl8190_priv *priv)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 	ULONG ulCommand=0;
 	ULONG ulContent=0;
 	UCHAR ucIndex;
@@ -8388,9 +4617,6 @@ static UCHAR CAM_find_usable(struct rtl8190_priv *priv)
 
 static void CAM_program_entry(struct rtl8190_priv *priv,UCHAR index, UCHAR* macad,UCHAR* key128, USHORT config)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 	ULONG target_command=0;
 	ULONG target_content=0;
 	UCHAR entry_i=0;
@@ -8438,9 +4664,6 @@ int CamAddOneEntry(struct rtl8190_priv *priv,UCHAR *pucMacAddr, ULONG ulKeyId, U
 	UCHAR retVal = 0;
     UCHAR ucCamIndex = 0;
     USHORT usConfig = 0;
-#if !defined(RTL8192SU)    
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 	UCHAR wpaContent = 0;
 
     //use Hardware Polling to check the valid bit.
@@ -8469,9 +4692,6 @@ int CamAddOneEntry(struct rtl8190_priv *priv,UCHAR *pucMacAddr, ULONG ulKeyId, U
 
 void CAM_read_mac_config(struct rtl8190_priv *priv,UCHAR ucIndex, UCHAR* pucMacad, USHORT* pusTempConfig)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 	ULONG ulCommand=0;
 	ULONG ulContent=0;
 
@@ -8518,28 +4738,10 @@ void CAM_read_mac_config(struct rtl8190_priv *priv,UCHAR ucIndex, UCHAR* pucMaca
 }
 
 
-#if 0
-void CAM_mark_invalid(struct rtl8190_priv *priv,UCHAR ucIndex)
-{
-	ULONG ioaddr = priv->pshare->ioaddr;
-	ULONG ulCommand=0;
-	ULONG ulContent=0;
-
-	// polling bit, and No Write enable, and address
-	ulCommand= CAM_CONTENT_COUNT*ucIndex;
-	ulCommand= ulCommand | _CAM_POLL_ |_CAM_WE_;
-	// write content 0 is equall to mark invalid
-	WritePortUlong(_CAM_W_, ulContent);
-	WritePortUlong(_CAMCMD_, ulCommand);
-}
-#endif
 
 
 void CAM_empty_entry(struct rtl8190_priv *priv,UCHAR ucIndex)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 	ULONG ulCommand=0;
 	ULONG ulContent=0;
 	int i;
@@ -8560,9 +4762,6 @@ int CamDeleteOneEntry(struct rtl8190_priv *priv,UCHAR *pucMacAddr, ULONG ulKeyId
 	UCHAR ucIndex;
 	UCHAR ucTempMAC[6];
 	USHORT usTempConfig=0;
-#if !defined(RTL8192SU)	
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 	int for_begin=0;
 
 	// group key processing for RTL8190
@@ -8602,9 +4801,6 @@ int CamDeleteOneEntry(struct rtl8190_priv *priv,UCHAR *pucMacAddr, ULONG ulKeyId
 void CamResetAllEntry(struct rtl8190_priv *priv)
 {
 	UCHAR ucIndex;
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 	WritePortUlong(_CAMCMD_, _CAM_CLR_);
 
 	for(ucIndex=0;ucIndex<TOTAL_CAM_ENTRY;ucIndex++) {
@@ -8618,9 +4814,6 @@ void CamResetAllEntry(struct rtl8190_priv *priv)
 
 void CAM_read_entry(struct rtl8190_priv *priv,UCHAR index, UCHAR* macad,UCHAR* key128, USHORT* config)
 {
-#if !defined(RTL8192SU)
-	ULONG ioaddr = priv->pshare->ioaddr;
-#endif	
 	ULONG target_command=0;
 	ULONG target_content=0;
 	unsigned char entry_i=0;
@@ -8970,15 +5163,6 @@ static	void efuse_ReadAllMap(struct rtl8190_priv *priv, unsigned char *Efuse)
 
 	ReadEFuse(priv, 0, 128, Efuse);
 
-#if 0	// Error !!!!!!
-	for(offset = 0;offset<16;offset++)	// For 8192SE
-	{		
-		PlatformFillMemory((PVOID)pg_data, 8, 0xff);
-		efuse_PgPacketRead(pAdapter,offset,pg_data);
-
-		PlatformMoveMemory((PVOID)&Efuse[offset*8], (PVOID)pg_data, 8);
-	}
-#endif
 	efuse_PowerSwitch(priv, FALSE);
 
 }	// efuse_ReadAllMap

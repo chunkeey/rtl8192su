@@ -31,11 +31,12 @@
 #include "../core.h"
 #include "../base.h"
 #include "../pci.h"
-#include "reg.h"
-#include "def.h"
-#include "phy.h"
-#include "dm.h"
-#include "fw.h"
+#include "../rtl8192s/reg_common.h"
+#include "../rtl8192s/def_common.h"
+#include "../rtl8192s/phy_common.h"
+#include "../rtl8192s/dm_common.h"
+#include "../rtl8192s/fw_common.h"
+#include "../rtl8192s/hw_common.h"
 #include "hw.h"
 #include "sw.h"
 #include "trx.h"
@@ -50,8 +51,7 @@ static void rtl92s_init_aspm_vars(struct ieee80211_hw *hw)
 	/*close ASPM for AMD defaultly */
 	rtlpci->const_amdpci_aspm = 0;
 
-	/*
-	 * ASPM PS mode.
+	/* ASPM PS mode.
 	 * 0 - Disable ASPM,
 	 * 1 - Enable ASPM without Clock Req,
 	 * 2 - Enable ASPM with Clock Req,
@@ -67,8 +67,7 @@ static void rtl92s_init_aspm_vars(struct ieee80211_hw *hw)
 	/*Setting for PCI-E bridge */
 	rtlpci->const_hostpci_aspm_setting = 0x02;
 
-	/*
-	 * In Hw/Sw Radio Off situation.
+	/* In Hw/Sw Radio Off situation.
 	 * 0 - Default,
 	 * 1 - From ASPM setting without low Mac Pwr,
 	 * 2 - From ASPM setting with low Mac Pwr,
@@ -77,8 +76,7 @@ static void rtl92s_init_aspm_vars(struct ieee80211_hw *hw)
 	 */
 	rtlpci->const_hwsw_rfoff_d3 = 2;
 
-	/*
-	 * This setting works for those device with
+	/* This setting works for those device with
 	 * backdoor ASPM setting such as EPHY setting.
 	 * 0 - Not support ASPM,
 	 * 1 - Support ASPM,
@@ -259,7 +257,7 @@ static void rtl92s_deinit_sw_vars(struct ieee80211_hw *hw)
 static struct rtl_hal_ops rtl8192se_hal_ops = {
 	.init_sw_vars = rtl92s_init_sw_vars,
 	.deinit_sw_vars = rtl92s_deinit_sw_vars,
-	.read_eeprom_info = rtl92se_read_eeprom_info,
+	.read_eeprom_info = rtl92s_read_eeprom_info,
 	.interrupt_recognized = rtl92se_interrupt_recognized,
 	.hw_init = rtl92se_hw_init,
 	.hw_disable = rtl92se_card_disable,
@@ -269,17 +267,18 @@ static struct rtl_hal_ops rtl8192se_hal_ops = {
 	.disable_interrupt = rtl92se_disable_interrupt,
 	.set_network_type = rtl92se_set_network_type,
 	.set_chk_bssid = rtl92se_set_check_bssid,
-	.set_qos = rtl92se_set_qos,
-	.set_bcn_reg = rtl92se_set_beacon_related_registers,
-	.set_bcn_intv = rtl92se_set_beacon_interval,
+	.set_qos = rtl92s_set_qos,
+	.set_bcn_reg = rtl92s_set_beacon_related_registers,
+	.set_bcn_intv = rtl92s_set_beacon_interval,
 	.update_interrupt_mask = rtl92se_update_interrupt_mask,
-	.get_hw_reg = rtl92se_get_hw_reg,
-	.set_hw_reg = rtl92se_set_hw_reg,
-	.update_rate_tbl = rtl92se_update_hal_rate_tbl,
+	.get_hw_reg = rtl92s_get_hw_reg,
+	.set_hw_reg = rtl92s_set_hw_reg,
+	.update_rate_tbl = rtl92s_update_hal_rate_tbl,
 	.fill_tx_desc = rtl92se_tx_fill_desc,
+	.cmd_send_packet = rtl92se_cmd_send_packet,
 	.fill_tx_cmddesc = rtl92se_tx_fill_cmddesc,
 	.query_rx_desc = rtl92se_rx_query_desc,
-	.set_channel_access = rtl92se_update_channel_access_setting,
+	.set_channel_access = rtl92s_update_channel_access_setting,
 	.radio_onoff_checking = rtl92se_gpio_radio_on_off_checking,
 	.set_bw_mode = rtl92s_phy_set_bw_mode,
 	.switch_channel = rtl92s_phy_sw_chnl,
@@ -290,9 +289,10 @@ static struct rtl_hal_ops rtl8192se_hal_ops = {
 	.set_desc = rtl92se_set_desc,
 	.get_desc = rtl92se_get_desc,
 	.tx_polling = rtl92se_tx_polling,
-	.enable_hw_sec = rtl92se_enable_hw_security_config,
-	.set_key = rtl92se_set_key,
+	.enable_hw_sec = rtl92s_enable_hw_security_config,
+	.set_key = rtl92s_set_key,
 	.init_sw_leds = rtl92se_init_sw_leds,
+	.allow_all_destaddr = rtl92se_allow_all_destaddr,
 	.get_bbreg = rtl92s_phy_query_bb_reg,
 	.set_bbreg = rtl92s_phy_set_bb_reg,
 	.get_rfreg = rtl92s_phy_query_rf_reg,
@@ -329,7 +329,7 @@ static struct rtl_hal_cfg rtl92se_hal_cfg = {
 	.maps[EFUSE_TEST] = REG_EFUSE_TEST,
 	.maps[EFUSE_CTRL] = REG_EFUSE_CTRL,
 	.maps[EFUSE_CLK] = REG_EFUSE_CLK,
-	.maps[EFUSE_CLK_CTRL] = REG_EFUSE_CTRL,
+	.maps[EFUSE_CLK_CTRL] = REG_EFUSE_CLK_CTRL,
 	.maps[EFUSE_PWC_EV12V] = 0, /* nouse for 8192se */
 	.maps[EFUSE_FEN_ELDR] = 0, /* nouse for 8192se */
 	.maps[EFUSE_LOADER_CLK_EN] = 0,/* nouse for 8192se */
@@ -369,7 +369,7 @@ static struct rtl_hal_cfg rtl92se_hal_cfg = {
 
 	.maps[RTL_IMR_TXFOVW] = IMR_TXFOVW,
 	.maps[RTL_IMR_PSTIMEOUT] = IMR_PSTIMEOUT,
-	.maps[RTL_IMR_BcnInt] = IMR_BCNINT,
+	.maps[RTL_IMR_BCNINT] = IMR_BCNINT,
 	.maps[RTL_IMR_RXFOVW] = IMR_RXFOVW,
 	.maps[RTL_IMR_RDU] = IMR_RDU,
 	.maps[RTL_IMR_ATIMEND] = IMR_ATIMEND,
@@ -403,7 +403,7 @@ static struct rtl_hal_cfg rtl92se_hal_cfg = {
 	.maps[RTL_RC_HT_RATEMCS15] = DESC92_RATEMCS15,
 };
 
-static struct pci_device_id rtl92se_pci_ids[] __devinitdata = {
+static struct pci_device_id rtl92se_pci_ids[] = {
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8192, rtl92se_hal_cfg)},
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8171, rtl92se_hal_cfg)},
 	{RTL_PCI_DEVICE(PCI_VENDOR_ID_REALTEK, 0x8172, rtl92se_hal_cfg)},
@@ -432,14 +432,7 @@ MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 0)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 1)\n");
 MODULE_PARM_DESC(debug, "Set debug level (0-5) (default 0)");
 
-static const struct dev_pm_ops rtlwifi_pm_ops = {
-	.suspend = rtl_pci_suspend,
-	.resume = rtl_pci_resume,
-	.freeze = rtl_pci_suspend,
-	.thaw = rtl_pci_resume,
-	.poweroff = rtl_pci_suspend,
-	.restore = rtl_pci_resume,
-};
+static SIMPLE_DEV_PM_OPS(rtlwifi_pm_ops, rtl_pci_suspend, rtl_pci_resume);
 
 static struct pci_driver rtl92se_driver = {
 	.name = KBUILD_MODNAME,

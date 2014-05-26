@@ -23,36 +23,27 @@
  * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
  * Hsinchu 300, Taiwan.
  *
- * Larry Finger <Larry.Finger@lwfinger.net>
- * Joshua Roys <Joshua.Roys@gtri.gatech.edu>
+ * Christian Lamparter <chunkeey@googlemail.com>
  *
  *****************************************************************************/
 
 #include "../wifi.h"
 #include "../core.h"
-#include "../usb.h"
 #include "../base.h"
-#include "../efuse.h"
-#include "reg.h"
-#include "def.h"
-#include "phy.h"
-#include "dm.h"
-#include "fw.h"
+#include "../usb.h"
+#include "../rtl8192s/reg_common.h"
+#include "../rtl8192s/def_common.h"
+#include "../rtl8192s/phy_common.h"
+#include "../rtl8192s/dm_common.h"
+#include "../rtl8192s/fw_common.h"
+#include "../rtl8192s/hw_common.h"
 #include "hw.h"
 #include "sw.h"
 #include "trx.h"
 #include "led.h"
-#include "eeprom.h"
+#include "debugfs.h"
 
 #include <linux/module.h>
-
-MODULE_AUTHOR("lizhaoming	<chaoming_li@realsil.com.cn>");
-MODULE_AUTHOR("Realtek WlanFAE	<wlanfae@realtek.com>");
-MODULE_AUTHOR("Larry Finger	<Larry.Finger@lwfinger.net>");
-MODULE_AUTHOR("Joshua Roys      <Joshua.Roys@gtri.gatech.edu>");
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Realtek 8192S/8191S 802.11n USB wireless");
-MODULE_FIRMWARE("rtlwifi/rtl8712u.bin");
 
 static void rtl92su_fw_cb(const struct firmware *firmware, void *context)
 {
@@ -90,61 +81,25 @@ static void rtl92su_fw_cb(const struct firmware *firmware, void *context)
 		rtlpriv->mac80211.mac80211_registered = 1;
 	}
 	set_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status);
-
-	/*init rfkill */
-	rtl_init_rfkill(hw);
 }
 
 static int rtl92su_init_sw_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 	int err = 0;
-	u16 earlyrxthreshold = 7;
-
-	hw->wiphy->max_scan_ssids = 1;
 
 	rtlpriv->dm.dm_initialgain_enable = true;
 	rtlpriv->dm.dm_flag = 0;
 	rtlpriv->dm.disable_framebursting = false;
 	rtlpriv->dm.thermalvalue = 0;
 	rtlpriv->dm.useramask = true;
-	rtlpriv->dbg.global_debuglevel = rtlpriv->cfg->mod_params->debug;
 
-	/* compatible 5G band 91su just 2.4G band & smsp */
 	rtlpriv->rtlhal.current_bandtype = BAND_ON_2_4G;
 	rtlpriv->rtlhal.bandset = BAND_ON_2_4G;
 	rtlpriv->rtlhal.macphymode = SINGLEMAC_SINGLEPHY;
 
-	mac->rx_conf =
-			RCR_APPFCS |
-			RCR_APWRMGT |
-			/*RCR_ADD3 |*/
-			RCR_ACF	|
-			RCR_AMF	|
-			RCR_ADF |
-			RCR_APP_MIC |
-			RCR_APP_ICV |
-			RCR_AICV |
-			/* Accept ICV error, CRC32 Error */
-			RCR_ACRC32 |
-			RCR_AB |
-			/* Accept Broadcast, Multicast */
-			RCR_AM	|
-			/* Accept Physical match */
-			RCR_APM |
-			/* Accept Destination Address packets */
-			/*RCR_AAP |*/
-			RCR_APP_PHYST_STAFF |
-			/* Accept PHY status */
-			RCR_APP_PHYST_RXFF |
-			RCR_RX_TCPOFDL_EN |
-			(earlyrxthreshold << RCR_FIFO_OFFSET);
-
-	rtlusb->irq_mask[0] = 0;
-	rtlusb->irq_mask[1] = (u32) 0;
-
+	/* for debug level */
+	rtlpriv->dbg.global_debuglevel = rtlpriv->cfg->mod_params->debug;
 	/* for LPS & IPS */
 	rtlpriv->psc.inactiveps = rtlpriv->cfg->mod_params->inactiveps;
 	rtlpriv->psc.swctrl_lps = rtlpriv->cfg->mod_params->swctrl_lps;
@@ -155,7 +110,6 @@ static int rtl92su_init_sw_vars(struct ieee80211_hw *hw)
 		pr_info("FW Power Save off (module option)\n");
 	rtlpriv->psc.reg_fwctrl_lps = 3;
 	rtlpriv->psc.reg_max_lps_awakeintvl = 5;
-	rtlpriv->psc.hwradiooff = false;
 
 	if (rtlpriv->psc.reg_fwctrl_lps == 1)
 		rtlpriv->psc.fwctrl_psmode = FW_PS_MIN_MODE;
@@ -169,9 +123,9 @@ static int rtl92su_init_sw_vars(struct ieee80211_hw *hw)
 	if (!rtlpriv->rtlhal.pfirmware)
 		return -ENOMEM;
 
-	rtlpriv->max_fw_size = RTL8192_MAX_RAW_FIRMWARE_CODE_SIZE;
+	rtlpriv->max_fw_size = RTL8190_MAX_RAW_FIRMWARE_CODE_SIZE;
 
-	pr_info("Driver for Realtek RTL8192SU/RTL8191SU/RTL8188SU\n"
+	pr_info("Driver for Realtek RTL8192SU/RTL8191SU\n"
 		"Loading firmware %s\n", rtlpriv->cfg->fw_name);
 	/* request fw */
 	err = request_firmware_nowait(THIS_MODULE, 1, rtlpriv->cfg->fw_name,
@@ -180,8 +134,10 @@ static int rtl92su_init_sw_vars(struct ieee80211_hw *hw)
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "Failed to request firmware!\n");
-		return 1;
+		return err;
 	}
+
+	rtl8192su_register_debugfs(hw);
 
 	return err;
 }
@@ -190,57 +146,64 @@ static void rtl92su_deinit_sw_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
+	rtl8192su_unregister_debugfs(hw);
+
 	if (rtlpriv->rtlhal.pfirmware) {
 		vfree(rtlpriv->rtlhal.pfirmware);
 		rtlpriv->rtlhal.pfirmware = NULL;
 	}
 }
 
-static struct rtl_hal_ops rtl92su_hal_ops = {
+static struct rtl_hal_ops rtl8192su_hal_ops = {
 	.init_sw_vars = rtl92su_init_sw_vars,
 	.deinit_sw_vars = rtl92su_deinit_sw_vars,
-	.read_chip_version = rtl92su_read_chip_version,
-	.read_eeprom_info = rtl92su_read_eeprom_info,
-	.interrupt_recognized = rtl92su_interrupt_recognized,
+	.read_eeprom_info = rtl92s_read_eeprom_info,
+	.read_chip_version = rtl92s_read_chip_version,
 	.hw_init = rtl92su_hw_init,
 	.hw_disable = rtl92su_card_disable,
-	.enable_interrupt = rtl92su_enable_interrupt,
-	.disable_interrupt = rtl92su_disable_interrupt,
 	.set_network_type = rtl92su_set_network_type,
 	.set_chk_bssid = rtl92su_set_check_bssid,
-	.set_qos = rtl92su_set_qos,
-	.set_bcn_reg = rtl92su_set_beacon_related_registers,
-	.set_bcn_intv = rtl92su_set_beacon_interval,
-	.update_interrupt_mask = rtl92su_update_interrupt_mask,
-	.get_hw_reg = rtl92su_get_hw_reg,
-	.set_hw_reg = rtl92su_set_hw_reg,
-	.update_rate_tbl = rtl92su_update_hal_rate_tbl,
-	.fill_tx_desc = rtl92su_tx_fill_desc,
-	.fill_tx_cmddesc = rtl92su_tx_fill_cmddesc,
-	.query_rx_desc = rtl92su_rx_query_desc,
-	.set_channel_access = rtl92su_update_channel_access_setting,
+	.set_qos = rtl92s_set_qos,
+	.set_bcn_reg = rtl92s_set_beacon_related_registers,
+	.set_bcn_intv = rtl92s_set_beacon_interval,
+	.get_hw_reg = rtl92s_get_hw_reg,
+	.set_hw_reg = rtl92s_set_hw_reg,
+	.update_rate_tbl = rtl92s_update_hal_rate_tbl,
+	.set_channel_access = rtl92s_update_channel_access_setting,
 	.radio_onoff_checking = rtl92su_gpio_radio_on_off_checking,
 	.set_bw_mode = rtl92s_phy_set_bw_mode,
-	.switch_channel = rtl92s_set_fw_setchannel_cmd,
+	.switch_channel = rtl92s_phy_sw_chnl,
 	.dm_watchdog = rtl92s_dm_watchdog,
 	.scan_operation_backup = rtl92s_phy_scan_operation_backup,
 	.set_rf_power_state = rtl92s_phy_set_rf_power_state,
 	.led_control = rtl92su_led_control,
-	.enable_hw_sec = rtl92su_enable_hw_security_config,
-	.set_key = rtl92su_set_key,
+
+	.enable_hw_sec = rtl92s_enable_hw_security_config,
+	.set_key = rtl92s_set_key,
 	.init_sw_leds = rtl92su_init_sw_leds,
 	.deinit_sw_leds = rtl92su_deinit_sw_leds,
+	.allow_all_destaddr = rtl92su_allow_all_destaddr,
 	.get_bbreg = rtl92s_phy_query_bb_reg,
 	.set_bbreg = rtl92s_phy_set_bb_reg,
 	.get_rfreg = rtl92s_phy_query_rf_reg,
 	.set_rfreg = rtl92s_phy_set_rf_reg,
+
+	.query_rx_desc = rtl92su_rx_query_desc,
+
+	.fill_tx_desc = rtl92su_tx_fill_desc,
+	.cmd_send_packet = rtl92su_cmd_send_packet,
+	.fill_tx_cmddesc = rtl92su_tx_fill_cmddesc,
+
+	.enable_interrupt = rtl92su_enable_interrupt,
+	.disable_interrupt = rtl92su_disable_interrupt,
+	.update_interrupt_mask = rtl92su_update_interrupt_mask,
 };
 
 static struct rtl_mod_params rtl92su_mod_params = {
-	.sw_crypto = true,
+	.sw_crypto = false,
 	.inactiveps = false,
 	.swctrl_lps = false,
-	.fwctrl_lps = true,
+	.fwctrl_lps = false,
 	.debug = DBG_EMERG,
 };
 
@@ -253,18 +216,18 @@ static struct rtl_hal_usbint_cfg rtl92su_interface_cfg = {
 	.usb_rx_hdl = rtl92su_rx_hdl,
 	.usb_rx_segregate_hdl = NULL, /* rtl8192s_rx_segregate_hdl; */
 	/* tx */
-	.usb_tx_cleanup = rtl92s_tx_cleanup,
-	.usb_tx_post_hdl = rtl92s_tx_post_hdl,
-	.usb_tx_aggregate_hdl = rtl92s_tx_aggregate_hdl,
+	.usb_tx_cleanup = rtl92su_tx_cleanup,
+	.usb_tx_post_hdl = rtl92su_tx_post_hdl,
+	.usb_tx_aggregate_hdl = rtl92su_tx_aggregate_hdl,
 	/* endpoint mapping */
 	.usb_endpoint_mapping = rtl92su_endpoint_mapping,
 	.usb_mq_to_hwq = rtl92su_mq_to_hwq,
 };
 
 static struct rtl_hal_cfg rtl92su_hal_cfg = {
-	.name = "rtl92s_usb",
-	.fw_name = "rtlwifi/rtl8712u.bin",
-	.ops = &rtl92su_hal_ops,
+	.name = "rtl8192su",
+	.fw_name = "rtlwifi/rtl8192sufw.bin",
+	.ops = &rtl8192su_hal_ops,
 	.mod_params = &rtl92su_mod_params,
 	.usb_interface_cfg = &rtl92su_interface_cfg,
 
@@ -279,11 +242,11 @@ static struct rtl_hal_cfg rtl92su_hal_cfg = {
 
 	.maps[EFUSE_TEST] = REG_EFUSE_TEST,
 	.maps[EFUSE_CTRL] = REG_EFUSE_CTRL,
-	.maps[EFUSE_CLK] = REG_EFUSE_CLK,
+	.maps[EFUSE_CLK] = REG_EFUSE_CLK_CTRL,
 	.maps[EFUSE_CLK_CTRL] = REG_EFUSE_CLK_CTRL,
-	.maps[EFUSE_PWC_EV12V] = 0,
-	.maps[EFUSE_FEN_ELDR] = 0,
-	.maps[EFUSE_LOADER_CLK_EN] = 0,
+	.maps[EFUSE_PWC_EV12V] = 0, /* not used for 8192su */
+	.maps[EFUSE_FEN_ELDR] = 0, /* not used for 8192su */
+	.maps[EFUSE_LOADER_CLK_EN] = 0,/* not used for 8192su */
 	.maps[EFUSE_ANA8M] = EFUSE_ANA8M,
 	.maps[EFUSE_HWSET_MAX_SIZE] = HWSET_MAX_SIZE_92S,
 	.maps[EFUSE_MAX_SECTION_MAP] = EFUSE_MAX_SECTION,
@@ -317,17 +280,6 @@ static struct rtl_hal_cfg rtl92su_hal_cfg = {
 	.maps[RTL_RC_HT_RATEMCS7] = DESC92_RATEMCS7,
 	.maps[RTL_RC_HT_RATEMCS15] = DESC92_RATEMCS15,
 };
-
-/*
- * Currently we only support sw crypto. Once the HW crypto
- * is implemented this comment can be removed and the setting
- * can be configurable.
- *
- * module_param_named(swenc, rtl92su_mod_params.sw_crypto, bool, 0444);
- * MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 1)");
- */
-module_param_named(debug, rtl92su_mod_params.debug, int, 0444);
-MODULE_PARM_DESC(debug, "Set debug level (0-5) (default 0)");
 
 #define USB_VENDER_ID_REALTEK		0x0bda
 
@@ -455,9 +407,15 @@ static struct usb_device_id rtl92s_usb_ids[] = {
 
 MODULE_DEVICE_TABLE(usb, rtl92s_usb_ids);
 
+static int rtl8192su_probe(struct usb_interface *intf,
+			   const struct usb_device_id *id)
+{
+	return rtl_usb_probe(intf, id, &rtl92su_hal_cfg);
+}
+
 static struct usb_driver rtl92su_driver = {
 	.name = "rtl8192su",
-	.probe = rtl_usb_probe,
+	.probe = rtl8192su_probe,
 	.disconnect = rtl_usb_disconnect,
 	.id_table = rtl92s_usb_ids,
 
@@ -472,3 +430,23 @@ static struct usb_driver rtl92su_driver = {
 };
 
 module_usb_driver(rtl92su_driver);
+
+MODULE_AUTHOR("lizhaoming		<chaoming_li@realsil.com.cn>");
+MODULE_AUTHOR("Realtek WlanFAE		<wlanfae@realtek.com>");
+MODULE_AUTHOR("Larry Finger		<Larry.Finger@lwfinger.net>");
+MODULE_AUTHOR("Joshua Roys		<Joshua.Roys@gtri.gatech.edu>");
+MODULE_AUTHOR("Christian Lamparter	<chunkeey@googlemail.com>");
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Realtek 8188S/8191S/8192S 802.11n USB wireless");
+MODULE_FIRMWARE("rtlwifi/rtl8192sufw.bin");
+
+module_param_named(swenc, rtl92su_mod_params.sw_crypto, bool, 0444);
+module_param_named(debug, rtl92su_mod_params.debug, int, 0444);
+module_param_named(ips, rtl92su_mod_params.inactiveps, bool, 0444);
+module_param_named(swlps, rtl92su_mod_params.swctrl_lps, bool, 0444);
+module_param_named(fwlps, rtl92su_mod_params.fwctrl_lps, bool, 0444);
+MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 0)\n");
+MODULE_PARM_DESC(ips, "Set to 0 to not use link power save (default 1)\n");
+MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 0)\n");
+MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 1)\n");
+MODULE_PARM_DESC(debug, "Set debug level (0-5) (default 0)");

@@ -30,9 +30,9 @@
 #define __REALTEK_PCI92SE_LED_H__
 
 void rtl92su_init_sw_leds(struct ieee80211_hw *hw);
-void rtl92su_deinit_sw_leds(struct ieee80211_hw *hw);
 void rtl92su_sw_led_on(struct ieee80211_hw *hw,	struct rtl_led *pled);
 void rtl92su_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled);
 void rtl92su_led_control(struct ieee80211_hw *hw, enum led_ctl_mode ledaction);
+void rtl92su_deinit_sw_leds(struct ieee80211_hw *hw);
 
 #endif

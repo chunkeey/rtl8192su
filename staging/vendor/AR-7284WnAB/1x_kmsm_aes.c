@@ -13,17 +13,9 @@
 /*                                                                      */
 /* Dr Brian Gladman (gladman@seven77.demon.co.uk) 14th January 1999     */
 
-#if 0
-#include "stdafx.h"
-#include <time.h>
-#include <string.h>
-#include <assert.h>
-#endif
 
-#ifdef __KERNEL__
 #include <linux/time.h>
 #include <linux/string.h>
-#endif
 
 #include "./8190n_cfg.h"
 
@@ -76,9 +68,6 @@ typedef unsigned short  u16b; /* a 16 bit unsigned integer type   */
 typedef unsigned long   u32b; /* a 32 bit unsigned integer type   */
 
 #ifndef _RTL_WPA_WINDOW
-#ifndef __LINUX_2_6__
-typedef int bool;
-#endif
 #endif
 
 /* 2. Standard interface for AES cryptographic routines             */
