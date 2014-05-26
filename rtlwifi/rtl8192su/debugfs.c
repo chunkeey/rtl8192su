@@ -128,7 +128,7 @@ static ssize_t r92su_debugfs_write(struct file *file,
 
 	if (!hw)
 		return -ENODEV;
-	
+
 	rtlpriv = rtl_priv(hw);
 	dfops = container_of(file->f_op, struct r92su_debugfs_fops, fops);
 
@@ -356,7 +356,7 @@ int rtl8192su_register_debugfs(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	rtlpriv->dbg.dfs = debugfs_create_dir(KBUILD_MODNAME,
 		hw->wiphy->debugfsdir);
-	
+
 #define DEBUGFS_ADD(name)						\
 	debugfs_create_file(#name, r92su_debugfs_##name ##_ops.attr,	\
 			    rtlpriv->dbg.dfs, hw,				\
