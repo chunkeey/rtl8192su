@@ -33,11 +33,20 @@ load:
 	insmod $(KMOD_SRC)/rtl8192s/rtl8192s-common.ko
 	insmod $(KMOD_SRC)/rtl8192su/rtl8192su.ko
 
+loadpci:
+	modprobe mac80211
+	insmod $(KMOD_SRC)/rtlwifi.ko
+	insmod $(KMOD_SRC)/rtl_pci.ko
+	insmod $(KMOD_SRC)/rtl8192s/rtl8192s-common.ko
+	insmod $(KMOD_SRC)/rtl8192se/rtl8192se.ko
+
 unload:
-	rmmod rtl8192su
-	rmmod rtl8192s-common
-	rmmod rtl_usb
-	rmmod rtlwifi
+	rmmod rtl8192se || echo "rtl8192se not loaded"
+	rmmod rtl8192su || echo "rtl8192su not loaded"
+	rmmod rtl8192s-common || echo "rtl8192s-common not loaded"
+	rmmod rtl_pci	|| echo "rtl_pci not loaded"
+	rmmod rtl_usb   || echo "rtl_usb not loaded"
+	rmmod rtlwifi   || echo "rtlwifi not loaded"
 
 reload: unload load
 
