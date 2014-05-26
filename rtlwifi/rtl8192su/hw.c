@@ -442,7 +442,6 @@ static void _rtl92su_macconfig_after_fwdownload(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	u8 i, tmpu1b;
-	u16 tmpu2b;
 
 	/* 1. System Configure Register (Offset: 0x0000 - 0x003F) */
 
@@ -564,23 +563,6 @@ static void _rtl92su_macconfig_after_fwdownload(struct ieee80211_hw *hw)
 	tmpu1b |= BIT(7);
 	rtl_write_byte(rtlpriv, REG_USB_AGG_TO, tmpu1b);
 
-#if 0
-	/* Revise USB PHY to solve the issue of Rx payload error */
-	rtl_write_byte(rtlpriv, 0xfe41, 0xf4);
-	rtl_write_byte(rtlpriv, 0xfe40, 0x00);
-	rtl_write_byte(rtlpriv, 0xfe42, 0x00);
-	rtl_write_byte(rtlpriv, 0xfe42, 0x01);
-	rtl_write_byte(rtlpriv, 0xfe40, 0x0f);
-	rtl_write_byte(rtlpriv, 0xfe42, 0x00);
-	rtl_write_byte(rtlpriv, 0xfe42, 0x01);
-#endif
-
-#if 0
-	/* warm reboot */
-	tmpu2b = rtl_read_word(rtlpriv, REG_SYS_FUNC_EN);
-	tmpu2b |= BIT(12);
-	rtl_write_word(rtlpriv, REG_SYS_FUNC_EN, tmpu2b);
-#endif
 	tmpu1b = rtl_read_byte(rtlpriv, REG_SYS_ISO_CTRL + 1);
 	tmpu1b &= 0xFE;
 	rtl_write_byte(rtlpriv, REG_SYS_ISO_CTRL + 1, tmpu1b);
@@ -633,7 +615,6 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
-	u32 cr;
 	int err = 0;
 	bool rtstatus = true;
 	u8 i;
@@ -684,7 +665,6 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 	 * is wrong, RX RCR_ACRC32 will cause TP unstabel & Rx
 	 * RCR_APP_ICV will cause mac80211 unassoc for cisco 1252
 	 */
-	//
 
 	/* Make sure BB/RF write OK. We should prevent enter IPS. radio off. */
 	/* We must set flag avoid BB/RF config period later!! */
@@ -699,7 +679,6 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 
 	/* 5. Initiailze RF RAIO_A.txt RF RAIO_B.txt */
 	/* Before initalizing RF. We can not use FW to do RF-R/W. */
-
 	rtlphy->rf_mode = RF_OP_BY_SW_3WIRE;
 
 	/* Before RF-R/W we must execute the IO from Scott's suggestion. */
@@ -717,7 +696,6 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 
 	/* After read predefined TXT, we must set BB/MAC/RF
 	 * register as our requirement */
-
 	rtlphy->rfreg_chnlval[0] = rtl92s_phy_query_rf_reg(hw,
 							   (enum radio_path)0,
 							   RF_CHNLBW,
@@ -869,6 +847,7 @@ void rtl92su_update_interrupt_mask(struct ieee80211_hw *hw,
 
 bool rtl92su_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 {
+	*valid = false;
 	/* always on */
 	return true;
 }
