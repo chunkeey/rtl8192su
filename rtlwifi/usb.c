@@ -411,7 +411,7 @@ static void rtl_usb_init_sw(struct ieee80211_hw *hw)
 	mac->current_ampdu_factor = 3;
 
 	/* QOS */
-	rtlusb->acm_method = eAcmWay2_SW;
+	rtlusb->acm_method = EACMWAY2_SW;
 
 	/* IRQ */
 	/* HIMR - turn all on */
@@ -460,11 +460,7 @@ static void _rtl_usb_rx_process_agg(struct ieee80211_hw *hw,
 	};
 
 	skb_pull(skb, RTL_RX_DESC_SIZE);
-	if (!rtlpriv->cfg->ops->query_rx_desc(hw, &stats, &rx_status, rxdesc,
-	    skb)) {
-		dev_kfree_skb_any(skb);
-		return;
-	}
+	rtlpriv->cfg->ops->query_rx_desc(hw, &stats, &rx_status, rxdesc, skb);
 	skb_pull(skb, (stats.rx_drvinfo_size + stats.rx_bufshift));
 	hdr = (struct ieee80211_hdr *)(skb->data);
 	fc = hdr->frame_control;
@@ -506,11 +502,7 @@ static void _rtl_usb_rx_process_noagg(struct ieee80211_hw *hw,
 	};
 
 	skb_pull(skb, RTL_RX_DESC_SIZE);
-	if (!rtlpriv->cfg->ops->query_rx_desc(hw, &stats, &rx_status, rxdesc,
-	    skb)) {
-		dev_kfree_skb_any(skb);
-		return;
-	}
+	rtlpriv->cfg->ops->query_rx_desc(hw, &stats, &rx_status, rxdesc, skb);
 	skb_pull(skb, (stats.rx_drvinfo_size + stats.rx_bufshift));
 	hdr = (struct ieee80211_hdr *)(skb->data);
 	fc = hdr->frame_control;
@@ -942,6 +934,10 @@ int rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct sk_buff *_skb = NULL;
 
 	WARN_ON(NULL == rtlusb->usb_tx_aggregate_hdl);
+	if (unlikely(IS_USB_STOP(rtlusb))) {
+		RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
+			 "USB device is stopping...\n");
+	}
 	ep_num = rtlusb->ep_map.ep_mapping[qnum];
 	_skb = skb;
 	_urb = _rtl_usb_tx_urb_setup(hw, _skb, ep_num, callback);
@@ -1000,7 +996,7 @@ static void _rtl_usb_tx_preprocess(struct ieee80211_hw *hw,
 		seq_number += 1;
 		seq_number <<= 4;
 	}
-	rtlpriv->cfg->ops->fill_tx_desc(hw, hdr, (u8 *)pdesc, info, sta, skb,
+	rtlpriv->cfg->ops->fill_tx_desc(hw, hdr, (u8 *)pdesc, NULL, info, sta, skb,
 					hw_queue, &tcb_desc);
 	if (!ieee80211_has_morefrags(hdr->frame_control)) {
 		if (qc)
@@ -1020,9 +1016,6 @@ static int rtl_usb_tx(struct ieee80211_hw *hw,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
 	__le16 fc = hdr->frame_control;
 	u16 hw_queue;
-
-	if (unlikely(IS_USB_STOP(rtlusb)))
-		goto err_free;
 
 	if (unlikely(is_hal_stop(rtlhal)))
 		goto err_free;

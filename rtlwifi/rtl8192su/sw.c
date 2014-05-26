@@ -182,7 +182,6 @@ static struct rtl_hal_ops rtl8192su_hal_ops = {
 	.set_key = rtl92s_set_key,
 	.init_sw_leds = rtl92su_init_sw_leds,
 	.deinit_sw_leds = rtl92su_deinit_sw_leds,
-	.allow_all_destaddr = rtl92su_allow_all_destaddr,
 	.get_bbreg = rtl92s_phy_query_bb_reg,
 	.set_bbreg = rtl92s_phy_set_bb_reg,
 	.get_rfreg = rtl92s_phy_query_rf_reg,

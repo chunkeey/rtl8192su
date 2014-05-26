@@ -105,6 +105,7 @@ struct efuse_priv {
 };
 
 void read_efuse_byte(struct ieee80211_hw *hw, u16 _offset, u8 *pbuf);
+void efuse_initialize(struct ieee80211_hw *hw);
 u8 efuse_read_1byte(struct ieee80211_hw *hw, u16 address);
 void efuse_write_1byte(struct ieee80211_hw *hw, u16 address, u8 value);
 void read_efuse(struct ieee80211_hw *hw, u16 _offset, u16 _size_byte, u8 *pbuf);

@@ -36,6 +36,66 @@
 
 #include <linux/export.h>
 
+void rtl_addr_delay(u32 addr)
+{
+	if (addr == 0xfe)
+		mdelay(50);
+	else if (addr == 0xfd)
+		mdelay(5);
+	else if (addr == 0xfc)
+		mdelay(1);
+	else if (addr == 0xfb)
+		udelay(50);
+	else if (addr == 0xfa)
+		udelay(5);
+	else if (addr == 0xf9)
+		udelay(1);
+}
+EXPORT_SYMBOL(rtl_addr_delay);
+
+void rtl_rfreg_delay(struct ieee80211_hw *hw, enum radio_path rfpath, u32 addr,
+		     u32 mask, u32 data)
+{
+	if (addr == 0xfe) {
+		mdelay(50);
+	} else if (addr == 0xfd) {
+		mdelay(5);
+	} else if (addr == 0xfc) {
+		mdelay(1);
+	} else if (addr == 0xfb) {
+		udelay(50);
+	} else if (addr == 0xfa) {
+		udelay(5);
+	} else if (addr == 0xf9) {
+		udelay(1);
+	} else {
+		rtl_set_rfreg(hw, rfpath, addr, mask, data);
+		udelay(1);
+	}
+}
+EXPORT_SYMBOL(rtl_rfreg_delay);
+
+void rtl_bb_delay(struct ieee80211_hw *hw, u32 addr, u32 data)
+{
+	if (addr == 0xfe) {
+		mdelay(50);
+	} else if (addr == 0xfd) {
+		mdelay(5);
+	} else if (addr == 0xfc) {
+		mdelay(1);
+	} else if (addr == 0xfb) {
+		udelay(50);
+	} else if (addr == 0xfa) {
+		udelay(5);
+	} else if (addr == 0xf9) {
+		udelay(1);
+	} else {
+		rtl_set_bbreg(hw, addr, MASKDWORD, data);
+		udelay(1);
+	}
+}
+EXPORT_SYMBOL(rtl_bb_delay);
+
 void rtl_fw_cb(const struct firmware *firmware, void *context)
 {
 	struct ieee80211_hw *hw = context;
@@ -746,6 +806,11 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				rtlpriv->cfg->ops->linked_set_reg(hw);
 			rcu_read_lock();
 			sta = ieee80211_find_sta(vif, (u8 *)bss_conf->bssid);
+			if (!sta) {
+				pr_err("ieee80211_find_sta returned NULL\n");
+				rcu_read_unlock();
+				goto out;
+			}
 
 			if (vif->type == NL80211_IFTYPE_STATION && sta)
 				rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0);
@@ -900,7 +965,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 
 			mac->basic_rates = basic_rates;
 			rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_BASIC_RATE,
-					(u8 *) (&basic_rates));
+					(u8 *)(&basic_rates));
 		}
 		rcu_read_unlock();
 	}
@@ -914,6 +979,11 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		if (bss_conf->assoc) {
 			if (ppsc->fwctrl_lps) {
 				u8 mstatus = RT_MEDIA_CONNECT;
+				u8 keep_alive = 10;
+				rtlpriv->cfg->ops->set_hw_reg(hw,
+						 HW_VAR_KEEP_ALIVE,
+						 &keep_alive);
+
 				rtlpriv->cfg->ops->set_hw_reg(hw,
 						      HW_VAR_H2C_FW_JOINBSSRPT,
 						      &mstatus);

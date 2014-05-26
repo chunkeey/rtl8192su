@@ -388,7 +388,7 @@ bool rtl92su_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 }
 
 void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
-		struct ieee80211_hdr *hdr, u8 *pdesc_tx,
+		struct ieee80211_hdr *hdr, u8 *pdesc_tx, u8 *pbd_desc_tx,
 		struct ieee80211_tx_info *info,
 		struct ieee80211_sta *sta,
 		struct sk_buff *skb,

@@ -81,6 +81,30 @@ static void efuse_power_switch(struct ieee80211_hw *hw, u8 write,
 static u16 efuse_get_current_size(struct ieee80211_hw *hw);
 static u8 efuse_calculate_word_cnts(u8 word_en);
 
+void efuse_initialize(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	u8 bytetemp;
+	u8 temp;
+
+	bytetemp = rtl_read_byte(rtlpriv, rtlpriv->cfg->maps[SYS_FUNC_EN] + 1);
+	temp = bytetemp | 0x20;
+	rtl_write_byte(rtlpriv, rtlpriv->cfg->maps[SYS_FUNC_EN] + 1, temp);
+
+	bytetemp = rtl_read_byte(rtlpriv, rtlpriv->cfg->maps[SYS_ISO_CTRL] + 1);
+	temp = bytetemp & 0xFE;
+	rtl_write_byte(rtlpriv, rtlpriv->cfg->maps[SYS_ISO_CTRL] + 1, temp);
+
+	bytetemp = rtl_read_byte(rtlpriv, rtlpriv->cfg->maps[EFUSE_TEST] + 3);
+	temp = bytetemp | 0x80;
+	rtl_write_byte(rtlpriv, rtlpriv->cfg->maps[EFUSE_TEST] + 3, temp);
+
+	rtl_write_byte(rtlpriv, 0x2F8, 0x3);
+
+	rtl_write_byte(rtlpriv, rtlpriv->cfg->maps[EFUSE_CTRL] + 3, 0x72);
+
+}
+
 u8 efuse_read_1byte(struct ieee80211_hw *hw, u16 address)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
