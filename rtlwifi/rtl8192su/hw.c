@@ -478,10 +478,14 @@ static void _rtl92su_macconfig_after_fwdownload(struct ieee80211_hw *hw)
 
 	/* 5.2 Setting TX/RX page size 0/1/2/3/4=64/128/256/512/1024 */
 	/* 5.3 Set driver info, we only accept PHY status now. */
-	/* 5.4 Set RXDMA arbitration to control RXDMA/MAC/FW R/W for RXFIFO  */
-	tmpu1b = rtl_read_byte(rtlpriv, REG_RXDMA_RXCTRL);
-	tmpu1b |= BIT(7);
-	rtl_write_byte(rtlpriv, REG_RXDMA_RXCTRL, tmpu1b);
+
+	/* 5.4 Set RXDMA arbitration to control RXDMA/MAC/FW R/W for RXFIFO
+	 * tmpu1b = rtl_read_byte(rtlpriv, REG_RXDMA_RXCTRL);
+	 * tmpu1b |= RXDMA_AGG_EN;
+	 * rtl_write_byte(rtlpriv, REG_RXDMA_RXCTRL, tmpu1b);
+         *
+         * NB: rx-streaming is not implemented.
+         */
 
 	rtl_write_byte(rtlpriv, REG_RXDMA_AGG_PG_TH, 0x1);
 
