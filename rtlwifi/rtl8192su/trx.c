@@ -154,45 +154,26 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 	pstats->rx_mimo_sig_qual[1] = -1;
 
 	if (is_cck) {
-		u8 report, cck_highpwr;
-		cck_buf = (struct phy_sts_cck_8192s_t *)p_drvinfo;
+		u8 report;
+		u8 cck_agc_rpt;
 
-		if (!cck_highpwr) {
-			u8 cck_agc_rpt = cck_buf->cck_agc_rpt;
-			report = cck_buf->cck_agc_rpt & 0xc0;
-			report = report >> 6;
-			switch (report) {
-			case 0x3:
-				rx_pwr_all = -40 - (cck_agc_rpt & 0x3e);
-				break;
-			case 0x2:
-				rx_pwr_all = -20 - (cck_agc_rpt & 0x3e);
-				break;
-			case 0x1:
-				rx_pwr_all = -2 - (cck_agc_rpt & 0x3e);
-				break;
-			case 0x0:
-				rx_pwr_all = 14 - (cck_agc_rpt & 0x3e);
-				break;
-			}
-		} else {
-			u8 cck_agc_rpt = cck_buf->cck_agc_rpt;
-			report = p_drvinfo->cfosho[0] & 0x60;
-			report = report >> 5;
-			switch (report) {
-			case 0x3:
-				rx_pwr_all = -40 - ((cck_agc_rpt & 0x1f) << 1);
-				break;
-			case 0x2:
-				rx_pwr_all = -20 - ((cck_agc_rpt & 0x1f) << 1);
-				break;
-			case 0x1:
-				rx_pwr_all = -2 - ((cck_agc_rpt & 0x1f) << 1);
-				break;
-			case 0x0:
-				rx_pwr_all = 14 - ((cck_agc_rpt & 0x1f) << 1);
-				break;
-			}
+		cck_buf = (struct phy_sts_cck_8192s_t *)p_drvinfo;
+		cck_agc_rpt = cck_buf->cck_agc_rpt;
+		report = cck_buf->cck_agc_rpt & 0xc0;
+		report = report >> 6;
+		switch (report) {
+		case 0x3:
+			rx_pwr_all = -40 - (cck_agc_rpt & 0x3e);
+			break;
+		case 0x2:
+			rx_pwr_all = -20 - (cck_agc_rpt & 0x3e);
+			break;
+		case 0x1:
+			rx_pwr_all = -2 - (cck_agc_rpt & 0x3e);
+			break;
+		case 0x0:
+			rx_pwr_all = 14 - (cck_agc_rpt & 0x3e);
+			break;
 		}
 
 		pwdb_all = rtl_query_rxpwrpercentage(rx_pwr_all);
