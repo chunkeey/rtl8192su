@@ -410,7 +410,6 @@ bool rtl92cu_rx_query_desc(struct ieee80211_hw *hw,
 			   struct rtl_stats *stats,
 			   struct ieee80211_rx_status *rx_status,
 			   u8 *p_desc, struct sk_buff *skb);
-void  rtl8192cu_rx_hdl(struct ieee80211_hw *hw, struct sk_buff * skb);
 void rtl8192c_rx_segregate_hdl(struct ieee80211_hw *, struct sk_buff *,
 			       struct sk_buff_head *);
 void rtl8192c_tx_cleanup(struct ieee80211_hw *hw, struct sk_buff  *skb);

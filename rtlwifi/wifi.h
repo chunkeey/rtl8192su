@@ -2048,7 +2048,7 @@ struct rtl_hal_usbint_cfg {
 	u32 rx_max_size;
 
 	/* op - rx */
-	void (*usb_rx_hdl)(struct ieee80211_hw *, struct sk_buff *);
+	int (*usb_rx_hdl)(struct ieee80211_hw *, struct sk_buff *);
 	void (*usb_rx_segregate_hdl)(struct ieee80211_hw *, struct sk_buff *,
 				     struct sk_buff_head *);
 

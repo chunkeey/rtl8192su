@@ -146,7 +146,7 @@ struct rtl_usb {
 	struct sk_buff_head	rx_queue;
 	void (*usb_rx_segregate_hdl)(struct ieee80211_hw *, struct sk_buff *,
 				     struct sk_buff_head *);
-	void (*usb_rx_hdl)(struct ieee80211_hw *, struct sk_buff *);
+	int (*usb_rx_hdl)(struct ieee80211_hw *, struct sk_buff *);
 };
 
 struct rtl_usb_priv {

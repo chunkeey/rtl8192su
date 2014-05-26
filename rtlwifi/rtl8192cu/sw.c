@@ -165,7 +165,6 @@ static struct rtl_hal_usbint_cfg rtl92cu_interface_cfg = {
 	.in_ep_num = RTL92C_USB_BULK_IN_NUM,
 	.rx_urb_num = RTL92C_NUM_RX_URBS,
 	.rx_max_size = RTL92C_SIZE_MAX_RX_BUFFER,
-	.usb_rx_hdl = rtl8192cu_rx_hdl,
 	.usb_rx_segregate_hdl = NULL, /* rtl8192c_rx_segregate_hdl; */
 	/* tx */
 	.usb_tx_cleanup = rtl8192c_tx_cleanup,

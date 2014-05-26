@@ -617,92 +617,34 @@ bool rtl92su_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 #define RTL_RX_DRV_INFO_UNIT		8
 
-static void _rtl_rx_process(struct ieee80211_hw *hw, struct sk_buff *skb)
+int rtl92su_rx_hdl(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
-	struct ieee80211_rx_status *rx_status =
-		 (struct ieee80211_rx_status *)IEEE80211_SKB_RXCB(skb);
 	u32 skb_len, pkt_len, drvinfo_len;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 *rxdesc;
-	struct rtl_stats stats = {
-		.signal = 0,
-		.rate = 0,
-	};
-	struct rx_fwinfo *p_drvinfo;
-	bool bv;
-	__le16 fc;
-	struct ieee80211_hdr *hdr;
 
-	memset(rx_status, 0, sizeof(*rx_status));
 	rxdesc	= skb->data;
 	skb_len	= skb->len;
 	drvinfo_len = (GET_RX_STATUS_DESC_DRVINFO_SIZE(rxdesc) *
 		       RTL_RX_DRV_INFO_UNIT);
-	pkt_len		= GET_RX_STATUS_DESC_PKT_LEN(rxdesc);
-	/* TODO: Error recovery. drop this skb or something. */
-	WARN_ON(skb_len < (pkt_len + RTL_RX_DESC_SIZE + drvinfo_len));
-	stats.length = (u16) GET_RX_STATUS_DESC_PKT_LEN(rxdesc);
-	stats.rx_drvinfo_size = (u8)GET_RX_STATUS_DESC_DRVINFO_SIZE(rxdesc) *
-				RX_DRV_INFO_SIZE_UNIT;
-	stats.rx_bufshift = (u8) (GET_RX_STATUS_DESC_SHIFT(rxdesc) & 0x03);
-	stats.icv = (u16) GET_RX_STATUS_DESC_ICV(rxdesc);
-	stats.crc = (u16) GET_RX_STATUS_DESC_CRC32(rxdesc);
-	stats.hwerror = (stats.crc | stats.icv);
-	stats.decrypted = !GET_RX_STATUS_DESC_SWDEC(rxdesc);
-	stats.rate = (u8) GET_RX_STATUS_DESC_RX_MCS(rxdesc);
-	stats.shortpreamble = (u16) GET_RX_STATUS_DESC_SPLCP(rxdesc);
-	stats.isampdu = (bool) ((GET_RX_STATUS_DESC_PAGGR(rxdesc) == 1)
-				   && (GET_RX_STATUS_DESC_FAGGR(rxdesc) == 1));
-	stats.timestamp_low = GET_RX_STATUS_DESC_TSFL(rxdesc);
-	stats.rx_is40Mhzpacket = (bool) GET_RX_STATUS_DESC_BW(rxdesc);
-	/* TODO: is center_freq changed when doing scan? */
-	/* TODO: Shall we add protection or just skip those two step? */
-	rx_status->freq = hw->conf.chandef.chan->center_freq;
-	rx_status->band = hw->conf.chandef.chan->band;
-	if (GET_RX_STATUS_DESC_CRC32(rxdesc))
-		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
-	if (!GET_RX_STATUS_DESC_SWDEC(rxdesc))
-		rx_status->flag |= RX_FLAG_DECRYPTED;
-	if (GET_RX_STATUS_DESC_BW(rxdesc))
-		rx_status->flag |= RX_FLAG_40MHZ;
-	if (GET_RX_STATUS_DESC_RX_HT(rxdesc))
-		rx_status->flag |= RX_FLAG_HT;
-	/* Data rate */
-	rx_status->rate_idx = rtlwifi_rate_mapping(hw,
-		(bool)GET_RX_STATUS_DESC_RX_HT(rxdesc),
-		(u8)GET_RX_STATUS_DESC_RX_MCS(rxdesc),
-		(bool)GET_RX_STATUS_DESC_PAGGR(rxdesc));
-	/*  There is a phy status after this rx descriptor. */
-	if (GET_RX_STATUS_DESC_PHY_STATUS(rxdesc)) {
-		p_drvinfo = (struct rx_fwinfo *)(skb->data +
-						 stats.rx_bufshift);
-		_rtl92se_translate_rx_signal_stuff(hw, skb, &stats, rxdesc,
-						   p_drvinfo);
-	}
-	skb_pull(skb, (drvinfo_len + RTL_RX_DESC_SIZE));
-	hdr = (struct ieee80211_hdr *)(skb->data);
-	fc = hdr->frame_control;
-	bv = ieee80211_is_probe_resp(fc);
-	if (bv)
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			 "Got probe response frame\n");
-	if (ieee80211_is_beacon(fc))
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "Got beacon frame\n");
-	if (ieee80211_is_data(fc))
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "Got data frame\n");
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-		 "Fram: fc = 0x%X addr1 = 0x%02X:0x%02X:0x%02X:0x%02X:0x%02X:0x%02X\n",
-		 fc,
-		 (u32)hdr->addr1[0], (u32)hdr->addr1[1],
-		 (u32)hdr->addr1[2], (u32)hdr->addr1[3],
-		 (u32)hdr->addr1[4], (u32)hdr->addr1[5]);
-	memcpy(IEEE80211_SKB_RXCB(skb), rx_status, sizeof(*rx_status));
-	ieee80211_rx(hw, skb);
-}
+	pkt_len	= GET_RX_STATUS_DESC_PKT_LEN(rxdesc);
 
-void rtl92su_rx_hdl(struct ieee80211_hw *hw, struct sk_buff *skb)
-{
-	_rtl_rx_process(hw, skb);
+	if (GET_RX_STATUS_DEC_MACID(rxdesc) == 0x1ff) {
+		u8 event = LE_BITS_CLEARED_TO_4BYTE(rxdesc + RTL_RX_DESC_SIZE, 16, 8);
+		switch (event) {
+		case 0x15:
+			/* send dtim */
+			break;
+		default:
+			RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
+				 "Unknown event 0x%x\n", event);
+			break;
+		}
+		dev_kfree_skb_any(skb);
+		return 1;
+	} else {
+		return 0;
+	}
 }
 
 void rtl92su_tx_cleanup(struct ieee80211_hw *hw, struct sk_buff *skb)

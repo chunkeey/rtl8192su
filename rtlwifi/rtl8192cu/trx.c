@@ -436,11 +436,6 @@ static void _rtl_rx_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 	ieee80211_rx(hw, skb);
 }
 
-void  rtl8192cu_rx_hdl(struct ieee80211_hw *hw, struct sk_buff * skb)
-{
-	_rtl_rx_process(hw, skb);
-}
-
 void rtl8192c_rx_segregate_hdl(
 	struct ieee80211_hw *hw,
 	struct sk_buff *skb,

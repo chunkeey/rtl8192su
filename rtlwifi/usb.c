@@ -315,6 +315,11 @@ static int _rtl_usb_init_tx(struct ieee80211_hw *hw)
 	return 0;
 }
 
+static int _rtl_usb_rx_hdl(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	return 0;
+}
+
 static void _rtl_rx_work(unsigned long param);
 
 static int _rtl_usb_init_rx(struct ieee80211_hw *hw)
@@ -327,7 +332,8 @@ static int _rtl_usb_init_rx(struct ieee80211_hw *hw)
 	rtlusb->rx_urb_num = rtlpriv->cfg->usb_interface_cfg->rx_urb_num;
 	rtlusb->in_ep = rtlpriv->cfg->usb_interface_cfg->in_ep;
 	rtlusb->in_ep_nums = rtlpriv->cfg->usb_interface_cfg->in_ep_num;
-	rtlusb->usb_rx_hdl = rtlpriv->cfg->usb_interface_cfg->usb_rx_hdl;
+	rtlusb->usb_rx_hdl = rtlpriv->cfg->usb_interface_cfg->usb_rx_hdl ?
+		rtlpriv->cfg->usb_interface_cfg->usb_rx_hdl : _rtl_usb_rx_hdl;
 	rtlusb->usb_rx_segregate_hdl =
 		rtlpriv->cfg->usb_interface_cfg->usb_rx_segregate_hdl;
 
@@ -566,12 +572,14 @@ static void _rtl_rx_work(unsigned long param)
 			continue;
 		}
 
-		if (likely(!rtlusb->usb_rx_segregate_hdl)) {
-			_rtl_usb_rx_process_noagg(hw, skb);
-		} else {
-			/* TO DO */
-			_rtl_rx_pre_process(hw, skb);
-			pr_err("rx agg not supported\n");
+		if (likely(!rtlusb->usb_rx_hdl(hw, skb))) {
+			if (likely(!rtlusb->usb_rx_segregate_hdl)) {
+				_rtl_usb_rx_process_noagg(hw, skb);
+			} else {
+				/* TO DO */
+				_rtl_rx_pre_process(hw, skb);
+				pr_err("rx agg not supported\n");
+			}
 		}
 	}
 }
