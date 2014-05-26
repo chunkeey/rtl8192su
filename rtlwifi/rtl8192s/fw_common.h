@@ -82,11 +82,6 @@ enum rtl8192s_hci_type {
 #define	FW_PWR_TRK_PARAM_CLR			0x0000ffff
 #define	FW_RA_PARAM_CLR				0xffff0000
 
-enum desc_packet_type {
-	DESC_PACKET_TYPE_INIT = 0,
-	DESC_PACKET_TYPE_NORMAL = 1,
-};
-
 /* 8-bytes alignment required */
 struct fw_priv {
 	/* --- long word 0 ---- */

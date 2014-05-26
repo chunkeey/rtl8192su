@@ -78,6 +78,7 @@ static void rtl92su_fw_cb(const struct firmware *firmware, void *context)
 		return;
 	} else {
 		rtlpriv->mac80211.mac80211_registered = 1;
+		rtl_mac80211_init(hw);
 	}
 	set_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status);
 }

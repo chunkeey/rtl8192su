@@ -706,13 +706,6 @@ void rtl92su_rx_hdl(struct ieee80211_hw *hw, struct sk_buff * skb)
 	_rtl_rx_process(hw, skb);
 }
 
-void rtl92s_rx_segregate_hdl(
-	struct ieee80211_hw *hw,
-	struct sk_buff *skb,
-	struct sk_buff_head *skb_list)
-{
-}
-
 void rtl92su_tx_cleanup(struct ieee80211_hw *hw, struct sk_buff  *skb)
 {
 }

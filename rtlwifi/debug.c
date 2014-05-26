@@ -365,6 +365,7 @@ DEBUGFS_DECLARE_WO_FILE(hw_iowrite);
 int rtl_register_debugfs(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
 	rtlpriv->dbg.dfs = debugfs_create_dir(KBUILD_MODNAME,
 		hw->wiphy->debugfsdir);
 

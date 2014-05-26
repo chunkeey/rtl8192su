@@ -934,10 +934,6 @@ int rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct sk_buff *_skb = NULL;
 
 	WARN_ON(NULL == rtlusb->usb_tx_aggregate_hdl);
-	if (unlikely(IS_USB_STOP(rtlusb))) {
-		RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-			 "USB device is stopping...\n");
-	}
 	ep_num = rtlusb->ep_map.ep_mapping[qnum];
 	_skb = skb;
 	_urb = _rtl_usb_tx_urb_setup(hw, _skb, ep_num, callback);
@@ -1009,14 +1005,21 @@ static void _rtl_usb_tx_preprocess(struct ieee80211_hw *hw,
 static int rtl_usb_tx(struct ieee80211_hw *hw,
 		      struct ieee80211_sta *sta,
 		      struct sk_buff *skb,
-		      struct rtl_tcb_desc *dummy)
+		      struct rtl_tcb_desc *tcb_desc)
 {
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
 	__le16 fc = hdr->frame_control;
 	u16 hw_queue;
 
+	if (unlikely(IS_USB_STOP(rtlusb)) &&
+	    tcb_desc->cmd_or_init != DESC_PACKET_TYPE_INIT) {
+		RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
+			 "USB device is stopping...\n");
+		goto err_free;
+	}
 	if (unlikely(is_hal_stop(rtlhal)))
 		goto err_free;
 	hw_queue = rtlusb->usb_mq_to_hwq(fc, skb_get_queue_mapping(skb));
@@ -1116,12 +1119,6 @@ int rtl_usb_probe(struct usb_interface *intf,
 	}
 	if (rtlpriv->cfg->ops->init_sw_vars(hw)) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Can't init_sw_vars\n");
-		goto error_out;
-	}
-	err = rtl_register_debugfs(hw);
-	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't initialize debugfs\n");
 		goto error_out;
 	}
 	rtlpriv->cfg->ops->init_sw_leds(hw);

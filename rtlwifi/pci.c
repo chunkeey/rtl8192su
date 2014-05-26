@@ -2045,13 +2045,6 @@ int rtl_pci_probe(struct pci_dev *pdev,
 		goto fail3;
 	}
 
-	err = rtl_register_debugfs(hw);
-	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't initialize debugfs\n");
-		err = -ENODEV;
-		goto fail3;
-	}
 	rtlpriv->cfg->ops->init_sw_leds(hw);
 
 	err = sysfs_create_group(&pdev->dev.kobj, &rtl_attribute_group);

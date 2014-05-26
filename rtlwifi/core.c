@@ -96,6 +96,14 @@ void rtl_bb_delay(struct ieee80211_hw *hw, u32 addr, u32 data)
 }
 EXPORT_SYMBOL(rtl_bb_delay);
 
+void rtl_mac80211_init(struct ieee80211_hw *hw)
+{
+	/*init rfkill */
+	rtl_init_rfkill(hw);
+	rtl_register_debugfs(hw);
+}
+EXPORT_SYMBOL(rtl_mac80211_init);
+
 void rtl_fw_cb(const struct firmware *firmware, void *context)
 {
 	struct ieee80211_hw *hw = context;
@@ -140,8 +148,7 @@ found_alt:
 	}
 	set_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status);
 
-	/*init rfkill */
-	rtl_init_rfkill(hw);
+	rtl_mac80211_init(hw);
 }
 EXPORT_SYMBOL(rtl_fw_cb);
 

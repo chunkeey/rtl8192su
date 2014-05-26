@@ -839,11 +839,6 @@ void rtl92su_card_disable(struct ieee80211_hw *hw)
 	udelay(100);
 }
 
-void rtl92su_interrupt_recognized(struct ieee80211_hw *hw, u32 *p_inta,
-			     u32 *p_intb)
-{
-}
-
 void rtl92su_update_interrupt_mask(struct ieee80211_hw *hw,
 		u32 add_msr, u32 rm_msr)
 {

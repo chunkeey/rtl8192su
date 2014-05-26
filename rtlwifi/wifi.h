@@ -1844,6 +1844,11 @@ struct rt_link_detect {
 	bool higher_busytxtraffic[MAX_TID_COUNT];
 };
 
+enum desc_packet_type {
+	DESC_PACKET_TYPE_INIT = 0,
+	DESC_PACKET_TYPE_NORMAL = 1,
+};
+
 struct rtl_tcb_desc {
 	u8 packet_bw:1;
 	u8 multicast:1;
