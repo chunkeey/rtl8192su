@@ -1,4 +1,7 @@
 TODO:
+ - validate ibss and station mode
+ - get hardware crypto to work
+ - test 802.11n (40MHz, asym MCS)
  - rx statistics (Signal/Quality)
    rtl8192su provides a wide range of noise and signal levels,
    but they need to be read, processed and passed to cfg80211.
@@ -9,10 +12,7 @@ TODO:
    spinlocks and mutex should be fine (tm).
 
 KNOWN LIMITATIONS:
- - No AP/P2P mode (firmware limitation)
+ - No AP/P2P mode
  - No accurate tx feedback (fw-host protocol limitation)
- - In ibss mode, the device sends out frames with HT rates.
  - (More to come)
- - Fragmentation does not work
- - RTS/CTS is controlled by Firmware
 
