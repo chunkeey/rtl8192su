@@ -1290,8 +1290,16 @@ static void rtl92s_update_hal_rate_table(struct ieee80211_hw *hw,
 	else
 		rtl92s_phy_set_fw_cmd(hw, FW_CMD_RA_REFRESH_BG);
 
-	RT_TRACE(rtlpriv, COMP_RATR, DBG_DMESG, "%x\n",
-		 rtl_read_dword(rtlpriv, ARFR0));
+	if (IS_HARDWARE_TYPE_8192SU(rtlhal)) {
+		/* The station is protected by rcu, hence rtl_read_* can't be
+		 * used, as it would block. However, this is just a debug code
+		 * so don't bother.
+		 */
+		RT_TRACE(rtlpriv, COMP_RATR, DBG_DMESG, "\n");
+	} else {
+		RT_TRACE(rtlpriv, COMP_RATR, DBG_DMESG, "%x\n",
+			 rtl_read_dword(rtlpriv, ARFR0));
+	}
 }
 
 static void rtl92s_update_hal_rate_mask(struct ieee80211_hw *hw,
