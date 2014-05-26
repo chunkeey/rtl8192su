@@ -1507,6 +1507,7 @@ u8 *rtl_find_ie(u8 *data, unsigned int len, u8 ie)
 	}
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(rtl_find_ie);
 
 /* when we use 2 rx ants we send IEEE80211_SMPS_OFF */
 /* when we use 1 rx ant we send IEEE80211_SMPS_STATIC */
