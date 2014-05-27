@@ -228,9 +228,9 @@
 						 MSR_LINK_MASTER)
 #define		MSR_LINK_NONE			0
 #define		MSR_LINK_SHIFT			0
-#define		MSR_LINK_ADHOC			BIT(0)
-#define		MSR_LINK_MANAGED		BIT(1)
-#define		MSR_LINK_MASTER			BIT(2)
+#define		MSR_LINK_ADHOC			1
+#define		MSR_LINK_MANAGED		2
+#define		MSR_LINK_MASTER			3
 
 #define REG_SYSF_CFG			(RTL8712_CMDCTRL_ + 0x000D)
 #define REG_MBIDCTRL			(RTL8712_CMDCTRL_ + 0x000E)
