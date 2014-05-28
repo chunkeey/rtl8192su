@@ -99,7 +99,7 @@ EXPORT_SYMBOL(rtl_bb_delay);
 void rtl_mac80211_init(struct ieee80211_hw *hw)
 {
 	/*init rfkill */
-	rtl_init_rfkill(hw);
+	//rtl_init_rfkill(hw);
 	rtl_register_debugfs(hw);
 }
 EXPORT_SYMBOL(rtl_mac80211_init);
@@ -1364,6 +1364,7 @@ static void rtl_op_rfkill_poll(struct ieee80211_hw *hw)
 
 	bool radio_state;
 	bool blocked;
+	bool update = false;
 	u8 valid = 0;
 
 	if (!test_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status))
@@ -1383,11 +1384,14 @@ static void rtl_op_rfkill_poll(struct ieee80211_hw *hw)
 				 radio_state ? "on" : "off");
 
 			blocked = (rtlpriv->rfkill.rfkill_state == 1) ? 0 : 1;
-			wiphy_rfkill_set_hw_state(hw->wiphy, blocked);
+			update = true;
 		}
 	}
 
 	mutex_unlock(&rtlpriv->locks.conf_mutex);
+
+	if (update)
+		wiphy_rfkill_set_hw_state(hw->wiphy, blocked);
 }
 
 /* this function is called by mac80211 to flush tx buffer
@@ -1401,6 +1405,16 @@ static void rtl_op_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (rtlpriv->intf_ops->flush)
 		rtlpriv->intf_ops->flush(hw, drop);
+}
+
+static int rtl_op_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+			  bool set)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
+	if (rtlpriv->cfg->ops->set_tim)
+		rtlpriv->cfg->ops->set_tim(hw, sta, set);
+	return 0;
 }
 
 const struct ieee80211_ops rtl_ops = {
@@ -1421,6 +1435,7 @@ const struct ieee80211_ops rtl_ops = {
 	.set_tsf = rtl_op_set_tsf,
 	.reset_tsf = rtl_op_reset_tsf,
 	.sta_notify = rtl_op_sta_notify,
+	.set_tim = rtl_op_set_tim,
 	.ampdu_action = rtl_op_ampdu_action,
 	.sw_scan_start = rtl_op_sw_scan_start,
 	.sw_scan_complete = rtl_op_sw_scan_complete,

@@ -38,6 +38,7 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 			  struct rtl_tcb_desc *ptcb_desc);
 void rtl92su_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc, bool firstseg,
 			     bool lastseg, struct sk_buff *skb);
+int rtl92su_update_beacon(struct ieee80211_hw *hw);
 bool rtl92su_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 			   struct ieee80211_rx_status *rx_status, u8 *pdesc,
 			   struct sk_buff *skb);
@@ -52,6 +53,8 @@ void rtl92su_rx_segregate_hdl(struct ieee80211_hw *hw, struct sk_buff *skb,
 void rtl92su_tx_cleanup(struct ieee80211_hw *hw, struct sk_buff  *skb);
 int rtl92su_tx_post_hdl(struct ieee80211_hw *hw, struct urb *urb,
 			struct sk_buff *skb);
+void rtl92su_tx_polling(struct ieee80211_hw *hw, u8 hw_queue);
+int rtl92su_update_beacon(struct ieee80211_hw *hw);
 
 struct sk_buff *rtl92su_tx_aggregate_hdl(struct ieee80211_hw *hw,
 					 struct sk_buff_head *list);

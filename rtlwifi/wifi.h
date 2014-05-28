@@ -1845,8 +1845,9 @@ struct rt_link_detect {
 };
 
 enum desc_packet_type {
-	DESC_PACKET_TYPE_INIT = 0,
-	DESC_PACKET_TYPE_NORMAL = 1,
+	DESC_PACKET_TYPE_NORMAL = 0,
+	DESC_PACKET_TYPE_INIT = 1,
+	DESC_PACKET_TYPE_CMD = 2,
 };
 
 struct rtl_tcb_desc {
@@ -1873,7 +1874,7 @@ struct rtl_tcb_desc {
 	u8 hw_rate;
 
 	u8 last_inipkt:1;
-	u8 cmd_or_init:1;
+	u8 cmd_or_init:2;
 	u8 queue_index;
 
 	/* early mode */
@@ -1953,6 +1954,8 @@ struct rtl_hal_ops {
 	bool (*is_tx_desc_closed) (struct ieee80211_hw *hw,
 				   u8 hw_queue, u16 index);
 	void (*tx_polling) (struct ieee80211_hw *hw, u8 hw_queue);
+	int (*set_tim) (struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+			bool set);
 	void (*enable_hw_sec) (struct ieee80211_hw *hw);
 	void (*set_key) (struct ieee80211_hw *hw, u32 key_index,
 			 u8 *macaddr, bool is_group, u8 enc_algo,

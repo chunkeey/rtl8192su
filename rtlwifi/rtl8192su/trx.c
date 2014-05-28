@@ -593,12 +593,6 @@ void rtl92su_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 	}
 }
 
-static void _rtl92s_cmd_complete(struct urb *urb)
-{
-	struct sk_buff *skb = urb->context;
-	dev_kfree_skb_irq(skb);
-}
-
 bool rtl92su_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -610,9 +604,35 @@ bool rtl92su_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb)
 	rtlpriv->cfg->ops->fill_tx_cmddesc(hw, pdesc, 1, 1, skb);
 
 	tcb_desc = (struct rtl_tcb_desc *)(skb->cb);
-	err = rtl_usb_transmit(hw, skb, tcb_desc->queue_index,
-				_rtl92s_cmd_complete);
+	err = rtl_usb_transmit(hw, skb, tcb_desc->queue_index);
 	return err ? false : true;
+}
+
+int rtl92su_update_beacon(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_mac *mac = rtl_mac(rtlpriv);
+	struct sk_buff *skb;
+	struct ieee80211_mutable_offsets offs;
+	int err = -ENOMEM;
+	u32 extra = 0;
+
+	skb = ieee80211_beacon_get_template(hw, mac->vif, &offs);
+	if (skb) {
+		struct ieee80211_hdr *hdr = rtl_get_hdr(skb);
+		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+		struct rtl_tcb_desc tcb_desc;
+		u8 *data = skb->data;
+	        rtlpriv->cfg->ops->fill_tx_desc(hw, hdr, NULL, NULL,
+						info, NULL, skb,
+	                                        QSLT_CMD, &tcb_desc);
+
+		SET_BITS_TO_LE_4BYTE(&extra, 16, 16, offs.tim_offset);
+		err = rtl92s_firmware_set_h2c_cmd(hw, H2C_UPDATE_BCN_CMD,
+						  extra, skb->data, skb->len);
+		dev_kfree_skb_any(skb);
+	}
+	return err;
 }
 
 #define RTL_RX_DRV_INFO_UNIT		8
@@ -633,10 +653,10 @@ int rtl92su_rx_hdl(struct ieee80211_hw *hw, struct sk_buff *skb)
 		u8 event = LE_BITS_CLEARED_TO_4BYTE(rxdesc + RTL_RX_DESC_SIZE, 16, 8);
 		switch (event) {
 		case 0x15:
-			/* send dtim */
+			rtl_send_buffered_bc(hw);
 			break;
 		default:
-			RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
+			RT_TRACE(rtlpriv, COMP_RECV, DBG_DMESG,
 				 "Unknown event 0x%x\n", event);
 			break;
 		}
@@ -663,3 +683,6 @@ struct sk_buff *rtl92su_tx_aggregate_hdl(struct ieee80211_hw *hw,
 	return skb_dequeue(list);
 }
 
+void rtl92su_tx_polling(struct ieee80211_hw *hw, u8 hw_queue)
+{
+}

@@ -130,6 +130,7 @@ int rtl_rx_agg_start(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		     u16 tid);
 int rtl_rx_agg_stop(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		    u16 tid);
+void rtl_send_buffered_bc(struct ieee80211_hw *hw);
 void rtl_watchdog_wq_callback(void *data);
 void rtl_fwevt_wq_callback(void *data);
 

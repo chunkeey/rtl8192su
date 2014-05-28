@@ -79,6 +79,11 @@ static void rtl92su_fw_cb(const struct firmware *firmware, void *context)
 	set_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status);
 }
 
+static int rtl92su_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
+{
+	return rtl92su_update_beacon(hw);
+}
+
 static int rtl92su_init_sw_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -132,7 +137,6 @@ static int rtl92su_init_sw_vars(struct ieee80211_hw *hw)
 			 "Failed to request firmware!\n");
 		return err;
 	}
-
 	return err;
 }
 
@@ -169,6 +173,7 @@ static struct rtl_hal_ops rtl8192su_hal_ops = {
 	.scan_operation_backup = rtl92s_phy_scan_operation_backup,
 	.set_rf_power_state = rtl92s_phy_set_rf_power_state,
 	.led_control = rtl92su_led_control,
+	.set_tim = rtl92su_set_tim,
 
 	.enable_hw_sec = rtl92s_enable_hw_security_config,
 	.set_key = rtl92s_set_key,
@@ -184,6 +189,7 @@ static struct rtl_hal_ops rtl8192su_hal_ops = {
 	.fill_tx_desc = rtl92su_tx_fill_desc,
 	.cmd_send_packet = rtl92su_cmd_send_packet,
 	.fill_tx_cmddesc = rtl92su_tx_fill_cmddesc,
+	.tx_polling = rtl92su_tx_polling,
 
 	.enable_interrupt = rtl92su_enable_interrupt,
 	.disable_interrupt = rtl92su_disable_interrupt,

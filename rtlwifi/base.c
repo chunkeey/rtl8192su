@@ -328,6 +328,7 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	    /* IEEE80211_HW_SUPPORTS_CQM_RSSI | */
 	    IEEE80211_HW_CONNECTION_MONITOR |
 	    IEEE80211_HW_MFP_CAPABLE |
+	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 	    IEEE80211_HW_REPORTS_TX_ACK_STATUS | 0;
 
 	/* swlps or hwlps has been set in diff chip in init_sw_vars */
@@ -1264,6 +1265,20 @@ int rtl_tx_agg_oper(struct ieee80211_hw *hw,
 
 	return 0;
 }
+
+void rtl_send_buffered_bc(struct ieee80211_hw *hw)
+{
+	struct sk_buff *pskb;
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_mac *mac = rtl_mac(rtlpriv);
+	struct rtl_tcb_desc tcb_desc;
+
+	while ((pskb = ieee80211_get_buffered_bc(hw, mac->vif)) != NULL) {
+		memset(&tcb_desc, 0, sizeof(struct rtl_tcb_desc));
+		rtlpriv->intf_ops->adapter_tx(hw, NULL, pskb, &tcb_desc);
+	}
+}
+EXPORT_SYMBOL_GPL(rtl_send_buffered_bc);
 
 /*********************************************************
  *

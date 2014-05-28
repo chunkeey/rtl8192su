@@ -1015,7 +1015,7 @@ static void _rtl_pci_prepare_bcn_tasklet(struct ieee80211_hw *hw)
 	rtlpriv->cfg->ops->set_desc(hw, (u8 *)pdesc, true, HW_DESC_OWN,
 				    &temp_one);
 
-	return;
+	rtl_send_buffered_bc(hw);
 }
 
 static void _rtl_pci_init_trx_var(struct ieee80211_hw *hw)

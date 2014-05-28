@@ -280,14 +280,6 @@ struct h2c_wpa_two_way_parm {
 	struct h2c_wpa_ptk wpa_ptk_value;
 };
 
-enum h2c_cmd {
-	FW_H2C_SETPWRMODE = 0,
-	FW_H2C_JOINBSSRPT = 1,
-	FW_H2C_WOWLAN_UPDATE_GTK = 2,
-	FW_H2C_WOWLAN_UPDATE_IV = 3,
-	FW_H2C_WOWLAN_OFFLOAD = 4,
-};
-
 enum fw_h2c_cmd {
 	H2C_READ_MACREG_CMD,				/*0*/
 	H2C_WRITE_MACREG_CMD,
@@ -295,7 +287,9 @@ enum fw_h2c_cmd {
 	H2C_WRITEBB_CMD,
 	H2C_READRF_CMD,
 	H2C_WRITERF_CMD,				/*5*/
+	H2C_UPDATE_BCN_CMD = 5,
 	H2C_READ_EEPROM_CMD,
+	H2C_RESET_MBSSID_CMD = 6,
 	H2C_WRITE_EEPROM_CMD,
 	H2C_READ_EFUSE_CMD,
 	H2C_WRITE_EFUSE_CMD,
@@ -376,6 +370,7 @@ int rtl92s_download_fw(struct ieee80211_hw *hw);
 void rtl92s_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode);
 void rtl92s_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw,
 				      u8 mstatus, u8 ps_qosinfo);
-
+int rtl92s_firmware_set_h2c_cmd(struct ieee80211_hw *hw, u32 element_id,
+				u32 rsvd, u8 *pcmd_buffer, u32 cmd_len);
 #endif
 

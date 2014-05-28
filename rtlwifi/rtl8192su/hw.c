@@ -39,6 +39,7 @@
 #include "../rtl8192s/hw_common.h"
 #include "../rtl8192s/led_common.h"
 #include "hw.h"
+#include "trx.h"
 
 /* taken from 8190n */
 static int _rtl92su_macconfig_before_fwdownload3(struct ieee80211_hw *hw)
@@ -837,6 +838,16 @@ void rtl92su_card_disable(struct ieee80211_hw *hw)
 void rtl92su_update_interrupt_mask(struct ieee80211_hw *hw,
 		u32 add_msr, u32 rm_msr)
 {
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+        struct rtl_mac *mac = rtl_mac(rtlpriv);
+
+        /* Free beacon resources */
+        if (((mac->vif->type == NL80211_IFTYPE_AP) ||
+	     (mac->vif->type == NL80211_IFTYPE_ADHOC) ||
+	     (mac->vif->type == NL80211_IFTYPE_MESH_POINT)) &&
+	     (mac->beacon_enabled)) {
+		rtl92su_update_beacon(hw);
+	}
 }
 
 bool rtl92su_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)

@@ -107,6 +107,7 @@ struct rtl_usb {
 
 	/* Bcn control register setting */
 	u32 reg_bcn_ctrl_val;
+	u8 epnums;
 	/* for 88/92cu card disable */
 	u8	disableHWSM;
 	/*QOS & EDCA */
@@ -124,10 +125,10 @@ struct rtl_usb {
 
 	u32 max_bulk_out_size;
 	u32 tx_submitted_urbs;
-	struct sk_buff_head tx_skb_queue[RTL_USB_MAX_EP_NUM];
+	atomic_t tx_pending_urbs;
 
-	struct usb_anchor tx_pending[RTL_USB_MAX_EP_NUM];
 	struct usb_anchor tx_submitted;
+	struct usb_anchor tx_wait;
 
 	struct sk_buff *(*usb_tx_aggregate_hdl)(struct ieee80211_hw *,
 						struct sk_buff_head *);
@@ -166,5 +167,5 @@ void rtl_usb_disconnect(struct usb_interface *intf);
 int rtl_usb_suspend(struct usb_interface *pusb_intf, pm_message_t message);
 int rtl_usb_resume(struct usb_interface *pusb_intf);
 int rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
-		     enum rtl_txq qnum, usb_complete_t callback);
+		     enum rtl_txq qnum);
 #endif

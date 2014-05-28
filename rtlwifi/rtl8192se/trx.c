@@ -571,7 +571,6 @@ void rtl92se_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 
 		wmb();
 		SET_TX_DESC_OWN(pdesc, 1);
-
 	}
 }
 

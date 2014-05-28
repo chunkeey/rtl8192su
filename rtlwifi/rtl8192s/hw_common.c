@@ -743,6 +743,7 @@ EXPORT_SYMBOL_GPL(rtl92s_phy_set_rfhalt);
 void rtl92s_set_beacon_related_registers(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	u16 bcntime_cfg = 0;
 	u16 bcn_cw = 6, bcn_ifs = 0xf;
@@ -751,13 +752,19 @@ void rtl92s_set_beacon_related_registers(struct ieee80211_hw *hw)
 	/* ATIM Window (in unit of TU). */
 	rtl_write_word(rtlpriv, ATIMWND, atim_window);
 
-	/* Beacon interval (in unit of TU). */
-	rtl_write_word(rtlpriv, BCN_INTERVAL, mac->beacon_interval);
 
-	/* DrvErlyInt (in unit of TU). (Time to send
-	 * interrupt to notify driver to change
-	 * beacon content) */
-	rtl_write_word(rtlpriv, BCN_DRV_EARLY_INT, 10 << 4);
+	if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
+		rtl_write_word(rtlpriv, BCN_DRV_EARLY_INT, 10 << 4);
+		/* Beacon interval (in unit of TU). */
+
+		/* DrvErlyInt (in unit of TU). (Time to send
+		 * interrupt to notify driver to change
+		 * beacon content) */
+		rtl_write_word(rtlpriv, BCN_INTERVAL, mac->beacon_interval);
+	} else {
+		rtl_write_word(rtlpriv, BCN_DRV_EARLY_INT, 0);
+		/* Beacon interval is set by the firmware */
+	}
 
 	/* BcnDMATIM(in unit of us). Indicates the
 	 * time before TBTT to perform beacon queue DMA  */
@@ -777,6 +784,9 @@ void rtl92s_set_beacon_related_registers(struct ieee80211_hw *hw)
 
 	/*for beacon changed */
 	rtl92s_phy_set_beacon_hwreg(hw, mac->beacon_interval);
+
+	RT_TRACE(rtlpriv, COMP_SEC, DBG_TRACE, "Beacon Interval %d TU\n",
+		 mac->beacon_interval);
 }
 EXPORT_SYMBOL_GPL(rtl92s_set_beacon_related_registers);
 
