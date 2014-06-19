@@ -288,14 +288,21 @@ static struct usb_device_id rtl92s_usb_ids[] = {
 	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8173, rtl92su_hal_cfg)},
 	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8712, rtl92su_hal_cfg)},
 	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8713, rtl92su_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0xC047, rtl92su_hal_cfg)},
 	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0xC512, rtl92su_hal_cfg)},
 	/* Abocom */
 	{RTL_USB_DEVICE(0x07B8, 0x8188, rtl92su_hal_cfg)},
+	/* Accton Technology */
+	{RTL_USB_DEVICE(0x083A, 0xC512, rtl92su_hal_cfg)},
+	/* Airlive */
+	{RTL_USB_DEVICE(0x1B75, 0x8171, rtl92su_hal_cfg)},
 	/* ASUS */
 	{RTL_USB_DEVICE(0x0B05, 0x1786, rtl92su_hal_cfg)},
 	{RTL_USB_DEVICE(0x0B05, 0x1791, rtl92su_hal_cfg)}, /* disable 11n */
 	/* Belkin */
 	{RTL_USB_DEVICE(0x050D, 0x945A, rtl92su_hal_cfg)},
+	/* ISY IWL - Belkin clone */
+	{RTL_USB_DEVICE(0x050D, 0x11F1, rtl92su_hal_cfg)},
 	/* Corega */
 	{RTL_USB_DEVICE(0x07AA, 0x0047, rtl92su_hal_cfg)},
 	/* D-Link */
@@ -326,17 +333,21 @@ static struct usb_device_id rtl92s_usb_ids[] = {
 	/* Sweex */
 	{RTL_USB_DEVICE(0x177F, 0x0154, rtl92su_hal_cfg)},
 	/* Thinkware */
-	{RTL_USB_DEVICE(0x0BDA, 0x5077, rtl92su_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x5077, rtl92su_hal_cfg)},
 	/* Toshiba */
 	{RTL_USB_DEVICE(0x1690, 0x0752, rtl92su_hal_cfg)},
-	/* - */
+	/* ??? */
 	{RTL_USB_DEVICE(0x20F4, 0x646B, rtl92su_hal_cfg)},
-	{RTL_USB_DEVICE(0x083A, 0xC512, rtl92su_hal_cfg)},
+	{RTL_USB_DEVICE(0x25D4, 0x4CA1, rtl92su_hal_cfg)},
+	{RTL_USB_DEVICE(0x25D4, 0x4CAB, rtl92su_hal_cfg)},
 
 /* RTL8191SU */
 	/* Realtek */
-	{RTL_USB_DEVICE(0x0BDA, 0x8172, rtl92su_hal_cfg)},
-	{RTL_USB_DEVICE(0x0BDA, 0x8192, rtl92su_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8175, rtl92su_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8172, rtl92su_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8192, rtl92su_hal_cfg)},
+	/* Airlive */
+	{RTL_USB_DEVICE(0x1b75, 0x8172, rtl92su_hal_cfg)},
 	/* Amigo */
 	{RTL_USB_DEVICE(0x0EB0, 0x9061, rtl92su_hal_cfg)},
 	/* ASUS/EKB */
@@ -375,10 +386,12 @@ static struct usb_device_id rtl92s_usb_ids[] = {
 	{RTL_USB_DEVICE(0x0DF6, 0x004C, rtl92su_hal_cfg)},
 	{RTL_USB_DEVICE(0x0DF6, 0x0064, rtl92su_hal_cfg)},
 	/* Skyworth */
-	{RTL_USB_DEVICE(0x14b2, 0x3300, rtl92su_hal_cfg)},
-	{RTL_USB_DEVICE(0x14b2, 0x3301, rtl92su_hal_cfg)},
+	{RTL_USB_DEVICE(0x14B2, 0x3300, rtl92su_hal_cfg)},
+	{RTL_USB_DEVICE(0x14B2, 0x3301, rtl92su_hal_cfg)},
 	{RTL_USB_DEVICE(0x14B2, 0x3302, rtl92su_hal_cfg)},
-	/* - */
+	/* Z-Com */
+	{RTL_USB_DEVICE(0x0CDE, 0x0030, rtl92su_hal_cfg)},
+	/* ??? */
 	{RTL_USB_DEVICE(0x04F2, 0xAFF2, rtl92su_hal_cfg)},
 	{RTL_USB_DEVICE(0x04F2, 0xAFF5, rtl92su_hal_cfg)},
 	{RTL_USB_DEVICE(0x04F2, 0xAFF6, rtl92su_hal_cfg)},
@@ -390,7 +403,7 @@ static struct usb_device_id rtl92s_usb_ids[] = {
 
 /* RTL8192SU */
 	/* Realtek */
-	{RTL_USB_DEVICE(0x0BDA, 0x8174, rtl92su_hal_cfg)},
+	{RTL_USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8174, rtl92su_hal_cfg)},
 	/* Belkin */
 	{RTL_USB_DEVICE(0x050D, 0x845A, rtl92su_hal_cfg)},
 	/* Corega */
@@ -399,6 +412,16 @@ static struct usb_device_id rtl92s_usb_ids[] = {
 	{RTL_USB_DEVICE(0x7392, 0x7622, rtl92su_hal_cfg)},
 	/* NEC */
 	{RTL_USB_DEVICE(0x0409, 0x02B6, rtl92su_hal_cfg)},
+	/* Sitecom */
+	{RTL_USB_DEVICE(0x0DF6, 0x0061, rtl92su_hal_cfg)},
+
+/* Unknown Chips */
+	/* Sagemcom */
+	{RTL_USB_DEVICE(0x0009, 0x21E7, rtl92su_hal_cfg)},
+	/* Amigo */
+	{RTL_USB_DEVICE(0x0E0B, 0x9063, rtl92su_hal_cfg)},
+	/* Zinwell */
+	{RTL_USB_DEVICE(0x5A57, 0x0291, rtl92su_hal_cfg)},
 	{}
 };
 
