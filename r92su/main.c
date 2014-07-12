@@ -716,7 +716,7 @@ report_cfg80211:
 	case NL80211_IFTYPE_ADHOC:
 		if (status == WLAN_STATUS_SUCCESS) {
 			cfg80211_ibss_joined(r92su->wdev.netdev,
-					     join_bss->bss.bssid, GFP_KERNEL);
+					     join_bss->bss.bssid, r92su->current_channel, GFP_KERNEL);
 		}
 		break;
 
