@@ -137,18 +137,6 @@ found_alt:
 	memcpy(rtlpriv->rtlhal.pfirmware, firmware->data, firmware->size);
 	rtlpriv->rtlhal.fwsize = firmware->size;
 	release_firmware(firmware);
-
-	err = ieee80211_register_hw(hw);
-	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't register mac80211 hw\n");
-		return;
-	} else {
-		rtlpriv->mac80211.mac80211_registered = 1;
-	}
-	set_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status);
-
-	rtl_mac80211_init(hw);
 }
 EXPORT_SYMBOL(rtl_fw_cb);
 
@@ -1403,7 +1391,7 @@ static void rtl_op_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	if (rtlpriv->intf_ops->flush)
-		rtlpriv->intf_ops->flush(hw, drop);
+		rtlpriv->intf_ops->flush(hw, queues, drop);
 }
 
 static int rtl_op_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
