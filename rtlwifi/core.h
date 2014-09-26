@@ -42,4 +42,5 @@ void rtl_rfreg_delay(struct ieee80211_hw *hw, enum radio_path rfpath, u32 addr,
 		     u32 mask, u32 data);
 void rtl_bb_delay(struct ieee80211_hw *hw, u32 addr, u32 data);
 void rtl_mac80211_init(struct ieee80211_hw *hw);
+bool rtl_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb);
 #endif
