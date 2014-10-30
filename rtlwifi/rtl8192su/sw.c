@@ -188,6 +188,7 @@ static struct rtl_hal_ops rtl8192su_hal_ops = {
 
 	.fill_tx_desc = rtl92su_tx_fill_desc,
 	.cmd_send_packet = rtl92su_cmd_send_packet,
+	.get_btc_status = rtl_btc_status_false,
 	.fill_tx_cmddesc = rtl92su_tx_fill_cmddesc,
 	.tx_polling = rtl92su_tx_polling,
 
