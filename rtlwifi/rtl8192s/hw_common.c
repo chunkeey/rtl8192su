@@ -595,6 +595,9 @@ int rtl92s_set_media_status(struct ieee80211_hw *hw,
 
 	}
 
+	if (type != NL80211_IFTYPE_AP &&
+	    rtlpriv->mac80211.link_state < MAC80211_LINKED)
+		bt_msr = rtl_read_byte(rtlpriv, MSR) & ~MSR_LINK_MASK;
 	rtl_write_byte(rtlpriv, (MSR), bt_msr);
 
 	temp = rtl_read_dword(rtlpriv, TCR);
