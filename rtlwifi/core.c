@@ -529,6 +529,7 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 			     unsigned int changed_flags,
 			     unsigned int *new_flags, u64 multicast)
 {
+	bool update_rcr = false;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	u32 rx_conf;
@@ -569,6 +570,7 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
 				 "Disable receive multicast frame\n");
 		}
+		update_rcr = true;
 	}
 
 	if (changed_flags & FIF_FCSFAIL) {
@@ -581,8 +583,26 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
 				 "Disable receive FCS error frame\n");
 		}
+		if (!update_rcr)
+			update_rcr = true;
 	}
 
+	/* if ssid not set to hw don't check bssid
+	 * here just used for linked scanning, & linked
+	 * and nolink check bssid is set in set network_type
+	 */
+	if ((changed_flags & FIF_BCN_PRBRESP_PROMISC) &&
+	    (mac->link_state >= MAC80211_LINKED)) {
+		if (mac->opmode != NL80211_IFTYPE_AP &&
+		    mac->opmode != NL80211_IFTYPE_MESH_POINT) {
+			if (*new_flags & FIF_BCN_PRBRESP_PROMISC)
+				rtlpriv->cfg->ops->set_chk_bssid(hw, false);
+			else
+				rtlpriv->cfg->ops->set_chk_bssid(hw, true);
+			if (update_rcr)
+				update_rcr = false;
+		}
+	}
 
 	if (changed_flags & FIF_CONTROL) {
 		if (*new_flags & FIF_CONTROL) {
@@ -595,6 +615,8 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
 				 "Disable receive control frame\n");
 		}
+		if (!update_rcr)
+			update_rcr = true;
 	}
 
 	if (changed_flags & FIF_OTHER_BSS) {
@@ -607,9 +629,12 @@ static void rtl_op_configure_filter(struct ieee80211_hw *hw,
 			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
 				 "Disable receive other BSS's frame\n");
 		}
+		if (!update_rcr)
+			update_rcr = true;
 	}
 
-	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR, (u8 *)(&rx_conf));
+	if (update_rcr)
+		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR, (u8 *)(&rx_conf));
 }
 static int rtl_op_sta_add(struct ieee80211_hw *hw,
 			 struct ieee80211_vif *vif,
@@ -730,6 +755,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *bss_conf, u32 changed)
 {
+	bool update_rcr = false;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
@@ -777,6 +803,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			mac->beacon_interval = bss_conf->beacon_int;
 			rtlpriv->cfg->ops->set_bcn_intv(hw);
 		}
+		update_rcr = true;
 	}
 
 	/*TODO: reference to enum ieee80211_bss_change */
@@ -841,6 +868,8 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			RT_TRACE(rtlpriv, COMP_MAC80211, DBG_DMESG,
 				 "BSS_CHANGED_UN_ASSOC\n");
 		}
+		if (!update_rcr)
+			update_rcr = true;
 	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
