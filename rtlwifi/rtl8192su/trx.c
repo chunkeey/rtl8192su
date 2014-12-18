@@ -366,7 +366,7 @@ bool rtl92su_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 	}
 
 	rx_status->rate_idx = rtlwifi_rate_mapping(hw,
-			      stats->is_ht, stats->rate);
+			      stats->is_ht, false, stats->rate);
 
 	rx_status->mactime = stats->timestamp_low;
 	if (phystatus) {
