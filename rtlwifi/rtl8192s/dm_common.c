@@ -25,6 +25,7 @@
 
 #include "../wifi.h"
 #include "../base.h"
+#include "../core.h"
 #include "reg_common.h"
 #include "def_common.h"
 #include "phy_common.h"
