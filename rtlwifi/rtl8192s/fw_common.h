@@ -365,6 +365,7 @@ enum fw_h2c_cmd {
 #define FW_CMD_IO_PARA_QUERY(rtlpriv)				\
 	((u32)(rtlpriv->rtlhal.fwcmd_ioparam))
 
+void rtl92s_fw_cb(const struct firmware *firmware, void *context);
 int rtl92s_download_fw(struct ieee80211_hw *hw);
 void rtl92s_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode);
 void rtl92s_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw,

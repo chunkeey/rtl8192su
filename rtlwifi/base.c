@@ -1330,8 +1330,8 @@ EXPORT_SYMBOL_GPL(rtl_is_special_data);
  * functions called by core.c
  *
  *********************************************************/
-int rtl_tx_agg_start(struct ieee80211_hw *hw,
-		struct ieee80211_sta *sta, u16 tid, u16 *ssn)
+int rtl_tx_agg_start(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		     struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_tid_data *tid_data;
@@ -1359,7 +1359,7 @@ int rtl_tx_agg_start(struct ieee80211_hw *hw,
 	return 0;
 }
 
-int rtl_tx_agg_stop(struct ieee80211_hw *hw,
+int rtl_tx_agg_stop(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		struct ieee80211_sta *sta, u16 tid)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);

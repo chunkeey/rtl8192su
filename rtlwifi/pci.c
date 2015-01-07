@@ -2277,14 +2277,9 @@ int rtl_pci_probe(struct pci_dev *pdev,
 		goto fail3;
 	}
 
-	err = ieee80211_register_hw(hw);
-	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't register mac80211 hw.\n");
-		err = -ENODEV;
+	err = rtl_mac80211_init(hw);
+	if (err)
 		goto fail3;
-	}
-	rtlpriv->mac80211.mac80211_registered = 1;
 
 	err = sysfs_create_group(&pdev->dev.kobj, &rtl_attribute_group);
 	if (err) {
@@ -2310,7 +2305,7 @@ int rtl_pci_probe(struct pci_dev *pdev,
  	return 0;
 
 fail3:
-	rtl_unregister_debugfs(hw);
+	rtl_mac80211_deinit(hw);
 	pci_set_drvdata(pdev, NULL);
  	rtl_deinit_core(hw);
 
@@ -2345,17 +2340,8 @@ void rtl_pci_disconnect(struct pci_dev *pdev)
 
 	sysfs_remove_group(&pdev->dev.kobj, &rtl_attribute_group);
 
-	/*ieee80211_unregister_hw will call ops_stop */
-	if (rtlmac->mac80211_registered == 1) {
-		ieee80211_unregister_hw(hw);
-		rtlmac->mac80211_registered = 0;
-	} else {
-		rtl_deinit_deferred_work(hw);
-		rtlpriv->intf_ops->adapter_stop(hw);
-	}
+	rtl_mac80211_deinit(hw);
 	rtlpriv->cfg->ops->disable_interrupt(hw);
-
-	rtl_unregister_debugfs(hw);
 
 	/*deinit rfkill */
 	rtl_deinit_rfkill(hw);

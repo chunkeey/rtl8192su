@@ -385,6 +385,7 @@ void rtl_unregister_debugfs(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	debugfs_remove_recursive(rtlpriv->dbg.dfs);
+	rtlpriv->dbg.dfs = NULL;
 }
 EXPORT_SYMBOL_GPL(rtl_unregister_debugfs);
 

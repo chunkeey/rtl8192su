@@ -922,7 +922,6 @@ static void _rtl_tx_complete(struct urb *urb)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct rtl_usb *rtlusb = (struct rtl_usb *)info->rate_driver_data[0];
 	struct ieee80211_hw *hw = usb_get_intfdata(rtlusb->intf);
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	int err;
 
 	atomic_dec(&rtlusb->tx_pending_urbs);
@@ -1169,21 +1168,15 @@ int rtl_usb_probe(struct usb_interface *intf,
 	}
 	rtlpriv->cfg->ops->init_sw_leds(hw);
 
-	err = ieee80211_register_hw(hw);
-	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't register mac80211 hw.\n");
-		err = -ENODEV;
+	err = rtl_mac80211_init(hw);
+	if (err)
 		goto error_out;
-	}
-	rtlpriv->mac80211.mac80211_registered = 1;
 
 	set_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status);
 	return 0;
 
 error_out:
-	rtl_unregister_debugfs(hw);
-
+	rtl_mac80211_deinit(hw);
 	rtl_deinit_core(hw);
 	_rtl_usb_io_handler_release(hw);
 	usb_put_dev(udev);
@@ -1204,21 +1197,15 @@ void rtl_usb_disconnect(struct usb_interface *intf)
 
 	/* just in case driver is removed before firmware callback */
 	wait_for_completion(&rtlpriv->firmware_loading_complete);
-	/*ieee80211_unregister_hw will call ops_stop */
-	if (rtlmac->mac80211_registered == 1) {
-		ieee80211_unregister_hw(hw);
-		rtlmac->mac80211_registered = 0;
-	} else {
-		rtl_deinit_deferred_work(hw);
-		rtlpriv->intf_ops->adapter_stop(hw);
-	}
+	clear_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status);
+
+	rtl_mac80211_deinit(hw);
 	/*deinit rfkill */
 	/* rtl_deinit_rfkill(hw); */
 	rtl_usb_deinit(hw);
 	rtl_deinit_core(hw);
 	kfree(rtlpriv->usb_data);
 	rtlpriv->cfg->ops->deinit_sw_leds(hw);
-	rtl_unregister_debugfs(hw);
 	rtlpriv->cfg->ops->deinit_sw_vars(hw);
 	_rtl_usb_io_handler_release(hw);
 	usb_put_dev(rtlusb->udev);

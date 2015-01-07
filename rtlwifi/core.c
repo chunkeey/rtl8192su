@@ -97,13 +97,41 @@ void rtl_bb_delay(struct ieee80211_hw *hw, u32 addr, u32 data)
 }
 EXPORT_SYMBOL(rtl_bb_delay);
 
-void rtl_mac80211_init(struct ieee80211_hw *hw)
+int rtl_mac80211_init(struct ieee80211_hw *hw)
 {
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	int err;
+
+	err = ieee80211_register_hw(hw);
+	if (err) {
+		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
+			 "Can't register mac80211 hw.\n");
+		return err;
+	}
+	rtlpriv->mac80211.mac80211_registered = 1;
+
 	/*init rfkill */
 	//rtl_init_rfkill(hw);
+
 	rtl_register_debugfs(hw);
+	return 0;
 }
 EXPORT_SYMBOL(rtl_mac80211_init);
+
+void rtl_mac80211_deinit(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
+	/* ieee80211_unregister_hw will call ops_stop */
+	if (rtlpriv->mac80211.mac80211_registered == 1) {
+		rtl_unregister_debugfs(hw);
+		ieee80211_unregister_hw(hw);
+	} else {
+		rtl_deinit_deferred_work(hw);
+		rtlpriv->intf_ops->adapter_stop(hw);
+	}
+}
+EXPORT_SYMBOL(rtl_mac80211_deinit);
 
 void rtl_fw_cb(const struct firmware *firmware, void *context)
 {
@@ -1088,13 +1116,13 @@ static int rtl_op_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_START:
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_TRACE,
 			 "IEEE80211_AMPDU_TX_START: TID:%d\n", tid);
-		return rtl_tx_agg_start(hw, sta, tid, ssn);
+		return rtl_tx_agg_start(hw, vif, sta, tid, ssn);
 	case IEEE80211_AMPDU_TX_STOP_CONT:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_TRACE,
 			 "IEEE80211_AMPDU_TX_STOP: TID:%d\n", tid);
-		return rtl_tx_agg_stop(hw, sta, tid);
+		return rtl_tx_agg_stop(hw, vif, sta, tid);
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_TRACE,
 			 "IEEE80211_AMPDU_TX_OPERATIONAL:TID:%d\n", tid);
