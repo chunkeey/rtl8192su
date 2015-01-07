@@ -1720,6 +1720,9 @@ void rtl_watchdog_wq_callback(void *data)
 		rtlpriv->btcoexist.btc_ops->btc_periodical(rtlpriv);
 
 	rtlpriv->link_info.bcn_rx_inperiod = 0;
+
+	if (rtlpriv->cfg->ops->txrx_watchdog)
+		rtlpriv->cfg->ops->txrx_watchdog(hw);
 }
 
 void rtl_watch_dog_timer_callback(unsigned long data)

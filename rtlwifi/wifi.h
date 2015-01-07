@@ -2179,6 +2179,7 @@ struct rtl_hal_ops {
 	void (*phy_lc_calibrate) (struct ieee80211_hw *hw, bool is2t);
 	void (*phy_set_bw_mode_callback) (struct ieee80211_hw *hw);
 	void (*dm_dynamic_txpower) (struct ieee80211_hw *hw);
+	void (*txrx_watchdog) (struct ieee80211_hw *hw);
 	void (*c2h_command_handle) (struct ieee80211_hw *hw);
 	void (*bt_wifi_media_status_notify) (struct ieee80211_hw *hw,
 					     bool mstate);
