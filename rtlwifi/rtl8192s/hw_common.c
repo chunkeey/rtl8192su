@@ -46,6 +46,7 @@ void rtl92s_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	switch (variable) {
 	case HW_VAR_RCR: {
 			struct rtl_pci *rtlpci;
+
 			if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
 				rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 				*((u32 *) (val)) = rtlpci->receive_config;
@@ -91,6 +92,7 @@ EXPORT_SYMBOL_GPL(rtl92s_get_hw_reg);
 void rtl92s_set_mac_addr(struct ieee80211_hw *hw, const u8 *addr)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
 	rtl_write_dword(rtlpriv, REG_MACID, *((u32 *)addr));
 	rtl_write_word(rtlpriv, REG_MACID + 4, *((u16 *)(addr + 4)));
 }
@@ -161,6 +163,7 @@ void rtl92s_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HW_VAR_ACK_PREAMBLE:{
 			u8 reg_tmp;
 			u8 short_preamble = (bool) (*val);
+
 			reg_tmp = (mac->cur_40_prime_sc) << 5;
 			if (short_preamble)
 				reg_tmp |= 0x80;
@@ -262,6 +265,7 @@ void rtl92s_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			rtl92s_dm_init_edca_turbo(hw);
 			if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
 				u8 e_aci = *val;
+
 				rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 
 				if (rtlpci->acm_method != EACMWAY2_SW) {
@@ -565,6 +569,7 @@ int rtl92s_set_media_status(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 bt_msr = rtl_read_byte(rtlpriv, MSR);
 	u32 temp;
+
 	bt_msr &= ~MSR_LINK_MASK;
 
 	switch (type) {
@@ -612,6 +617,7 @@ EXPORT_SYMBOL_GPL(rtl92s_set_media_status);
 void rtl92s_set_qos(struct ieee80211_hw *hw, int aci)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
 	rtl92s_dm_init_edca_turbo(hw);
 
 	switch (aci) {
@@ -641,7 +647,6 @@ void rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw)
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	u8 u1btmp;
 	u16 tmpu2b;
-
 
 	if (IS_HARDWARE_TYPE_8192SU(rtlhal)) {
 		rtl_write_word(rtlpriv, REG_CR, 0x0);
@@ -726,9 +731,9 @@ void rtl92s_phy_set_rfhalt(struct ieee80211_hw *hw)
 	/* SW/HW radio off or halt adapter!! For example S3/S4 */
 	} else {
 		/* LED function disable. Power range is about 8mA now. */
-		/* if write 0xF1 disconnet_pci power
+		/* if write 0xF1 disconnect_pci power
 		 *	 ifconfig wlan0 down power are both high 35:70 */
-		/* if write oxF9 disconnet_pci power
+		/* if write oxF9 disconnect_pci power
 		 * ifconfig wlan0 down power are both low  12:45*/
 		rtl_write_byte(rtlpriv, 0x03, 0xF9);
 	}
@@ -1165,7 +1170,7 @@ void rtl92s_update_channel_access_setting(struct ieee80211_hw *hw)
 EXPORT_SYMBOL_GPL(rtl92s_update_channel_access_setting);
 
 /* Is_wepkey just used for WEP used as group & pairwise key
- * if pairwise is AES ang group is WEP Is_wepkey == false.*/
+ * if pairwise is AES and group is WEP Is_wepkey == false.*/
 void rtl92s_set_key(struct ieee80211_hw *hw, u32 key_index, u8 *p_macaddr,
 	bool is_group, u8 enc_algo, bool is_wepkey, bool clear_all)
 {

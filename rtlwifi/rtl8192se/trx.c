@@ -78,6 +78,7 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 
 	if (is_cck) {
 		u8 report, cck_highpwr;
+
 		cck_buf = (struct phy_sts_cck_8192s_t *)p_drvinfo;
 
 		if (ppsc->rfpwr_state == ERFON)
@@ -89,6 +90,7 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 
 		if (!cck_highpwr) {
 			u8 cck_agc_rpt = cck_buf->cck_agc_rpt;
+
 			report = cck_buf->cck_agc_rpt & 0xc0;
 			report = report >> 6;
 			switch (report) {
@@ -107,6 +109,7 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 			}
 		} else {
 			u8 cck_agc_rpt = cck_buf->cck_agc_rpt;
+
 			report = p_drvinfo->cfosho[0] & 0x60;
 			report = report >> 5;
 			switch (report) {
@@ -147,6 +150,7 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 
 		if (packet_match_bssid) {
 			u8 sq;
+
 			if (pstats->rx_pwdb_all > 40) {
 				sq = 100;
 			} else {
@@ -219,7 +223,6 @@ static void _rtl92se_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 {
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
-
 	struct ieee80211_hdr *hdr;
 	u8 *tmp_buf;
 	u8 *praddr;
@@ -298,7 +301,7 @@ bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 
 	/* hw will set stats->decrypted true, if it finds the
 	 * frame is open data frame or mgmt frame,
-	 * hw will not decrypt robust managment frame
+	 * hw will not decrypt robust management frame
 	 * for IEEE80211w but still set stats->decrypted
 	 * true, so here we should set it back to undecrypted
 	 * for IEEE80211w frame, and mac80211 sw will help
@@ -487,7 +490,7 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 		/* Alwasy enable all rate fallback range */
 		SET_TX_DESC_DATA_RATE_FB_LIMIT(pdesc, 0x1F);
 
-		/* Fix: I don't kown why hw use 6.5M to tx when set it */
+		/* Fix: I don't know why hw use 6.5M to tx when set it */
 		SET_TX_DESC_USER_RATE(pdesc,
 				      ptcb_desc->use_driver_rate ? 1 : 0);
 
@@ -649,6 +652,7 @@ u32 rtl92se_get_desc(u8 *desc, bool istx, u8 desc_name)
 void rtl92se_tx_polling(struct ieee80211_hw *hw, u8 hw_queue)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
 	rtl_write_word(rtlpriv, TP_POLL, BIT(0) << (hw_queue));
 }
 

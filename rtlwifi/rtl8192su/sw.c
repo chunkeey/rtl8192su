@@ -40,7 +40,8 @@
 
 #include <linux/module.h>
 
-static int rtl92su_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
+static int rtl92su_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+			   bool set)
 {
 	return rtl92su_update_beacon(hw);
 }

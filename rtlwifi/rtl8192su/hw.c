@@ -220,6 +220,7 @@ static int _rtl92su_macconfig_before_fwdownload3(struct ieee80211_hw *hw)
 		enum rf_pwrstate rfpwr_state_toset;
 		struct rtl_usb_priv *usbpriv = rtl_usbpriv(hw);
 		struct rtl_led *pLed0 = &(usbpriv->ledctl.sw_led0);
+
 		rfpwr_state_toset = rtl92s_rf_onoff_detect(hw);
 		if (rfpwr_state_toset == ERFON)
 			rtl92s_sw_led_on(hw, pLed0);
@@ -406,6 +407,7 @@ static int _rtl92su_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 		enum rf_pwrstate rfpwr_state_toset;
 		struct rtl_usb_priv *usbpriv = rtl_usbpriv(hw);
 		struct rtl_led *pLed0 = &(usbpriv->ledctl.sw_led0);
+
 		rfpwr_state_toset = rtl92s_rf_onoff_detect(hw);
 		if (rfpwr_state_toset == ERFON)
 			rtl92s_sw_led_on(hw, pLed0);
@@ -416,6 +418,7 @@ static int _rtl92su_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 static void _r92su_fw_reg_ready(struct rtl_priv *rtlpriv)
 {
 	unsigned int delay_count = 10;
+
 	do {
 		if (rtl_read_dword(rtlpriv, RF_BB_CMD_ADDR) == 0)
 			break;
@@ -664,7 +667,7 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 
 	/* because last function modify RCR, so we update
 	 * rcr var here, or TP will unstable for receive_config
-	 * is wrong, RX RCR_ACRC32 will cause TP unstabel & Rx
+	 * is wrong, RX RCR_ACRC32 will cause TP unstable & Rx
 	 * RCR_APP_ICV will cause mac80211 unassoc for cisco 1252
 	 */
 
@@ -840,10 +843,10 @@ void rtl92su_update_interrupt_mask(struct ieee80211_hw *hw,
 		u32 add_msr, u32 rm_msr)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-        struct rtl_mac *mac = rtl_mac(rtlpriv);
+	struct rtl_mac *mac = rtl_mac(rtlpriv);
 
-        /* Free beacon resources */
-        if (((mac->vif->type == NL80211_IFTYPE_AP) ||
+	/* Free beacon resources */
+	if (((mac->vif->type == NL80211_IFTYPE_AP) ||
 	     (mac->vif->type == NL80211_IFTYPE_ADHOC) ||
 	     (mac->vif->type == NL80211_IFTYPE_MESH_POINT)) &&
 	     (mac->beacon_enabled)) {
@@ -910,10 +913,10 @@ void rtl92su_read_eeprom_info(struct ieee80211_hw *hw)
 			 "EEPROM ID(%#x) is invalid!!\n", eeprom_id);
 		rtlefuse->autoload_failflag = true;
 		return;
-	} else {
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "Autoload OK\n");
-		rtlefuse->autoload_failflag = false;
 	}
+
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "Autoload OK\n");
+	rtlefuse->autoload_failflag = false;
 
 	rtl92s_get_IC_Inferiority(hw);
 
@@ -936,7 +939,7 @@ void rtl92su_read_eeprom_info(struct ieee80211_hw *hw)
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "EEPROM SMID = 0x%4x\n", rtlefuse->eeprom_smid);
 
-	memcpy(rtlefuse->dev_addr, eeprom.mac_addr, ETH_ALEN);
+	ether_addr_copy(rtlefuse->dev_addr, eeprom.mac_addr);
 
 	for (i = 0; i < 6; i++)
 		rtl_write_byte(rtlpriv, MACIDR0 + i, rtlefuse->dev_addr[i]);
@@ -1142,9 +1145,9 @@ void rtl92su_read_eeprom_info(struct ieee80211_hw *hw)
 		"TxPowerDiff = %#x\n", rtlefuse->eeprom_txpowerdiff);
 
 	/* Get TSSI value for each path. */
-	usvalue = le16_to_cpu(eeprom.tssi[0]);
+	usvalue = le16_to_cpu(eeprom.tssi[RF90_PATH_A]);
 	rtlefuse->eeprom_tssi[RF90_PATH_A] = (u8)((usvalue & 0xff00) >> 8);
-	usvalue = le16_to_cpu(eeprom.tssi[1]);
+	usvalue = le16_to_cpu(eeprom.tssi[RF90_PATH_B]);
 	rtlefuse->eeprom_tssi[RF90_PATH_B] = (u8)(usvalue & 0xff);
 
 	RTPRINT(rtlpriv, FINIT, INIT_TXPOWER, "TSSI_A = 0x%x, TSSI_B = 0x%x\n",
@@ -1202,6 +1205,6 @@ void rtl92su_read_eeprom_info(struct ieee80211_hw *hw)
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "EEPROM Customer ID: 0x%2x",
 		 rtlefuse->eeprom_oemid);
 
-	/* set channel paln to world wide 13 */
+	/* set channel plan to world wide 13 */
 	rtlefuse->channel_plan = COUNTRY_CODE_WORLD_WIDE_13;
 }

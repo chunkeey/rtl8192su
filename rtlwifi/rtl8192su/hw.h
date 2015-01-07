@@ -53,7 +53,7 @@ struct r92su_eeprom {
 	u8 sub_custom_id;			/* 83 */
 	u8 board_type;				/* 84 */
 
-        /* tx power base */
+	/* tx power base */
 	u8 tx_pwr_cck[RF_PATH][CHAN_SET];	/* 85 - 90 */
 	u8 tx_pwr_ht40_1t[RF_PATH][CHAN_SET];	/* 91 - 96 */
 	u8 tx_pwr_ht40_2t[RF_PATH][CHAN_SET];	/* 97 - 102 */

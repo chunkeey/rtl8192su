@@ -66,7 +66,7 @@
 	(*(__le32 *)(__pdesc) =					\
 	(cpu_to_le32((le32_to_cpu(*((__le32 *)(__pdesc))) &	\
 	(~(BIT_OFFSET_LEN_MASK_32((__shift), __len)))) |	\
-	(((u32)(__val) & BIT_LEN_MASK_32(__len)) << (__shift)))));
+	(((u32)(__val) & BIT_LEN_MASK_32(__len)) << (__shift)))))
 
 /* macros to read/write various fields in RX or TX descriptors */
 

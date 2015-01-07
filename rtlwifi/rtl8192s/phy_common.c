@@ -50,6 +50,7 @@ static u32 _rtl92s_phy_calculate_bit_shift(u32 bitmask)
 static void _rtl92su_phy_bb_ready(struct rtl_priv *rtlpriv)
 {
 	unsigned int pollingcount = 100;
+
 	do {
 		/* Make sure that access could be done. */
 		if ((rtl_read_byte(rtlpriv, REG_PHY_REG_RPT) & BIT(0)) == 0)
@@ -178,6 +179,7 @@ static u32 _rtl92su_phy_rf_serial_read(struct ieee80211_hw *hw,
 				       enum radio_path rfpath, u32 offset)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
 	offset &= 0x3f;
 
 	rtl_write_dword(rtlpriv, REG_RF_BB_CMD_ADDR, 0xF0000002 |
@@ -472,13 +474,12 @@ static bool _rtl92s_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 		}
 
 		if (currentcmd->cmdid == CMDID_END) {
-			if ((*stage) == 2) {
+			if ((*stage) == 2)
 				return true;
-			} else {
-				(*stage)++;
-				(*step) = 0;
-				continue;
-			}
+
+			(*stage)++;
+			(*step) = 0;
+			continue;
 		}
 
 		switch (currentcmd->cmdid) {
@@ -641,6 +642,7 @@ bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
 
 				bool rtstatus;
 				u32 InitializeCount = 0;
+
 				do {
 					InitializeCount++;
 					RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
@@ -652,7 +654,7 @@ bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
 						  RT_RF_OFF_LEVL_HALT_NIC);
 			} else {
 				RT_TRACE(rtlpriv, COMP_POWER, DBG_DMESG,
-					 "awake, sleeped:%d ms state_inap:%x\n",
+					 "awake, slept:%d ms state_inap:%x\n",
 					 jiffies_to_msecs(jiffies -
 							  ppsc->
 							  last_sleep_jiffies),
@@ -694,6 +696,7 @@ bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
 			for (queue_id = 0, i = 0;
 			     queue_id < RTL_PCI_MAX_TX_QUEUE_COUNT;) {
 				struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
+
 				ring = &pcipriv->dev.tx_ring[queue_id];
 				if (skb_queue_len(&ring->queue) == 0 ||
 					queue_id == BEACON_QUEUE) {
@@ -820,7 +823,7 @@ static void _rtl92s_phy_init_register_definition(struct ieee80211_hw *hw)
 	rtlphy->phyreg_def[RF90_PATH_C].rfintfe = RFPGA0_XC_RFINTERFACEOE;
 	rtlphy->phyreg_def[RF90_PATH_D].rfintfe = RFPGA0_XD_RFINTERFACEOE;
 
-	/* Addr of LSSI. Wirte RF register by driver */
+	/* Addr of LSSI. Write RF register by driver */
 	rtlphy->phyreg_def[RF90_PATH_A].rf3wire_offset =
 						 RFPGA0_XA_LSSIPARAMETER;
 	rtlphy->phyreg_def[RF90_PATH_B].rf3wire_offset =
@@ -1533,6 +1536,7 @@ bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
 			break;
 		case FW_CMD_TXPWR_TRACK_THERMAL: {
 			u8	thermalval = 0;
+
 			fw_cmdmap |= FW_PWR_TRK_CTL;
 
 			/* Clear FW parameter in terms of thermal parts. */

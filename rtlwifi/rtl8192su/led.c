@@ -40,6 +40,7 @@ static void _rtl92su_init_led(struct ieee80211_hw *hw,
 void rtl92su_init_sw_leds(struct ieee80211_hw *hw)
 {
 	struct rtl_usb_priv *usbpriv = rtl_usbpriv(hw);
+
 	_rtl92su_init_led(hw, &(usbpriv->ledctl.sw_led0), LED_PIN_LED0);
 	_rtl92su_init_led(hw, &(usbpriv->ledctl.sw_led1), LED_PIN_LED1);
 }
@@ -49,6 +50,7 @@ static void _rtl92su_sw_led_control(struct ieee80211_hw *hw,
 {
 	struct rtl_usb_priv *usbpriv = rtl_usbpriv(hw);
 	struct rtl_led *pLed0 = &(usbpriv->ledctl.sw_led0);
+
 	switch (ledaction) {
 	case LED_CTL_POWER_ON:
 	case LED_CTL_LINK:
@@ -90,7 +92,7 @@ static void _rtl92su_deInit_led(struct rtl_led *pled)
 void rtl92su_deinit_sw_leds(struct ieee80211_hw *hw)
 {
 	struct rtl_usb_priv *usbpriv = rtl_usbpriv(hw);
+
 	_rtl92su_deInit_led(&(usbpriv->ledctl.sw_led0));
 	_rtl92su_deInit_led(&(usbpriv->ledctl.sw_led1));
 }
-

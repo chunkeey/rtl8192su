@@ -346,12 +346,12 @@ enum fw_h2c_cmd {
 	} while (0)
 
 #define FW_CMD_IO_UPDATE(rtlpriv, _val)				\
-	rtlpriv->rtlhal.fwcmd_iomap = _val;
+	rtlpriv->rtlhal.fwcmd_iomap = _val
 
-#define FW_CMD_IO_SET(rtlpriv, _val)				\
-	do {							\
+#define FW_CMD_IO_SET(rtlpriv, _val)					\
+	do {								\
 		rtl_write_word(rtlpriv, LBUS_MON_ADDR, (u16)_val);	\
-		FW_CMD_IO_UPDATE(rtlpriv, _val);		\
+		FW_CMD_IO_UPDATE(rtlpriv, _val);			\
 	} while (0)
 
 #define FW_CMD_PARA_SET(rtlpriv, _val)				\

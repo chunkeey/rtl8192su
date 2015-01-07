@@ -194,6 +194,7 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 
 		if (packet_match_bssid) {
 			u8 sq;
+
 			if (pstats->rx_pwdb_all > 40) {
 				sq = 100;
 			} else {
@@ -345,7 +346,7 @@ bool rtl92su_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 
 	/* hw will set stats->decrypted true, if it finds the
 	 * frame is open data frame or mgmt frame,
-	 * hw will not decrypt robust managment frame
+	 * hw will not decrypt robust management frame
 	 * for IEEE80211w but still set stats->decrypted
 	 * true, so here we should set it back to undecrypted
 	 * for IEEE80211w frame, and mac80211 sw will help
@@ -531,7 +532,7 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 		/* Always enable all rate fallback range */
 		SET_TX_DESC_DATA_RATE_FB_LIMIT(pdesc, 0x1F);
 
-		/* Fix: I don't kown why hw use 6.5M to tx when set it */
+		/* Fix: I don't know why hw use 6.5M to tx when set it */
 		SET_TX_DESC_USER_RATE(pdesc,
 				      ptcb_desc->use_driver_rate ? 1 : 0);
 
@@ -621,9 +622,10 @@ int rtl92su_update_beacon(struct ieee80211_hw *hw)
 		struct ieee80211_hdr *hdr = rtl_get_hdr(skb);
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 		struct rtl_tcb_desc tcb_desc;
-	        rtlpriv->cfg->ops->fill_tx_desc(hw, hdr, NULL, NULL,
+
+		rtlpriv->cfg->ops->fill_tx_desc(hw, hdr, NULL, NULL,
 						info, NULL, skb,
-	                                        QSLT_CMD, &tcb_desc);
+						QSLT_CMD, &tcb_desc);
 
 		SET_BITS_TO_LE_4BYTE(&extra, 16, 16, offs.tim_offset);
 		err = rtl92s_firmware_set_h2c_cmd(hw, H2C_UPDATE_BCN_CMD,
@@ -648,7 +650,9 @@ int rtl92su_rx_hdl(struct ieee80211_hw *hw, struct sk_buff *skb)
 	pkt_len	= GET_RX_STATUS_DESC_PKT_LEN(rxdesc);
 
 	if (GET_RX_STATUS_DEC_MACID(rxdesc) == 0x1ff) {
-		u8 event = LE_BITS_CLEARED_TO_4BYTE(rxdesc + RTL_RX_DESC_SIZE, 16, 8);
+		u8 event = LE_BITS_CLEARED_TO_4BYTE(rxdesc + RTL_RX_DESC_SIZE,
+						    16, 8);
+
 		switch (event) {
 		case 0x15:
 			rtl_send_buffered_bc(hw);

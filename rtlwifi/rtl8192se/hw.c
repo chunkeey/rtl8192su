@@ -250,8 +250,8 @@ static void _rtl92se_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 		struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 		struct rtl_led *pLed0 = &(pcipriv->ledctl.sw_led0);
 		enum rf_pwrstate rfpwr_state_toset;
-		rfpwr_state_toset = rtl92s_rf_onoff_detect(hw);
 
+		rfpwr_state_toset = rtl92s_rf_onoff_detect(hw);
 		if (rfpwr_state_toset == ERFON)
 			rtl92s_sw_led_on(hw, pLed0);
 	}
@@ -478,8 +478,7 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 	rtstatus = rtl92s_download_fw(hw);
 	if (!rtstatus) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-			 "Failed to download FW. Init HW without FW now... "
-			 "Please copy FW into /lib/firmware/rtlwifi\n");
+			 "Failed to download FW. Init HW without FW now... Please copy FW into /lib/firmware/rtlwifi\n");
 		err = 1;
 		goto exit;
 	}
@@ -500,7 +499,7 @@ int rtl92se_hw_init(struct ieee80211_hw *hw)
 
 	/* because last function modify RCR, so we update
 	 * rcr var here, or TP will unstable for receive_config
-	 * is wrong, RX RCR_ACRC32 will cause TP unstabel & Rx
+	 * is wrong, RX RCR_ACRC32 will cause TP unstable & Rx
 	 * RCR_APP_ICV will cause mac80211 unassoc for cisco 1252
 	 */
 	rtlpci->receive_config = rtl_read_dword(rtlpriv, RCR);
@@ -923,10 +922,10 @@ bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 	if (ppsc->rfchange_inprogress) {
 		spin_unlock_irqrestore(&rtlpriv->locks.rf_ps_lock, flag);
 		return false;
-	} else {
-		ppsc->rfchange_inprogress = true;
-		spin_unlock_irqrestore(&rtlpriv->locks.rf_ps_lock, flag);
 	}
+
+	ppsc->rfchange_inprogress = true;
+	spin_unlock_irqrestore(&rtlpriv->locks.rf_ps_lock, flag);
 
 	/* cur_rfstate = ppsc->rfpwr_state;*/
 
@@ -1035,13 +1034,11 @@ void rtl92se_read_eeprom_info(struct ieee80211_hw *hw)
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 "EEPROM ID(%#x) is invalid!!\n", eeprom_id);
 		rtlefuse->autoload_failflag = true;
-	} else {
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "Autoload OK\n");
-		rtlefuse->autoload_failflag = false;
+		return;
 	}
 
-	if (rtlefuse->autoload_failflag)
-		return;
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "Autoload OK\n");
+	rtlefuse->autoload_failflag = false;
 
 	rtl92s_get_IC_Inferiority(hw);
 
@@ -1335,6 +1332,6 @@ void rtl92se_read_eeprom_info(struct ieee80211_hw *hw)
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "EEPROM Customer ID: 0x%2x",
 		 rtlefuse->eeprom_oemid);
 
-	/* set channel paln to world wide 13 */
+	/* set channel plan to world wide 13 */
 	rtlefuse->channel_plan = COUNTRY_CODE_WORLD_WIDE_13;
 }
