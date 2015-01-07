@@ -528,7 +528,7 @@ void rtl92su_tx_fill_desc(struct ieee80211_hw *hw,
 		/* We will assign magement queue to BK. */
 		SET_TX_DESC_QUEUE_SEL(pdesc, fw_qsel);
 
-		/* Alwasy enable all rate fallback range */
+		/* Always enable all rate fallback range */
 		SET_TX_DESC_DATA_RATE_FB_LIMIT(pdesc, 0x1F);
 
 		/* Fix: I don't kown why hw use 6.5M to tx when set it */
@@ -621,7 +621,6 @@ int rtl92su_update_beacon(struct ieee80211_hw *hw)
 		struct ieee80211_hdr *hdr = rtl_get_hdr(skb);
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 		struct rtl_tcb_desc tcb_desc;
-		u8 *data = skb->data;
 	        rtlpriv->cfg->ops->fill_tx_desc(hw, hdr, NULL, NULL,
 						info, NULL, skb,
 	                                        QSLT_CMD, &tcb_desc);
