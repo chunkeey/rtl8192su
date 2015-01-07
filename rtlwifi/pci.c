@@ -2348,7 +2348,6 @@ void rtl_pci_disconnect(struct pci_dev *pdev)
 	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(pcipriv);
-	struct rtl_mac *rtlmac = rtl_mac(rtlpriv);
 
 	/* just in case driver is removed before firmware callback */
 	wait_for_completion(&rtlpriv->firmware_loading_complete);

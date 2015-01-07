@@ -1189,7 +1189,6 @@ void rtl_usb_disconnect(struct usb_interface *intf)
 {
 	struct ieee80211_hw *hw = usb_get_intfdata(intf);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_mac *rtlmac = rtl_mac(rtl_priv(hw));
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 
 	if (unlikely(!rtlpriv))
