@@ -662,7 +662,8 @@ static void _rtl_rx_completed(struct urb *_urb)
 			goto resubmit;
 		}
 
-		_rtl_install_trx_info(rtlusb, skb, rtlusb->in_ep);
+		_rtl_install_trx_info(rtlusb, skb,
+				      usb_pipeendpoint(_urb->pipe));
 
 		/* Make sure the payload data is 4 byte aligned. */
 		skb_reserve(skb, padding);
