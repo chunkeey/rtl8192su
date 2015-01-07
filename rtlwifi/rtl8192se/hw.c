@@ -1003,3 +1003,338 @@ void rtl92se_resume(struct ieee80211_hw *hw)
 		pci_write_config_dword(rtlpci->pdev, 0x40,
 			val & 0xffff00ff);
 }
+
+void rtl92se_read_eeprom_info(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_efuse *rtlefuse = rtl_efuse(rtlpriv);
+	struct rtl_phy *rtlphy = &(rtlpriv->phy);
+	u16 i, usvalue;
+	u16	eeprom_id;
+	u8 tempval;
+	u8 hwinfo[HWSET_MAX_SIZE_92S];
+	u8 rf_path, index;
+
+	rtl92s_read_eeprom_info(hw);
+
+	if (rtlefuse->epromtype == EEPROM_93C46) {
+		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
+			 "RTL819X Not boot from eeprom, check it !!\n");
+	} else if (rtlefuse->epromtype == EEPROM_BOOT_EFUSE) {
+		rtl_efuse_shadow_map_update(hw);
+		memcpy((void *)hwinfo, (void *)
+			&rtlefuse->efuse_map[EFUSE_INIT_MAP][0],
+			HWSET_MAX_SIZE_92S);
+	}
+
+	RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_DMESG, "MAP",
+		      hwinfo, HWSET_MAX_SIZE_92S);
+
+	eeprom_id = *((u16 *)&hwinfo[0]);
+	if (eeprom_id != RTL8190_EEPROM_ID) {
+		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
+			 "EEPROM ID(%#x) is invalid!!\n", eeprom_id);
+		rtlefuse->autoload_failflag = true;
+	} else {
+		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "Autoload OK\n");
+		rtlefuse->autoload_failflag = false;
+	}
+
+	if (rtlefuse->autoload_failflag)
+		return;
+
+	rtl92s_get_IC_Inferiority(hw);
+
+	/* Read IC Version && Channel Plan */
+	/* VID, DID	 SE	0xA-D */
+	rtlefuse->eeprom_vid = *(u16 *)&hwinfo[EEPROM_VID];
+	rtlefuse->eeprom_did = *(u16 *)&hwinfo[EEPROM_DID];
+	rtlefuse->eeprom_svid = *(u16 *)&hwinfo[EEPROM_SVID];
+	rtlefuse->eeprom_smid = *(u16 *)&hwinfo[EEPROM_SMID];
+	rtlefuse->eeprom_version = *(u16 *)&hwinfo[EEPROM_VERSION];
+
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
+		 "EEPROMId = 0x%4x\n", eeprom_id);
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
+		 "EEPROM VID = 0x%4x\n", rtlefuse->eeprom_vid);
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
+		 "EEPROM DID = 0x%4x\n", rtlefuse->eeprom_did);
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
+		 "EEPROM SVID = 0x%4x\n", rtlefuse->eeprom_svid);
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
+		 "EEPROM SMID = 0x%4x\n", rtlefuse->eeprom_smid);
+
+	for (i = 0; i < 6; i += 2) {
+		usvalue = *(u16 *)&hwinfo[EEPROM_MAC_ADDR + i];
+		*((u16 *) (&rtlefuse->dev_addr[i])) = usvalue;
+	}
+
+	for (i = 0; i < 6; i++)
+		rtl_write_byte(rtlpriv, MACIDR0 + i, rtlefuse->dev_addr[i]);
+
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "%pM\n", rtlefuse->dev_addr);
+
+	/* Get Tx Power Level by Channel */
+	/* Read Tx power of Channel 1 ~ 14 from EEPROM. */
+	/* 92S suupport RF A & B */
+	for (rf_path = 0; rf_path < 2; rf_path++) {
+		for (i = 0; i < 3; i++) {
+			/* Read CCK RF A & B Tx power  */
+			rtlefuse->eeprom_chnlarea_txpwr_cck[rf_path][i] =
+			hwinfo[EEPROM_TXPOWERBASE + rf_path * 3 + i];
+
+			/* Read OFDM RF A & B Tx power for 1T */
+			rtlefuse->eeprom_chnlarea_txpwr_ht40_1s[rf_path][i] =
+			hwinfo[EEPROM_TXPOWERBASE + 6 + rf_path * 3 + i];
+
+			/* Read OFDM RF A & B Tx power for 2T */
+			rtlefuse->eprom_chnl_txpwr_ht40_2sdf[rf_path][i]
+				 = hwinfo[EEPROM_TXPOWERBASE + 12 +
+				   rf_path * 3 + i];
+		}
+	}
+
+	for (rf_path = 0; rf_path < 2; rf_path++)
+		for (i = 0; i < 3; i++)
+			RTPRINT(rtlpriv, FINIT, INIT_EEPROM,
+				"RF(%d) EEPROM CCK Area(%d) = 0x%x\n",
+				rf_path, i,
+				rtlefuse->eeprom_chnlarea_txpwr_cck
+				[rf_path][i]);
+	for (rf_path = 0; rf_path < 2; rf_path++)
+		for (i = 0; i < 3; i++)
+			RTPRINT(rtlpriv, FINIT, INIT_EEPROM,
+				"RF(%d) EEPROM HT40 1S Area(%d) = 0x%x\n",
+				rf_path, i,
+				rtlefuse->eeprom_chnlarea_txpwr_ht40_1s
+				[rf_path][i]);
+	for (rf_path = 0; rf_path < 2; rf_path++)
+		for (i = 0; i < 3; i++)
+			RTPRINT(rtlpriv, FINIT, INIT_EEPROM,
+				"RF(%d) EEPROM HT40 2S Diff Area(%d) = 0x%x\n",
+				rf_path, i,
+				rtlefuse->eprom_chnl_txpwr_ht40_2sdf
+				[rf_path][i]);
+
+	for (rf_path = 0; rf_path < 2; rf_path++) {
+
+		/* Assign dedicated channel tx power */
+		for (i = 0; i < 14; i++)	{
+			/* channel 1~3 use the same Tx Power Level. */
+			if (i < 3)
+				index = 0;
+			/* Channel 4-8 */
+			else if (i < 8)
+				index = 1;
+			/* Channel 9-14 */
+			else
+				index = 2;
+
+			/* Record A & B CCK /OFDM - 1T/2T Channel area
+			 * tx power */
+			rtlefuse->txpwrlevel_cck[rf_path][i]  =
+				rtlefuse->eeprom_chnlarea_txpwr_cck
+							[rf_path][index];
+			rtlefuse->txpwrlevel_ht40_1s[rf_path][i]  =
+				rtlefuse->eeprom_chnlarea_txpwr_ht40_1s
+							[rf_path][index];
+			rtlefuse->txpwrlevel_ht40_2s[rf_path][i]  =
+				rtlefuse->eprom_chnl_txpwr_ht40_2sdf
+							[rf_path][index];
+		}
+
+		for (i = 0; i < 14; i++) {
+			RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
+				"RF(%d)-Ch(%d) [CCK / HT40_1S / HT40_2S] = [0x%x / 0x%x / 0x%x]\n",
+				rf_path, i,
+				rtlefuse->txpwrlevel_cck[rf_path][i],
+				rtlefuse->txpwrlevel_ht40_1s[rf_path][i],
+				rtlefuse->txpwrlevel_ht40_2s[rf_path][i]);
+		}
+	}
+
+	for (rf_path = 0; rf_path < 2; rf_path++) {
+		for (i = 0; i < 3; i++) {
+			/* Read Power diff limit. */
+			rtlefuse->eeprom_pwrgroup[rf_path][i] =
+				hwinfo[EEPROM_TXPWRGROUP + rf_path * 3 + i];
+		}
+	}
+
+	for (rf_path = 0; rf_path < 2; rf_path++) {
+		/* Fill Pwr group */
+		for (i = 0; i < 14; i++) {
+			/* Chanel 1-3 */
+			if (i < 3)
+				index = 0;
+			/* Channel 4-8 */
+			else if (i < 8)
+				index = 1;
+			/* Channel 9-13 */
+			else
+				index = 2;
+
+			rtlefuse->pwrgroup_ht20[rf_path][i] =
+				(rtlefuse->eeprom_pwrgroup[rf_path][index] &
+				0xf);
+			rtlefuse->pwrgroup_ht40[rf_path][i] =
+				((rtlefuse->eeprom_pwrgroup[rf_path][index] &
+				0xf0) >> 4);
+
+			RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
+				"RF-%d pwrgroup_ht20[%d] = 0x%x\n",
+				rf_path, i,
+				rtlefuse->pwrgroup_ht20[rf_path][i]);
+			RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
+				"RF-%d pwrgroup_ht40[%d] = 0x%x\n",
+				rf_path, i,
+				rtlefuse->pwrgroup_ht40[rf_path][i]);
+			}
+	}
+
+	for (i = 0; i < 14; i++) {
+		/* Read tx power difference between HT OFDM 20/40 MHZ */
+		/* channel 1-3 */
+		if (i < 3)
+			index = 0;
+		/* Channel 4-8 */
+		else if (i < 8)
+			index = 1;
+		/* Channel 9-14 */
+		else
+			index = 2;
+
+		tempval = hwinfo[EEPROM_TX_PWR_HT20_DIFF + index] & 0xff;
+		rtlefuse->txpwr_ht20diff[RF90_PATH_A][i] = (tempval & 0xF);
+		rtlefuse->txpwr_ht20diff[RF90_PATH_B][i] =
+						 ((tempval >> 4) & 0xF);
+
+		/* Read OFDM<->HT tx power diff */
+		/* Channel 1-3 */
+		if (i < 3)
+			index = 0;
+		/* Channel 4-8 */
+		else if (i < 8)
+			index = 0x11;
+		/* Channel 9-14 */
+		else
+			index = 1;
+
+		tempval = hwinfo[EEPROM_TX_PWR_OFDM_DIFF + index] & 0xff;
+		rtlefuse->txpwr_legacyhtdiff[RF90_PATH_A][i] =
+				 (tempval & 0xF);
+		rtlefuse->txpwr_legacyhtdiff[RF90_PATH_B][i] =
+				 ((tempval >> 4) & 0xF);
+
+		tempval = hwinfo[TX_PWR_SAFETY_CHK];
+		rtlefuse->txpwr_safetyflag = (tempval & 0x01);
+	}
+
+	rtlefuse->eeprom_regulatory = 0;
+	if (rtlefuse->eeprom_version >= 2) {
+		/* BIT(0)~2 */
+		if (rtlefuse->eeprom_version >= 4)
+			rtlefuse->eeprom_regulatory =
+				 (hwinfo[EEPROM_REGULATORY] & 0x7);
+		else /* BIT(0) */
+			rtlefuse->eeprom_regulatory =
+				 (hwinfo[EEPROM_REGULATORY] & 0x1);
+	}
+	RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
+		"eeprom_regulatory = 0x%x\n", rtlefuse->eeprom_regulatory);
+
+	for (i = 0; i < 14; i++)
+		RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
+			"RF-A Ht20 to HT40 Diff[%d] = 0x%x\n",
+			i, rtlefuse->txpwr_ht20diff[RF90_PATH_A][i]);
+	for (i = 0; i < 14; i++)
+		RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
+			"RF-A Legacy to Ht40 Diff[%d] = 0x%x\n",
+			i, rtlefuse->txpwr_legacyhtdiff[RF90_PATH_A][i]);
+	for (i = 0; i < 14; i++)
+		RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
+			"RF-B Ht20 to HT40 Diff[%d] = 0x%x\n",
+			i, rtlefuse->txpwr_ht20diff[RF90_PATH_B][i]);
+	for (i = 0; i < 14; i++)
+		RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
+			"RF-B Legacy to HT40 Diff[%d] = 0x%x\n",
+			i, rtlefuse->txpwr_legacyhtdiff[RF90_PATH_B][i]);
+
+	RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
+		"TxPwrSafetyFlag = %d\n", rtlefuse->txpwr_safetyflag);
+
+	/* Read RF-indication and Tx Power gain
+	 * index diff of legacy to HT OFDM rate. */
+	tempval = hwinfo[EEPROM_RFIND_POWERDIFF] & 0xff;
+	rtlefuse->eeprom_txpowerdiff = tempval;
+	rtlefuse->legacy_httxpowerdiff =
+		rtlefuse->txpwr_legacyhtdiff[RF90_PATH_A][0];
+
+	RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
+		"TxPowerDiff = %#x\n", rtlefuse->eeprom_txpowerdiff);
+
+	/* Get TSSI value for each path. */
+	usvalue = *(u16 *)&hwinfo[EEPROM_TSSI_A];
+	rtlefuse->eeprom_tssi[RF90_PATH_A] = (u8)((usvalue & 0xff00) >> 8);
+	usvalue = hwinfo[EEPROM_TSSI_B];
+	rtlefuse->eeprom_tssi[RF90_PATH_B] = (u8)(usvalue & 0xff);
+
+	RTPRINT(rtlpriv, FINIT, INIT_TXPOWER, "TSSI_A = 0x%x, TSSI_B = 0x%x\n",
+		rtlefuse->eeprom_tssi[RF90_PATH_A],
+		rtlefuse->eeprom_tssi[RF90_PATH_B]);
+
+	/* Read antenna tx power offset of B/C/D to A  from EEPROM */
+	/* and read ThermalMeter from EEPROM */
+	tempval = hwinfo[EEPROM_THERMALMETER];
+	rtlefuse->eeprom_thermalmeter = tempval;
+	RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
+		"thermalmeter = 0x%x\n", rtlefuse->eeprom_thermalmeter);
+
+	/* ThermalMeter, BIT(0)~3 for RFIC1, BIT(4)~7 for RFIC2 */
+	rtlefuse->thermalmeter[0] = (rtlefuse->eeprom_thermalmeter & 0x1f);
+	rtlefuse->tssi_13dbm = rtlefuse->eeprom_thermalmeter * 100;
+
+	/* Read CrystalCap from EEPROM */
+	tempval = hwinfo[EEPROM_CRYSTALCAP] >> 4;
+	rtlefuse->eeprom_crystalcap = tempval;
+	/* CrystalCap, BIT(12)~15 */
+	rtlefuse->crystalcap = rtlefuse->eeprom_crystalcap;
+
+	/* Read IC Version && Channel Plan */
+	/* Version ID, Channel plan */
+	rtlefuse->eeprom_channelplan = hwinfo[EEPROM_CHANNELPLAN];
+	rtlefuse->txpwr_fromeprom = true;
+	RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
+		"EEPROM ChannelPlan = 0x%4x\n", rtlefuse->eeprom_channelplan);
+
+	/* Read Customer ID or Board Type!!! */
+	tempval = hwinfo[EEPROM_BOARDTYPE];
+	/* Change RF type definition */
+	if (tempval == 0)
+		rtlphy->rf_type = RF_1T1R;
+	else if (tempval == 1)
+		rtlphy->rf_type = RF_1T2R;
+	else if (tempval == 2)
+		rtlphy->rf_type = RF_2T2R;
+	else if (tempval == 3)
+		rtlphy->rf_type = RF_1T1R;
+
+	/* 1T2R but 1SS (1x1 receive combining) */
+	rtlefuse->b1x1_recvcombine = false;
+	if (rtlphy->rf_type == RF_1T2R) {
+		tempval = rtl_read_byte(rtlpriv, 0x07);
+		if (!(tempval & BIT(0))) {
+			rtlefuse->b1x1_recvcombine = true;
+			RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
+				 "RF_TYPE=1T2R but only 1SS\n");
+		}
+	}
+	rtlefuse->b1ss_support = rtlefuse->b1x1_recvcombine;
+	rtlefuse->eeprom_oemid = *&hwinfo[EEPROM_CUSTOMID];
+
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "EEPROM Customer ID: 0x%2x",
+		 rtlefuse->eeprom_oemid);
+
+	/* set channel paln to world wide 13 */
+	rtlefuse->channel_plan = COUNTRY_CODE_WORLD_WIDE_13;
+}

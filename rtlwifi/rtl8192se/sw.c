@@ -222,7 +222,7 @@ static bool rtl92se_is_tx_desc_closed(struct ieee80211_hw *hw, u8 hw_queue,
 static struct rtl_hal_ops rtl8192se_hal_ops = {
 	.init_sw_vars = rtl92s_init_sw_vars,
 	.deinit_sw_vars = rtl92s_deinit_sw_vars,
-	.read_eeprom_info = rtl92s_read_eeprom_info,
+	.read_eeprom_info = rtl92se_read_eeprom_info,
 	.interrupt_recognized = rtl92se_interrupt_recognized,
 	.hw_init = rtl92se_hw_init,
 	.hw_disable = rtl92se_card_disable,

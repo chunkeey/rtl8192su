@@ -36,7 +36,9 @@ void rtl92s_get_hw_reg(struct ieee80211_hw *hw,
 		       u8 variable, u8 *val);
 void rtl92s_set_hw_reg(struct ieee80211_hw *hw, u8 variable,
 		       u8 *val);
+void rtl92s_get_IC_Inferiority(struct ieee80211_hw *hw);
 void rtl92s_read_eeprom_info(struct ieee80211_hw *hw);
+void rtl92s_get_IC_Inferiority(struct ieee80211_hw *hw);
 void rtl92s_card_disable(struct ieee80211_hw *hw);
 int rtl92s_set_network_type(struct ieee80211_hw *hw,
 			    enum nl80211_iftype type);

@@ -115,7 +115,7 @@ static void rtl92su_deinit_sw_vars(struct ieee80211_hw *hw)
 static struct rtl_hal_ops rtl8192su_hal_ops = {
 	.init_sw_vars = rtl92su_init_sw_vars,
 	.deinit_sw_vars = rtl92su_deinit_sw_vars,
-	.read_eeprom_info = rtl92s_read_eeprom_info,
+	.read_eeprom_info = rtl92su_read_eeprom_info,
 	.read_chip_version = rtl92s_read_chip_version,
 	.hw_init = rtl92su_hw_init,
 	.hw_disable = rtl92su_card_disable,
