@@ -130,7 +130,7 @@ static const struct ieee80211_sta_ht_cap r92su_ht_info = {
 #define R92SU_SCAN_TIMEOUT	5000
 
 static int r92su_get_station(struct wiphy *wiphy, struct net_device *ndev,
-			     u8 *mac, struct station_info *sinfo)
+			     const u8 *mac, struct station_info *sinfo)
 {
 	struct r92su *r92su = wiphy_priv(wiphy);
 	struct r92su_sta *sta;
@@ -614,7 +614,8 @@ static void r92su_bss_add_work(struct work_struct *work)
 			goto next;
 
 		bss = cfg80211_inform_bss(r92su->wdev.wiphy,
-			&r92su->band_2GHZ.channels[chan_idx], c2h_bss->bssid,
+			&r92su->band_2GHZ.channels[chan_idx],
+			CFG80211_BSS_FTYPE_UNKNOWN, c2h_bss->bssid,
 			le64_to_cpu(c2h_bss->ies.timestamp),
 			le16_to_cpu(c2h_bss->ies.caps),
 			le32_to_cpu(c2h_bss->config.beacon_period),
@@ -716,7 +717,8 @@ report_cfg80211:
 	case NL80211_IFTYPE_ADHOC:
 		if (status == WLAN_STATUS_SUCCESS) {
 			cfg80211_ibss_joined(r92su->wdev.netdev,
-					     join_bss->bss.bssid, GFP_KERNEL);
+					     join_bss->bss.bssid,
+					     cfg_bss->channel, GFP_KERNEL);
 		}
 		break;
 
@@ -1185,8 +1187,8 @@ static int r92su_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 			goto out;
 
 		bss = cfg80211_inform_bss(r92su->wdev.wiphy,
-			params->chandef.chan, bssid,
-			0, capability, params->beacon_interval,
+			params->chandef.chan, CFG80211_BSS_FTYPE_UNKNOWN,
+			bssid, 0, capability, params->beacon_interval,
 			ie_buf, ie - ie_buf, 0, GFP_KERNEL);
 		if (!bss)
 			goto out;
@@ -1229,23 +1231,21 @@ static int r92su_leave_ibss(struct wiphy *wiphy, struct net_device *ndev)
 }
 
 static int r92su_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
-			  struct ieee80211_channel *chan, bool offchan,
-			  unsigned int wait, const u8 *buf, size_t len,
-			  bool no_cck, bool dont_wait_for_ack, u64 *cookie)
+			  struct cfg80211_mgmt_tx_params *params, u64 *cookie)
 {
 	struct r92su *r92su = wiphy_priv(wiphy);
 	struct sk_buff *skb;
 
-	if (len < sizeof(struct ieee80211_hdr))
+	if (params->len < sizeof(struct ieee80211_hdr))
 		return -EINVAL;
 
-	skb = dev_alloc_skb(r92su->wdev.netdev->needed_headroom + len +
+	skb = dev_alloc_skb(r92su->wdev.netdev->needed_headroom + params->len +
 			    r92su->wdev.netdev->needed_tailroom);
 	if (!skb)
 		return -ENOMEM;
 
 	skb_reserve(skb, r92su->wdev.netdev->needed_headroom);
-	memcpy(skb_put(skb, len), buf, len);
+	memcpy(skb_put(skb, params->len), params->buf, params->len);
 	r92su_tx(r92su, skb, true);
 	return 0;
 }
@@ -1663,7 +1663,8 @@ static int r92su_alloc_netdev(struct r92su *r92su)
 	/* The firmware/hardware does not support multiple interfaces.
 	 * So, we are fine with just a single netdevice.
 	 */
-	ndev = alloc_netdev_mqs(0, "wlan%d", r92su_if_setup, NUM_ACS, 1);
+	ndev = alloc_netdev_mqs(0, "wlan%d", NET_NAME_UNKNOWN,
+				r92su_if_setup, NUM_ACS, 1);
 	if (!ndev)
 		return -ENOMEM;
 
