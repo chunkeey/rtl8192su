@@ -1161,9 +1161,15 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 					mac->mode = WIRELESS_MODE_AC_24G;
 			}
 
+			rcu_read_unlock();
+			/* call update_rate_tbl with a potential stale station
+			 * pointer. The reason why this "could be ok" is that
+			 * mac80211 serializes calls to driver APIs, so as long
+			 * as sta_remove isn't called concurrently, we should be
+			 * "fine" (of course, we aren't).
+			 */
 			if (vif->type == NL80211_IFTYPE_STATION && sta)
 				rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0);
-			rcu_read_unlock();
 
 			/* to avoid AP Disassociation caused by inactivity */
 			rtlpriv->cfg->ops->set_hw_reg(hw,
