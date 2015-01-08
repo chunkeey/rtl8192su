@@ -42,20 +42,24 @@ void rtl92s_fw_cb(const struct firmware *firmware, void *context)
 	complete(&rtlpriv->firmware_loading_complete);
 	if (!firmware) {
 		pr_err("Firmware %s not available\n", rtlpriv->cfg->fw_name);
-		rtlpriv->max_fw_size = 0;
-		return;
+		goto bad_fw;
 	}
 	if (firmware->size > rtlpriv->max_fw_size) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "Firmware is too big!\n");
-		rtlpriv->max_fw_size = 0;
-		release_firmware(firmware);
-		return;
+		goto bad_fw;
 	}
+
 	pfirmware = (struct rt_firmware *)rtlpriv->rtlhal.pfirmware;
 	memcpy(pfirmware->sz_fw_tmpbuffer, firmware->data, firmware->size);
 	pfirmware->sz_fw_tmpbufferlen = firmware->size;
 	release_firmware(firmware);
+	return;
+
+bad_fw:
+	rtlpriv->max_fw_size = 0;
+	release_firmware(firmware);
+	rtlpriv->intf_ops->adapter_unbind(hw);
 }
 EXPORT_SYMBOL_GPL(rtl92s_fw_cb);
 

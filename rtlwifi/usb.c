@@ -816,6 +816,29 @@ static void rtl_usb_cleanup(struct ieee80211_hw *hw)
 	usb_kill_anchored_urbs(&rtlusb->tx_submitted);
 }
 
+static void rtl_usb_unbind(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
+	struct device *parent = rtlusb->udev->dev.parent;
+	struct usb_device *udev;
+
+	/* Store a copy of the usb_device pointer locally.
+	 * This is because device_release_driver initiates
+	 * rtl_usb_disconnect, which in turn frees our
+	 * driver context (rtl_priv).
+	 */
+	udev = rtlusb->udev;
+
+	/* unbind anything failed */
+	if (parent)
+		device_lock(parent);
+
+	device_release_driver(&udev->dev);
+	if (parent)
+		device_unlock(parent);
+}
+
 /**
  *
  * We may add some struct into struct rtl_usb later. Do deinit here.
@@ -1105,6 +1128,7 @@ static struct rtl_intf_ops rtl_usb_ops = {
 	.adapter_start = rtl_usb_start,
 	.adapter_stop = rtl_usb_stop,
 	.adapter_tx = rtl_usb_tx,
+	.adapter_unbind = rtl_usb_unbind,
 	.waitq_insert = rtl_usb_tx_chk_waitq_insert,
 };
 

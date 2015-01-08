@@ -2390,6 +2390,29 @@ void rtl_pci_disconnect(struct pci_dev *pdev)
 }
 EXPORT_SYMBOL(rtl_pci_disconnect);
 
+static void rtl_pci_unbind(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
+	struct device *parent = rtlpci->pdev->dev.parent;
+	struct pci_dev *pdev;
+
+	/* Store a copy of the pci_device pointer locally.
+	 * This is because device_release_driver initiates
+	 * rtl_pci_disconnect, which in turn frees our
+	 * driver context (rtl_priv).
+	 */
+	pdev = rtlpci->pdev;
+
+	/* unbind anything failed */
+	if (parent)
+		device_lock(parent);
+
+	device_release_driver(&pdev->dev);
+	if (parent)
+		device_unlock(parent);
+}
+
 #ifdef CONFIG_PM_SLEEP
 /***************************************
 kernel pci power state define:
@@ -2436,6 +2459,7 @@ struct rtl_intf_ops rtl_pci_ops = {
 	.read_efuse_byte = read_efuse_byte,
 	.adapter_start = rtl_pci_start,
 	.adapter_stop = rtl_pci_stop,
+	.adapter_unbind = rtl_pci_unbind,
 	.check_buddy_priv = rtl_pci_check_buddy_priv,
 	.adapter_tx = rtl_pci_tx,
 	.flush = rtl_pci_flush,
