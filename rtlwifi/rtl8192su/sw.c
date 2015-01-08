@@ -134,7 +134,7 @@ static struct rtl_hal_ops rtl8192su_hal_ops = {
 	.switch_channel = rtl92s_phy_sw_chnl,
 	.dm_watchdog = rtl92s_dm_watchdog,
 	.scan_operation_backup = rtl92s_phy_scan_operation_backup,
-	.set_rf_power_state = rtl92s_phy_set_rf_power_state,
+	.set_rf_power_state = rtl92su_phy_set_rf_power_state,
 	.led_control = rtl92su_led_control,
 	.set_tim = rtl92su_set_tim,
 

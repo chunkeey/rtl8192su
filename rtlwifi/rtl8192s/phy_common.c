@@ -589,7 +589,7 @@ void rtl92s_gpiobit3_cfg_inputmode(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL_GPL(rtl92s_gpiobit3_cfg_inputmode);
 
-static void _rtl92se_phy_set_rf_sleep(struct ieee80211_hw *hw)
+void rtl92s_phy_set_rf_sleep(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	u8 u1btmp;
@@ -598,13 +598,13 @@ static void _rtl92se_phy_set_rf_sleep(struct ieee80211_hw *hw)
 	u1btmp |= BIT(0);
 
 	rtl_write_byte(rtlpriv, LDOV12D_CTRL, u1btmp);
-	rtl_write_byte(rtlpriv, SPS1_CTRL, 0x0);
-	rtl_write_byte(rtlpriv, TXPAUSE, 0xFF);
+	rtl_write_byte(rtlpriv, REG_SPS1_CTRL, 0x0);
+	rtl_write_byte(rtlpriv, REG_TXPAUSE, 0xFF);
 	rtl_write_word(rtlpriv, CMDR, 0x57FC);
 	udelay(100);
 
 	rtl_write_word(rtlpriv, CMDR, 0x77FC);
-	rtl_write_byte(rtlpriv, PHY_CCA, 0x0);
+	rtl_write_byte(rtlpriv, REG_RFPGA0_CCA, 0x0);
 	udelay(10);
 
 	rtl_write_word(rtlpriv, CMDR, 0x37FC);
@@ -621,133 +621,7 @@ static void _rtl92se_phy_set_rf_sleep(struct ieee80211_hw *hw)
 	 * rtl92s_gpiobit3_cfg_inputmode(hw);
 	 */
 }
-
-bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
-				   enum rf_pwrstate rfpwr_state)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	bool bresult = true;
-	u8 i, queue_id;
-	struct rtl8192_tx_ring *ring = NULL;
-
-	if (rfpwr_state == ppsc->rfpwr_state)
-		return false;
-
-	switch (rfpwr_state) {
-	case ERFON:{
-			if ((ppsc->rfpwr_state == ERFOFF) &&
-			    RT_IN_PS_LEVEL(ppsc, RT_RF_OFF_LEVL_HALT_NIC)) {
-
-				bool rtstatus;
-				u32 InitializeCount = 0;
-
-				do {
-					InitializeCount++;
-					RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
-						 "IPS Set eRf nic enable\n");
-					rtstatus = rtl_ps_enable_nic(hw);
-				} while (!rtstatus && (InitializeCount < 10));
-
-				RT_CLEAR_PS_LEVEL(ppsc,
-						  RT_RF_OFF_LEVL_HALT_NIC);
-			} else {
-				RT_TRACE(rtlpriv, COMP_POWER, DBG_DMESG,
-					 "awake, slept:%d ms state_inap:%x\n",
-					 jiffies_to_msecs(jiffies -
-							  ppsc->
-							  last_sleep_jiffies),
-					 rtlpriv->psc.state_inap);
-				ppsc->last_awake_jiffies = jiffies;
-				rtl_write_word(rtlpriv, CMDR, 0x37FC);
-				rtl_write_byte(rtlpriv, TXPAUSE, 0x00);
-				rtl_write_byte(rtlpriv, PHY_CCA, 0x3);
-			}
-
-			if (mac->link_state == MAC80211_LINKED)
-				rtlpriv->cfg->ops->led_control(hw,
-							 LED_CTL_LINK);
-			else
-				rtlpriv->cfg->ops->led_control(hw,
-							 LED_CTL_NO_LINK);
-			break;
-		}
-	case ERFOFF:{
-			if (ppsc->reg_rfps_level & RT_RF_OFF_LEVL_HALT_NIC) {
-				RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
-					 "IPS Set eRf nic disable\n");
-				rtl_ps_disable_nic(hw);
-				RT_SET_PS_LEVEL(ppsc, RT_RF_OFF_LEVL_HALT_NIC);
-			} else {
-				if (ppsc->rfoff_reason == RF_CHANGE_BY_IPS)
-					rtlpriv->cfg->ops->led_control(hw,
-							 LED_CTL_NO_LINK);
-				else
-					rtlpriv->cfg->ops->led_control(hw,
-							 LED_CTL_POWER_OFF);
-			}
-			break;
-		}
-	case ERFSLEEP:
-			if (ppsc->rfpwr_state == ERFOFF)
-				return false;
-
-			for (queue_id = 0, i = 0;
-			     queue_id < RTL_PCI_MAX_TX_QUEUE_COUNT;) {
-				struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
-
-				ring = &pcipriv->dev.tx_ring[queue_id];
-				if (skb_queue_len(&ring->queue) == 0 ||
-					queue_id == BEACON_QUEUE) {
-					queue_id++;
-					continue;
-				} else {
-					RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-						 "eRf Off/Sleep: %d times TcbBusyQueue[%d] = %d before doze!\n",
-						 i + 1, queue_id,
-						 skb_queue_len(&ring->queue));
-
-					udelay(10);
-					i++;
-				}
-
-				if (i >= MAX_DOZE_WAITING_TIMES_9x) {
-					RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-						 "ERFOFF: %d times TcbBusyQueue[%d] = %d !\n",
-						 MAX_DOZE_WAITING_TIMES_9x,
-						 queue_id,
-						 skb_queue_len(&ring->queue));
-					break;
-				}
-			}
-
-			RT_TRACE(rtlpriv, COMP_POWER, DBG_DMESG,
-				 "Set ERFSLEEP awaked:%d ms\n",
-				 jiffies_to_msecs(jiffies -
-						  ppsc->last_awake_jiffies));
-
-			RT_TRACE(rtlpriv, COMP_POWER, DBG_DMESG,
-				 "sleep awaked:%d ms state_inap:%x\n",
-				 jiffies_to_msecs(jiffies -
-						  ppsc->last_awake_jiffies),
-				 rtlpriv->psc.state_inap);
-			ppsc->last_sleep_jiffies = jiffies;
-			_rtl92se_phy_set_rf_sleep(hw);
-	    break;
-	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case not processed\n");
-		bresult = false;
-		break;
-	}
-
-	if (bresult)
-		ppsc->rfpwr_state = rfpwr_state;
-
-	return bresult;
-}
-EXPORT_SYMBOL_GPL(rtl92s_phy_set_rf_power_state);
+EXPORT_SYMBOL_GPL(rtl92s_phy_set_rf_sleep);
 
 static bool _rtl92s_phy_config_rfpa_bias_current(struct ieee80211_hw *hw,
 						 enum radio_path rfpath)

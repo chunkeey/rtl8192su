@@ -616,6 +616,7 @@
 /* 0x10250800 ~ 0x10250DFF PHY */
 /* ----------------------------------------------------- */
 #define REG_RFPGA0_RFMOD		(RTL8712_PHY_ + 0x00)
+#define REG_RFPGA0_CCA			(RTL8712_PHY_ + 0x03)
 #define REG_RFPGA0_TXINFO		(RTL8712_PHY_ + 0x04)
 #define REG_RFPGA0_PSDFUNCTION		(RTL8712_PHY_ + 0x08)
 #define REG_RFPGA0_TXGAINSTAGE		(RTL8712_PHY_ + 0x0C)

@@ -89,5 +89,7 @@ void rtl92su_enable_interrupt(struct ieee80211_hw *hw);
 void rtl92su_disable_interrupt(struct ieee80211_hw *hw);
 void rtl92su_update_interrupt_mask(struct ieee80211_hw *hw,
 				   u32 add_msr, u32 rm_msr);
+bool rtl92su_phy_set_rf_power_state(struct ieee80211_hw *hw,
+				    enum rf_pwrstate rfpwr_state);
 bool rtl92su_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid);
 #endif

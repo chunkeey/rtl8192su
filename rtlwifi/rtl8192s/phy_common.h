@@ -82,8 +82,6 @@ void rtl92s_phy_set_rf_reg(struct ieee80211_hw *hw,	enum radio_path rfpath,
 void rtl92s_phy_set_bw_mode(struct ieee80211_hw *hw,
 			    enum nl80211_channel_type ch_type);
 u8 rtl92s_phy_sw_chnl(struct ieee80211_hw *hw);
-bool rtl92s_phy_set_rf_power_state(struct ieee80211_hw *hw,
-				   enum rf_pwrstate rfpower_state);
 bool rtl92s_phy_mac_config(struct ieee80211_hw *hw);
 void rtl92s_phy_switch_ephy_parameter(struct ieee80211_hw *hw);
 bool rtl92s_phy_bb_config(struct ieee80211_hw *hw);
@@ -95,4 +93,5 @@ void rtl92s_phy_chk_fwcmd_iodone(struct ieee80211_hw *hw);
 void rtl92s_phy_set_beacon_hwreg(struct ieee80211_hw *hw, u16 beaconinterval);
 u8 rtl92s_phy_config_rf(struct ieee80211_hw *hw, enum radio_path rfpath);
 void rtl92s_gpiobit3_cfg_inputmode(struct ieee80211_hw *hw);
+void rtl92s_phy_set_rf_sleep(struct ieee80211_hw *hw);
 #endif

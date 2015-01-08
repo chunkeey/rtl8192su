@@ -50,6 +50,8 @@ bool rtl92se_gpio_radio_on_off_checking(struct ieee80211_hw *hw,
 void rtl8192se_gpiobit3_cfg_inputmode(struct ieee80211_hw *hw);
 void rtl92se_read_eeprom_info(struct ieee80211_hw *hw);
 void rtl92se_enable_hw_security_config(struct ieee80211_hw *hw);
+bool rtl92se_phy_set_rf_power_state(struct ieee80211_hw *hw,
+				    enum rf_pwrstate rfpwr_state);
 void rtl92se_set_key(struct ieee80211_hw *hw,
 		     u32 key_index, u8 *macaddr, bool is_group,
 		     u8 enc_algo, bool is_wepkey, bool clear_all);
