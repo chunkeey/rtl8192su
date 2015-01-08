@@ -466,6 +466,8 @@ out:
 		}
 		}
 		break;
+	case HW_VAR_KEEP_ALIVE:
+		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "switch case (0x%x) not processed\n", variable);
