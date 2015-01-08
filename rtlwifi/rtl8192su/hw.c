@@ -1250,12 +1250,6 @@ bool rtl92su_phy_set_rf_power_state(struct ieee80211_hw *hw,
 				rtl_write_byte(rtlpriv, REG_RFPGA0_CCA, 0x3);
 				rtl_write_byte(rtlpriv, REG_SPS1_CTRL, 0x64);
 			}
-			if (mac->link_state == MAC80211_LINKED)
-				rtlpriv->cfg->ops->led_control(hw,
-							 LED_CTL_LINK);
-			else
-				rtlpriv->cfg->ops->led_control(hw,
-							 LED_CTL_NO_LINK);
 			break;
 		}
 	case ERFOFF:{
@@ -1264,13 +1258,6 @@ bool rtl92su_phy_set_rf_power_state(struct ieee80211_hw *hw,
 					 "IPS Set eRf nic disable\n");
 				rtl_ps_disable_nic(hw);
 				RT_SET_PS_LEVEL(ppsc, RT_RF_OFF_LEVL_HALT_NIC);
-			} else {
-				if (ppsc->rfoff_reason == RF_CHANGE_BY_IPS)
-					rtlpriv->cfg->ops->led_control(hw,
-							 LED_CTL_NO_LINK);
-				else
-					rtlpriv->cfg->ops->led_control(hw,
-							 LED_CTL_POWER_OFF);
 			}
 			break;
 		}
