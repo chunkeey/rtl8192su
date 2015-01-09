@@ -887,8 +887,7 @@ void rtl92su_read_eeprom_info(struct ieee80211_hw *hw)
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtlpriv);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct r92su_eeprom eeprom;
-	u16 i, usvalue;
-	u16	eeprom_id;
+	u16 i, eeprom_id;
 	u8 tempval;
 	u8 rf_path, index;
 
@@ -1145,10 +1144,8 @@ void rtl92su_read_eeprom_info(struct ieee80211_hw *hw)
 		"TxPowerDiff = %#x\n", rtlefuse->eeprom_txpowerdiff);
 
 	/* Get TSSI value for each path. */
-	usvalue = eeprom.tssi[RF90_PATH_A];
-	rtlefuse->eeprom_tssi[RF90_PATH_A] = (u8)((usvalue & 0xff00) >> 8);
-	usvalue = eeprom.tssi[RF90_PATH_B];
-	rtlefuse->eeprom_tssi[RF90_PATH_B] = (u8)(usvalue & 0xff);
+	rtlefuse->eeprom_tssi[RF90_PATH_A] = eeprom.tssi[RF90_PATH_A];
+	rtlefuse->eeprom_tssi[RF90_PATH_B] = eeprom.tssi[RF90_PATH_B];
 
 	RTPRINT(rtlpriv, FINIT, INIT_TXPOWER, "TSSI_A = 0x%x, TSSI_B = 0x%x\n",
 		rtlefuse->eeprom_tssi[RF90_PATH_A],
