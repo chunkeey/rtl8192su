@@ -256,8 +256,6 @@ static int _rtl92su_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 			return -EIO;
 	}
 
-	rtl92s_set_mac_addr(hw, rtlefuse->dev_addr);
-
 	/* Reset MAC-IO and CPU and Core Digital BIT(10)/11/15 */
 	tmpu1b = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
 	tmpu1b &= 0x73;

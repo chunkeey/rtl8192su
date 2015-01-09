@@ -627,11 +627,6 @@ exit:
 	return err;
 }
 
-void rtl92se_set_mac_addr(struct rtl_io *io, const u8 *addr)
-{
-	/* This is a stub. */
-}
-
 /* HW_VAR_MEDIA_STATUS & HW_VAR_CECHK_BSSID */
 int rtl92se_set_network_type(struct ieee80211_hw *hw, enum nl80211_iftype type)
 {

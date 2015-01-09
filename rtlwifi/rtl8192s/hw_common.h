@@ -44,7 +44,6 @@ void rtl92s_card_disable(struct ieee80211_hw *hw);
 int rtl92s_set_network_type(struct ieee80211_hw *hw,
 			    enum nl80211_iftype type);
 void rtl92s_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid);
-void rtl92s_set_mac_addr(struct ieee80211_hw *hw, const u8 *addr);
 void rtl92s_set_qos(struct ieee80211_hw *hw, int aci);
 void rtl92s_set_beacon_related_registers(struct ieee80211_hw *hw);
 void rtl92s_set_beacon_interval(struct ieee80211_hw *hw);
