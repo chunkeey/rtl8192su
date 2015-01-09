@@ -5,6 +5,7 @@ rtl8192s-common-objs :=		\
 		phy_common.o	\
 		rf_common.o	\
 		hw_common.o	\
+		trx_common.o	\
 		table_common.o	\
 		led_common.o
 

@@ -26,7 +26,6 @@
 #include "../wifi.h"
 #include "../efuse.h"
 #include "../base.h"
-#include "../regd.h"
 #include "../cam.h"
 #include "../ps.h"
 #include "../pci.h"
@@ -34,7 +33,6 @@
 #include "def_common.h"
 #include "phy_common.h"
 #include "dm_common.h"
-#include "fw_common.h"
 #include "hw_common.h"
 
 void rtl92s_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
