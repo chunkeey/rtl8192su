@@ -402,8 +402,9 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 	if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
 		pfwheader->fwpriv.hci_sel = RTL8712_HCI_TYPE_PCIE;
 	} else if (IS_HARDWARE_TYPE_8192SU(rtlhal)) {
-		pfwheader->fwpriv.hci_sel = RTL8712_HCI_TYPE_AP_USB;
-		pfwheader->fwpriv.usb_ep_num = rtl_usbpriv(rtlpriv)->dev.epnums;
+		pfwheader->fwpriv.hci_sel = RTL8712_HCI_TYPE_USB;
+		pfwheader->fwpriv.usb_ep_num =
+			rtl_usbdev(rtl_usbpriv(rtlpriv))->epnums;
 		pfwheader->fwpriv.beacon_offload = 2; /* BCNOFFLOAD_FW */
 	} else {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
