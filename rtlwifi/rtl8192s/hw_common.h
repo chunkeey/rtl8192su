@@ -36,6 +36,7 @@ void rtl92s_get_hw_reg(struct ieee80211_hw *hw,
 		       u8 variable, u8 *val);
 void rtl92s_set_hw_reg(struct ieee80211_hw *hw, u8 variable,
 		       u8 *val);
+void rtl92s_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid);
 void rtl92s_get_IC_Inferiority(struct ieee80211_hw *hw);
 void rtl92s_read_eeprom_info(struct ieee80211_hw *hw);
 void rtl92s_get_IC_Inferiority(struct ieee80211_hw *hw);

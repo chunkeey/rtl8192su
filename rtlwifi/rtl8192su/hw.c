@@ -770,22 +770,6 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 	return err;
 }
 
-void rtl92su_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u32 reg_rcr = rtl_read_dword(rtlpriv, RCR);
-
-	if (rtlpriv->psc.rfpwr_state != ERFON)
-		return;
-
-	if (check_bssid)
-		reg_rcr |= RCR_CBSSID;
-	else
-		reg_rcr &= ~RCR_CBSSID;
-	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR,
-				      (u8 *) (&reg_rcr));
-}
-
 /* HW_VAR_MEDIA_STATUS & HW_VAR_CECHK_BSSID */
 int rtl92su_set_network_type(struct ieee80211_hw *hw, enum nl80211_iftype type)
 {
@@ -796,9 +780,9 @@ int rtl92su_set_network_type(struct ieee80211_hw *hw, enum nl80211_iftype type)
 
 	if (rtlpriv->mac80211.link_state == MAC80211_LINKED) {
 		if (type != NL80211_IFTYPE_AP)
-			rtl92su_set_check_bssid(hw, true);
+			rtl92s_set_check_bssid(hw, true);
 	} else {
-		rtl92su_set_check_bssid(hw, false);
+		rtl92s_set_check_bssid(hw, false);
 	}
 
 	return 0;

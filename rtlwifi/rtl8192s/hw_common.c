@@ -475,6 +475,25 @@ out:
 }
 EXPORT_SYMBOL_GPL(rtl92s_set_hw_reg);
 
+void rtl92s_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	u32 reg_rcr;
+
+	if (rtlpriv->psc.rfpwr_state != ERFON)
+		return;
+
+	rtlpriv->cfg->ops->get_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
+
+	if (check_bssid) {
+		reg_rcr |= (RCR_CBSSID);
+	} else if (!check_bssid) {
+		reg_rcr &= (~RCR_CBSSID);
+	}
+	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
+}
+EXPORT_SYMBOL_GPL(rtl92s_set_check_bssid);
+
 void rtl92s_enable_hw_security_config(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
