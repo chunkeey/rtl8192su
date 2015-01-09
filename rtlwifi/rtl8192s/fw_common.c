@@ -397,7 +397,7 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 	/* 1. Retrieve FW header. */
 	firmware->pfwheader = (struct fw_hdr *) puc_mappedfile;
 	pfwheader = firmware->pfwheader;
-	firmware->firmwareversion =  byte(pfwheader->version, 0);
+	firmware->firmwareversion = le16_to_cpu(pfwheader->version);
 
 	if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
 		pfwheader->fwpriv.hci_sel = RTL8712_HCI_TYPE_PCIE;
@@ -413,12 +413,15 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 		 "signature:%x, version:%x, size:%x, imemsize:%x, sram size:%x\n",
-		 pfwheader->signature,
-		 pfwheader->version, pfwheader->dmem_size,
-		 pfwheader->img_imem_size, pfwheader->img_sram_size);
+		 le16_to_cpu(pfwheader->signature),
+		 le16_to_cpu(pfwheader->version),
+		 le32_to_cpu(pfwheader->dmem_size),
+		 le32_to_cpu(pfwheader->img_imem_size),
+		 le32_to_cpu(pfwheader->img_sram_size));
 
 	/* 2. Retrieve IMEM image. */
-	if ((pfwheader->img_imem_size == 0) || (pfwheader->img_imem_size >
+	if ((pfwheader->img_imem_size == 0) ||
+	    (le32_to_cpu(pfwheader->img_imem_size) >
 	    sizeof(firmware->fw_imem))) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "memory for data image is less than IMEM required\n");
@@ -427,12 +430,13 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 		puc_mappedfile += fwhdr_size;
 
 		memcpy(firmware->fw_imem, puc_mappedfile,
-		       pfwheader->img_imem_size);
-		firmware->fw_imem_len = pfwheader->img_imem_size;
+		       le32_to_cpu(pfwheader->img_imem_size));
+		firmware->fw_imem_len = le32_to_cpu(pfwheader->img_imem_size);
 	}
 
 	/* 3. Retriecve EMEM image. */
-	if (pfwheader->img_sram_size > sizeof(firmware->fw_emem)) {
+	if (le32_to_cpu(pfwheader->img_sram_size) >
+	    sizeof(firmware->fw_emem)) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "memory for data image is less than EMEM required\n");
 		goto fail;
@@ -440,8 +444,9 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 		puc_mappedfile += firmware->fw_imem_len;
 
 		memcpy(firmware->fw_emem, puc_mappedfile,
-		       pfwheader->img_sram_size);
-		firmware->fw_emem_len = pfwheader->img_sram_size;
+		       le32_to_cpu(pfwheader->img_sram_size));
+
+		firmware->fw_emem_len = le32_to_cpu(pfwheader->img_sram_size);
 	}
 
 	/* 4. download fw now */

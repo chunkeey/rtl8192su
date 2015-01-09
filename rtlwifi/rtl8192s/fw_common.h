@@ -180,23 +180,23 @@ struct fw_priv {
 struct fw_hdr {
 
 	/* --- LONG WORD 0 ---- */
-	u16 signature;
+	__le16 signature;
 	/* 0x8000 ~ 0x8FFF for FPGA version,
 	 * 0x0000 ~ 0x7FFF for ASIC version, */
-	u16 version;
+	__le16 version;
 	/* define the size of boot loader */
-	u32 dmem_size;
+	__le32 dmem_size;
 
 
 	/* --- LONG WORD 1 ---- */
 	/* define the size of FW in IMEM */
-	u32 img_imem_size;
+	__le32 img_imem_size;
 	/* define the size of FW in SRAM */
-	u32 img_sram_size;
+	__le32 img_sram_size;
 
 	/* --- LONG WORD 2 ---- */
 	/* define the size of DMEM variable */
-	u32 fw_priv_size;
+	__le32 fw_priv_size;
 	u32 rsvd0;
 
 	/* --- LONG WORD 3 ---- */
