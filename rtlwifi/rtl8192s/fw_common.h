@@ -88,7 +88,7 @@ struct fw_priv {
 	/* 0x81: PCI-AP, 01:PCIe, 02: 92S-U,
 	 * 0x82: USB-AP, 0x12: 72S-U, 03:SDIO */
 	u8 hci_sel;
-	/* the same value as reigster value  */
+	/* the same value as register value  */
 	u8 chip_version;
 	/* customer  ID low byte */
 	u8 customer_id_0;
