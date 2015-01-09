@@ -6,7 +6,3 @@ These firmwares have to be placed into
 
 	/lib/firmware/rtlwifi/
 
-the driver will only load the firmware which is named "rtl8712u.bin",
-so either rename one of these or set a symlink.
-
-File: rtlwifi/rtl8712u.bin
