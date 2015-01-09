@@ -399,9 +399,8 @@ static void _rtl_init_mac80211(struct ieee80211_hw *hw)
 	    IEEE80211_HW_AMPDU_AGGREGATION |
 	    IEEE80211_HW_CONNECTION_MONITOR |
 	    /* IEEE80211_HW_SUPPORTS_CQM_RSSI | */
-	    IEEE80211_HW_MFP_CAPABLE |
 	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-	    IEEE80211_HW_REPORTS_TX_ACK_STATUS | 0;
+	    IEEE80211_HW_MFP_CAPABLE | 0;
 
 	/* swlps or hwlps has been set in diff chip in init_sw_vars */
 	if (rtlpriv->psc.swctrl_lps)
