@@ -818,7 +818,6 @@ static void rtl_usb_cleanup(struct ieee80211_hw *hw)
 
 static void rtl_usb_unbind(struct ieee80211_hw *hw)
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 	struct device *parent = rtlusb->udev->dev.parent;
 	struct usb_device *udev;

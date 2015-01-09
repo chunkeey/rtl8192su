@@ -2392,7 +2392,6 @@ EXPORT_SYMBOL(rtl_pci_disconnect);
 
 static void rtl_pci_unbind(struct ieee80211_hw *hw)
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct device *parent = rtlpci->pdev->dev.parent;
 	struct pci_dev *pdev;
