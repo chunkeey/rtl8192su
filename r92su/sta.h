@@ -129,7 +129,8 @@ struct r92su_sta {
 	int signal;
 
 	u32 last_rx_rate;
-	u32 last_rx_rate_flag;
+	enum rate_info_flags last_rx_rate_flag;
+	enum rate_info_bw last_rx_rate_bw;
 
 	/* deduplication */
 	__le16 rx_seq;

@@ -671,17 +671,22 @@ r92su_rx_sta_stats(struct r92su *r92su, struct sk_buff *skb,
 {
 	struct r92su_rx_info *rx_info = r92su_get_rx_info(skb);
 	unsigned int rate = GET_RX_DESC_RX_MCS(&rx->hdr);
-	unsigned int flag = 0;
+	enum rate_info_flags flag = 0;
+	enum rate_info_bw bw;
 
 	if (GET_RX_DESC_RX_HT(&rx->hdr)) {
 		flag |= RATE_INFO_FLAGS_MCS;
 
 		if (GET_RX_DESC_BW(&rx->hdr))
-			flag |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+			bw = RATE_INFO_BW_40;
+		else
+			bw = RATE_INFO_BW_20;
 	} else {
 		rate = r92su->band_2GHZ.bitrates[rate].bitrate / 5;
+		bw = RATE_INFO_BW_20;
 	}
 
+	rx_info->sta->last_rx_rate_bw = bw;
 	rx_info->sta->last_rx_rate_flag = flag;
 	rx_info->sta->last_rx_rate = rate;
 	return RX_CONTINUE;

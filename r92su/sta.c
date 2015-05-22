@@ -260,14 +260,15 @@ void r92su_sta_set_sinfo(struct r92su *r92su, struct r92su_sta *sta,
 	struct timespec uptime;
 
 	sinfo->generation = r92su->sta_generation;
-	sinfo->filled = STATION_INFO_CONNECTED_TIME |
-			STATION_INFO_RX_BITRATE |
-			STATION_INFO_STA_FLAGS;
+	sinfo->filled = BIT(NL80211_STA_INFO_CONNECTED_TIME) |
+			BIT(NL80211_STA_INFO_RX_BITRATE) |
+			BIT(NL80211_STA_INFO_STA_FLAGS);
 
 	do_posix_clock_monotonic_gettime(&uptime);
 	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
 
 	sinfo->rxrate.flags = sta->last_rx_rate_flag;
+	sinfo->rxrate.bw = sta->last_rx_rate_bw;
 	if (sta->last_rx_rate_flag & RATE_INFO_FLAGS_MCS)
 		sinfo->rxrate.mcs = sta->last_rx_rate;
 	else
