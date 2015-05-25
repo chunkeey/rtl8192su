@@ -420,7 +420,7 @@ static int r92su_connect(struct wiphy *wiphy, struct net_device *ndev,
 
 	bss = cfg80211_get_bss(wiphy, sme->channel, sme->bssid,
 			       sme->ssid, sme->ssid_len,
-			       WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
+			       IEEE80211_BSS_TYPE_ESS, IEEE80211_PRIVACY_ANY);
 	if (!bss) {
 		err = -ENOENT;
 		goto out;
@@ -1161,7 +1161,7 @@ static int r92su_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 
 	bss = cfg80211_get_bss(wiphy, NULL, params->bssid,
 			       params->ssid, params->ssid_len,
-			       WLAN_CAPABILITY_IBSS, WLAN_CAPABILITY_IBSS);
+			       IEEE80211_BSS_TYPE_IBSS, IEEE80211_PRIVACY_ANY);
 	if (!bss) {
 		u8 bssid[ETH_ALEN];
 		u16 capability;
