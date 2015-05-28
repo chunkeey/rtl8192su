@@ -90,7 +90,7 @@ static ssize_t rtl_debugfs_read(struct file *file, char __user *userbuf,
 	dfops = container_of(file->f_op, struct rtl_debugfs_fops, fops);
 
 	if (!dfops->read)
-		return -ENOSYS;
+		return -ENOENT;
 
 	if (dfops->read_bufsize) {
 		buf = vmalloc(dfops->read_bufsize);
@@ -140,7 +140,7 @@ static ssize_t rtl_debugfs_write(struct file *file,
 	dfops = container_of(file->f_op, struct rtl_debugfs_fops, fops);
 
 	if (!dfops->write)
-		return -ENOSYS;
+		return -ENOENT;
 
 	buf = vmalloc(count);
 	if (!buf)
@@ -368,7 +368,7 @@ int rtl_register_debugfs(struct ieee80211_hw *hw)
 #define DEBUGFS_ADD(name)						\
 	debugfs_create_file(#name, rtl_debugfs_##name ##_ops.attr,	\
 			    rtlpriv->dbg.dfs, hw,			\
-			    &rtl_debugfs_##name ## _ops.fops);
+			    &rtl_debugfs_##name ## _ops.fops)
 
 	if (!rtlpriv->dbg.dfs)
 		return -EINVAL;
@@ -384,6 +384,7 @@ EXPORT_SYMBOL_GPL(rtl_register_debugfs);
 void rtl_unregister_debugfs(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
 	debugfs_remove_recursive(rtlpriv->dbg.dfs);
 	rtlpriv->dbg.dfs = NULL;
 }

@@ -2124,7 +2124,7 @@ struct rtl_hal_ops {
 			      struct ieee80211_sta *sta,
 			      struct sk_buff *skb, u8 hw_queue,
 			      struct rtl_tcb_desc *ptcb_desc);
-	bool (*cmd_send_packet) (struct ieee80211_hw *hw, struct sk_buff *skb);
+	bool (*cmd_send_packet)(struct ieee80211_hw *hw, struct sk_buff *skb);
 	void (*fill_fake_txdesc) (struct ieee80211_hw *hw, u8 *pDesc,
 				  u32 buffer_len, bool bIsPsPoll);
 	void (*fill_tx_cmddesc) (struct ieee80211_hw *hw, u8 *pdesc,
@@ -2148,8 +2148,8 @@ struct rtl_hal_ops {
 	bool (*is_tx_desc_closed) (struct ieee80211_hw *hw,
 				   u8 hw_queue, u16 index);
 	void (*tx_polling) (struct ieee80211_hw *hw, u8 hw_queue);
-	int (*set_tim) (struct ieee80211_hw *hw, struct ieee80211_sta *sta,
-			bool set);
+	int (*set_tim)(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+		       bool set);
 	void (*enable_hw_sec) (struct ieee80211_hw *hw);
 	void (*set_key) (struct ieee80211_hw *hw, u32 key_index,
 			 u8 *macaddr, bool is_group, u8 enc_algo,
@@ -2179,7 +2179,6 @@ struct rtl_hal_ops {
 	void (*phy_lc_calibrate) (struct ieee80211_hw *hw, bool is2t);
 	void (*phy_set_bw_mode_callback) (struct ieee80211_hw *hw);
 	void (*dm_dynamic_txpower) (struct ieee80211_hw *hw);
-	void (*txrx_watchdog) (struct ieee80211_hw *hw);
 	void (*c2h_command_handle) (struct ieee80211_hw *hw);
 	void (*bt_wifi_media_status_notify) (struct ieee80211_hw *hw,
 					     bool mstate);
@@ -2201,7 +2200,7 @@ struct rtl_intf_ops {
 	void (*read_efuse_byte)(struct ieee80211_hw *hw, u16 _offset, u8 *pbuf);
 	int (*adapter_start) (struct ieee80211_hw *hw);
 	void (*adapter_stop) (struct ieee80211_hw *hw);
-	void (*adapter_unbind) (struct ieee80211_hw *hw);
+	void (*adapter_unbind)(struct ieee80211_hw *hw);
 	bool (*check_buddy_priv)(struct ieee80211_hw *hw,
 				 struct rtl_priv **buddy_priv);
 

@@ -1142,7 +1142,7 @@ static void efuse_power_switch(struct ieee80211_hw *hw, u8 write, u8 pwrstate)
 					       rtlpriv->cfg->maps[SYS_ISO_CTRL],
 					       tmpV16);
 			}
- 		}
+		}
 
 		tmpV16 = rtl_read_word(rtlpriv,
 				       rtlpriv->cfg->maps[SYS_FUNC_EN]);

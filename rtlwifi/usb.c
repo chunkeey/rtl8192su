@@ -489,9 +489,8 @@ static void _rtl_usb_rx_process_agg(struct ieee80211_hw *hw,
 		/* static bcn for roaming */
 		rtl_beacon_statistic(hw, skb);
 
-		if (likely(rtl_action_proc(hw, skb, false))) {
+		if (likely(rtl_action_proc(hw, skb, false)))
 			return;
-		}
 	}
 }
 
@@ -880,8 +879,8 @@ out:
 static void rtl_usb_tx_schedule(struct ieee80211_hw *hw)
 {
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
-        struct urb *urb;
-        int err;
+	struct urb *urb;
+	int err;
 
 	if (atomic_inc_return(&rtlusb->tx_pending_urbs) >
 	    RTL_USB_MAX_TX_URBS_NUM)
@@ -891,10 +890,8 @@ static void rtl_usb_tx_schedule(struct ieee80211_hw *hw)
 	if (!urb)
 		goto err_acc;
 
-	//usb_free_urb(urb);
-
 	err = _rtl_submit_tx_urb(hw, urb);
-        if (err) {
+	if (err) {
 		WARN_ONCE(err, "can't handle urb submit error %d", err);
 		usb_unanchor_urb(urb);
 		dev_kfree_skb_irq(urb->context);
@@ -910,7 +907,7 @@ err_acc:
 static void _rtl_tx_complete(struct urb *urb)
 {
 	struct sk_buff *skb = (struct sk_buff *)urb->context;
-        struct rtl_tcb_desc *tcb_desc = (struct rtl_tcb_desc *)(skb->cb);
+	struct rtl_tcb_desc *tcb_desc = (struct rtl_tcb_desc *)(skb->cb);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct rtl_usb *rtlusb = (struct rtl_usb *)info->rate_driver_data[0];
 	struct ieee80211_hw *hw = usb_get_intfdata(rtlusb->intf);
@@ -918,7 +915,7 @@ static void _rtl_tx_complete(struct urb *urb)
 
 	atomic_dec(&rtlusb->tx_pending_urbs);
 
-        if (tcb_desc->cmd_or_init == DESC_PACKET_TYPE_NORMAL) {
+	if (tcb_desc->cmd_or_init == DESC_PACKET_TYPE_NORMAL) {
 		if (unlikely(IS_USB_STOP(rtlusb))) {
 			dev_kfree_skb_irq(skb);
 			return;
@@ -1192,8 +1189,6 @@ void rtl_usb_disconnect(struct usb_interface *intf)
 	clear_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status);
 
 	rtl_mac80211_deinit(hw);
-	/*deinit rfkill */
-	/* rtl_deinit_rfkill(hw); */
 	rtl_usb_deinit(hw);
 	rtl_deinit_core(hw);
 	kfree(rtlpriv->usb_data);

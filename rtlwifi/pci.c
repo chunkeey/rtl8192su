@@ -2340,12 +2340,12 @@ int rtl_pci_probe(struct pci_dev *pdev,
 	rtlpci->irq_alloc = 1;
 
 	set_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status);
- 	return 0;
+	return 0;
 
 fail3:
 	rtl_mac80211_deinit(hw);
 	pci_set_drvdata(pdev, NULL);
- 	rtl_deinit_core(hw);
+	rtl_deinit_core(hw);
 
 	if (rtlpriv->io.pci_mem_start != 0)
 		pci_iounmap(pdev, (void __iomem *)rtlpriv->io.pci_mem_start);

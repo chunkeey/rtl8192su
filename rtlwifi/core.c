@@ -108,9 +108,6 @@ int rtl_mac80211_init(struct ieee80211_hw *hw)
 	}
 	rtlpriv->mac80211.mac80211_registered = 1;
 
-	/*init rfkill */
-	//rtl_init_rfkill(hw);
-
 	rtl_register_debugfs(hw);
 	return 0;
 }

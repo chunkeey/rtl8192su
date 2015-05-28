@@ -484,11 +484,11 @@ void rtl92s_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
 
 	rtlpriv->cfg->ops->get_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
 
-	if (check_bssid) {
+	if (check_bssid)
 		reg_rcr |= (RCR_CBSSID);
-	} else if (!check_bssid) {
+	else if (!check_bssid)
 		reg_rcr &= (~RCR_CBSSID);
-	}
+
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
 }
 EXPORT_SYMBOL_GPL(rtl92s_set_check_bssid);
