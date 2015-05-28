@@ -82,6 +82,7 @@ void rtl_bb_delay(struct ieee80211_hw *hw, u32 addr, u32 data);
 int rtl_mac80211_init(struct ieee80211_hw *hw);
 void rtl_mac80211_deinit(struct ieee80211_hw *hw);
 bool rtl_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb);
+void rtl_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb);
 bool rtl_btc_status_false(void);
 void rtl_dm_diginit(struct ieee80211_hw *hw, u32 cur_igval);
 

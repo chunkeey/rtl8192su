@@ -1900,6 +1900,44 @@ bool rtl_cmd_send_packet(struct ieee80211_hw *hw, struct sk_buff *skb)
 	return true;
 }
 EXPORT_SYMBOL(rtl_cmd_send_packet);
+
+void rtl_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct ieee80211_tx_info *txinfo;
+	struct ieee80211_hdr *hdr;
+
+	txinfo = IEEE80211_SKB_CB(skb);
+	hdr = (void *)skb->data;
+	/* for sw LPS, just after NULL skb send out, we can
+	 * sure AP knows we are sleeping, we should not let
+	 * rf sleep
+	 */
+	if (ieee80211_is_nullfunc(hdr->frame_control)) {
+		if (ieee80211_has_pm(hdr->frame_control)) {
+			rtlpriv->mac80211.offchan_delay = true;
+			rtlpriv->psc.state_inap = true;
+		} else {
+			rtlpriv->psc.state_inap = false;
+		}
+	}
+
+	ieee80211_tx_info_clear_status(txinfo);
+
+	/* All realtek hardware doesn't provide any tx feedback.
+	 * However wpa_supplicant requires ACKs for auth and
+	 * (re-)assoc_req management frames in order to connect
+	 * to a network
+	 */
+	if (ieee80211_is_auth(hdr->frame_control) ||
+	    ieee80211_is_assoc_req(hdr->frame_control) ||
+	    ieee80211_is_reassoc_req(hdr->frame_control))
+		txinfo->flags |= IEEE80211_TX_STAT_ACK;
+
+	ieee80211_tx_status_irqsafe(hw, skb);
+}
+EXPORT_SYMBOL(rtl_tx_status);
+
 const struct ieee80211_ops rtl_ops = {
 	.start = rtl_op_start,
 	.stop = rtl_op_stop,

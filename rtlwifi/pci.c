@@ -569,8 +569,6 @@ static void _rtl_pci_tx_isr(struct ieee80211_hw *hw, int prio)
 
 	while (skb_queue_len(&ring->queue)) {
 		struct sk_buff *skb;
-		struct ieee80211_tx_info *info;
-		__le16 fc;
 		u8 tid;
 		u8 *entry;
 
@@ -613,41 +611,12 @@ static void _rtl_pci_tx_isr(struct ieee80211_hw *hw, int prio)
 
 		}
 
-		/* for sw LPS, just after NULL skb send out, we can
-		 * sure AP knows we are sleeping, we should not let
-		 * rf sleep
-		 */
-		fc = rtl_get_fc(skb);
-		if (ieee80211_is_nullfunc(fc)) {
-			if (ieee80211_has_pm(fc)) {
-				rtlpriv->mac80211.offchan_delay = true;
-				rtlpriv->psc.state_inap = true;
-			} else {
-				rtlpriv->psc.state_inap = false;
-			}
-		}
-		if (ieee80211_is_action(fc)) {
-			struct ieee80211_mgmt *action_frame =
-				(struct ieee80211_mgmt *)skb->data;
-			if (action_frame->u.action.u.ht_smps.action ==
-			    WLAN_HT_ACTION_SMPS) {
-				dev_kfree_skb(skb);
-				goto tx_status_ok;
-			}
-		}
-
 		/* update tid tx pkt num */
 		tid = rtl_get_tid(skb);
 		if (tid <= 7)
 			rtlpriv->link_info.tidtx_inperiod[tid]++;
 
-		info = IEEE80211_SKB_CB(skb);
-		ieee80211_tx_info_clear_status(info);
-
-		info->flags |= IEEE80211_TX_STAT_ACK;
-		/*info->status.rates[0].count = 1; */
-
-		ieee80211_tx_status_irqsafe(hw, skb);
+		rtl_tx_status(hw, skb);
 
 		if ((ring->entries - skb_queue_len(&ring->queue)) <= 4) {
 

@@ -851,27 +851,17 @@ static int _usb_tx_post(struct ieee80211_hw *hw, struct urb *urb,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
-	struct ieee80211_tx_info *txinfo;
-	struct ieee80211_hdr *hdr;
 
 	rtlusb->usb_tx_post_hdl(hw, urb, skb);
 	skb_pull(skb, RTL_TX_HEADER_SIZE);
-	txinfo = IEEE80211_SKB_CB(skb);
-	ieee80211_tx_info_clear_status(txinfo);
-	hdr = (void *)skb->data;
-	if (ieee80211_is_auth(hdr->frame_control) ||
-	    ieee80211_is_assoc_req(hdr->frame_control) ||
-	    ieee80211_is_reassoc_req(hdr->frame_control))
-		txinfo->flags |= IEEE80211_TX_STAT_ACK;
 
 	if (urb->status) {
 		RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
 			 "Urb has error status 0x%X\n", urb->status);
 		goto out;
 	}
-	/*  TODO:	statistics */
+	rtl_tx_status(hw, skb);
 out:
-	ieee80211_tx_status_irqsafe(hw, skb);
 	return urb->status;
 }
 
