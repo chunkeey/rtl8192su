@@ -143,9 +143,6 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		      struct ieee80211_sta *sta,
 		      struct sk_buff *skb, struct rtl_tcb_desc *tcb_desc);
 
-int rtl_send_smps_action(struct ieee80211_hw *hw,
-		struct ieee80211_sta *sta,
-		enum ieee80211_smps_mode smps);
 u8 *rtl_find_ie(u8 *data, unsigned int len, u8 ie);
 void rtl_recognize_peer(struct ieee80211_hw *hw, u8 *data, unsigned int len);
 u8 rtl_tid_to_ac(u8 tid);

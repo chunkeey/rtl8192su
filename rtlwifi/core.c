@@ -1138,14 +1138,6 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				goto out;
 			}
 
-			RT_TRACE(rtlpriv, COMP_EASY_CONCURRENT, DBG_LOUD,
-				 "send PS STATIC frame\n");
-			if (rtlpriv->dm.supp_phymode_switch) {
-				if (sta->ht_cap.ht_supported)
-					rtl_send_smps_action(hw, sta,
-						IEEE80211_SMPS_STATIC);
-			}
-
 			if (rtlhal->current_bandtype == BAND_ON_5G) {
 				mac->mode = WIRELESS_MODE_A;
 			} else {

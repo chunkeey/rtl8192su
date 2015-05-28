@@ -1783,105 +1783,6 @@ u8 *rtl_find_ie(u8 *data, unsigned int len, u8 ie)
 }
 EXPORT_SYMBOL_GPL(rtl_find_ie);
 
-/* when we use 2 rx ants we send IEEE80211_SMPS_OFF */
-/* when we use 1 rx ant we send IEEE80211_SMPS_STATIC */
-static struct sk_buff *rtl_make_smps_action(struct ieee80211_hw *hw,
-				     enum ieee80211_smps_mode smps,
-				     u8 *da, u8 *bssid)
-{
-	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
-	struct sk_buff *skb;
-	struct ieee80211_mgmt *action_frame;
-
-	/* 27 = header + category + action + smps mode */
-	skb = dev_alloc_skb(27 + hw->extra_tx_headroom);
-	if (!skb)
-		return NULL;
-
-	skb_reserve(skb, hw->extra_tx_headroom);
-	action_frame = (void *)skb_put(skb, 27);
-	memset(action_frame, 0, 27);
-	memcpy(action_frame->da, da, ETH_ALEN);
-	memcpy(action_frame->sa, rtlefuse->dev_addr, ETH_ALEN);
-	memcpy(action_frame->bssid, bssid, ETH_ALEN);
-	action_frame->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-						  IEEE80211_STYPE_ACTION);
-	action_frame->u.action.category = WLAN_CATEGORY_HT;
-	action_frame->u.action.u.ht_smps.action = WLAN_HT_ACTION_SMPS;
-	switch (smps) {
-	case IEEE80211_SMPS_AUTOMATIC:/* 0 */
-	case IEEE80211_SMPS_NUM_MODES:/* 4 */
-		WARN_ON(1);
-	/* Here will get a 'MISSING_BREAK' in Coverity Test, just ignore it.
-	 * According to Kernel Code, here is right.
-	 */
-	case IEEE80211_SMPS_OFF:/* 1 */ /*MIMO_PS_NOLIMIT*/
-		action_frame->u.action.u.ht_smps.smps_control =
-				WLAN_HT_SMPS_CONTROL_DISABLED;/* 0 */
-		break;
-	case IEEE80211_SMPS_STATIC:/* 2 */ /*MIMO_PS_STATIC*/
-		action_frame->u.action.u.ht_smps.smps_control =
-				WLAN_HT_SMPS_CONTROL_STATIC;/* 1 */
-		break;
-	case IEEE80211_SMPS_DYNAMIC:/* 3 */ /*MIMO_PS_DYNAMIC*/
-		action_frame->u.action.u.ht_smps.smps_control =
-				WLAN_HT_SMPS_CONTROL_DYNAMIC;/* 3 */
-		break;
-	}
-
-	return skb;
-}
-
-int rtl_send_smps_action(struct ieee80211_hw *hw,
-			 struct ieee80211_sta *sta,
-			 enum ieee80211_smps_mode smps)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	struct sk_buff *skb = NULL;
-	struct rtl_tcb_desc tcb_desc;
-	u8 bssid[ETH_ALEN] = {0};
-
-	memset(&tcb_desc, 0, sizeof(struct rtl_tcb_desc));
-
-	if (rtlpriv->mac80211.act_scanning)
-		goto err_free;
-
-	if (!sta)
-		goto err_free;
-
-	if (unlikely(is_hal_stop(rtlhal) || ppsc->rfpwr_state != ERFON))
-		goto err_free;
-
-	if (!test_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status))
-		goto err_free;
-
-	if (rtlpriv->mac80211.opmode == NL80211_IFTYPE_AP)
-		memcpy(bssid, rtlpriv->efuse.dev_addr, ETH_ALEN);
-	else
-		memcpy(bssid, rtlpriv->mac80211.bssid, ETH_ALEN);
-
-	skb = rtl_make_smps_action(hw, smps, sta->addr, bssid);
-	/* this is a type = mgmt * stype = action frame */
-	if (skb) {
-		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-		struct rtl_sta_info *sta_entry =
-			(struct rtl_sta_info *) sta->drv_priv;
-		sta_entry->mimo_ps = smps;
-		/* rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0); */
-
-		info->control.rates[0].idx = 0;
-		info->band = hw->conf.chandef.chan->band;
-		rtlpriv->intf_ops->adapter_tx(hw, sta, skb, &tcb_desc);
-	}
-	return 1;
-
-err_free:
-	return 0;
-}
-EXPORT_SYMBOL(rtl_send_smps_action);
-
 void rtl_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -1924,7 +1825,7 @@ struct sk_buff *rtl_make_del_ba(struct ieee80211_hw *hw,
 	struct ieee80211_mgmt *action_frame;
 	u16 params;
 
-	/* 27 = header + category + action + smps mode */
+	/* 34 = header + category + action + delba */
 	skb = dev_alloc_skb(34 + hw->extra_tx_headroom);
 	if (!skb)
 		return NULL;
