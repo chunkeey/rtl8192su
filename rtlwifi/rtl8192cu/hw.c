@@ -2099,6 +2099,15 @@ static void rtl92cu_update_hal_rate_table(struct ieee80211_hw *hw,
 		 rtl_read_dword(rtlpriv, REG_ARFR0));
 }
 
+void rtl92cu_fill_h2c_cmd_work_callback(struct work_struct *work)
+{
+	struct rtl_works *rtlworks = container_of(work, struct rtl_works, fill_h2c_cmd);
+	struct ieee80211_hw *hw = rtlworks->hw;
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
+	rtl92c_fill_h2c_cmd(hw, H2C_RA_MASK, 5, rtlpriv->rate_mask);
+}
+
 static void rtl92cu_update_hal_rate_mask(struct ieee80211_hw *hw,
 					 struct ieee80211_sta *sta,
 					 u8 rssi_level)

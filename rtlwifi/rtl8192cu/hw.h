@@ -105,6 +105,7 @@ void rtl92c_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode);
 void rtl92c_set_fw_joinbss_report_cmd(struct ieee80211_hw *hw, u8 mstatus);
 void rtl92c_fill_h2c_cmd(struct ieee80211_hw *hw,
 			 u8 element_id, u32 cmd_len, u8 *p_cmdbuffer);
+void rtl92cu_fill_h2c_cmd_work_callback(struct work_struct *work);
 bool rtl92cu_phy_mac_config(struct ieee80211_hw *hw);
 void rtl92cu_update_hal_rate_tbl(struct ieee80211_hw *hw,
 				 struct ieee80211_sta *sta,

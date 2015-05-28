@@ -66,6 +66,9 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->dm.thermalvalue = 0;
 	rtlpriv->dbg.global_debuglevel = rtlpriv->cfg->mod_params->debug;
 
+	INIT_WORK(&rtlpriv->works.fill_h2c_cmd,
+		  rtl92cu_fill_h2c_cmd_work_callback);
+
 	/* for firmware buf */
 	rtlpriv->rtlhal.pfirmware = vzalloc(0x4000);
 	if (!rtlpriv->rtlhal.pfirmware) {
@@ -95,6 +98,7 @@ static void rtl92cu_deinit_sw_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
+	cancel_work_sync(&rtlpriv->works.fill_h2c_cmd);
 	if (rtlpriv->rtlhal.pfirmware) {
 		vfree(rtlpriv->rtlhal.pfirmware);
 		rtlpriv->rtlhal.pfirmware = NULL;
@@ -153,7 +157,6 @@ static struct rtl_hal_ops rtl8192cu_hal_ops = {
 	.phy_lc_calibrate = _rtl92cu_phy_lc_calibrate,
 	.phy_set_bw_mode_callback = rtl92cu_phy_set_bw_mode_callback,
 	.dm_dynamic_txpower = rtl92cu_dm_dynamic_txpower,
-	.fill_h2c_cmd = rtl92c_fill_h2c_cmd,
 	.get_btc_status = rtl92cu_get_btc_status,
 };
 
