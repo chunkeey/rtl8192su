@@ -309,8 +309,6 @@
 /* Rx DMA Control related settings */
 #define	RXDMA_AGG_EN				BIT(7)
 
-#define	RPWM					PCI_RPWM
-
 /* Regsiter Bit and Content definition  */
 
 #define	ISO_MD2PP				BIT(0)

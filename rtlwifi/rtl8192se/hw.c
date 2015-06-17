@@ -75,7 +75,7 @@ static void _rtl92se_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 	udelay(50);
 
 	/* Clear FW RPWM for FW control LPS.*/
-	rtl_write_byte(rtlpriv, RPWM, 0x0);
+	rtl_write_byte(rtlpriv, REG_PCI_HRPWM, 0x0);
 
 	/* Reset MAC-IO and CPU and Core Digital BIT(10)/11/15 */
 	tmpu1b = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);

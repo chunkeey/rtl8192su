@@ -47,6 +47,7 @@
 #define RTL8712_INTERRUPT_		(RTL8712_IOBASE_IOREG + 0x300)
 #define RTL8712_DEBUGCTRL_		(RTL8712_IOBASE_IOREG + 0x310)
 #define RTL8712_IOCMD_			(RTL8712_IOBASE_IOREG + 0x370)
+#define RTL8712_PCIE_			(RTL8712_IOBASE_IOREG + 0x500)
 #define RTL8712_PHY_			(RTL8712_IOBASE_IOREG + 0x800)
 #define RTL8712_PHY_P1_			(RTL8712_IOBASE_IOREG + 0x900)
 #define RTL8712_PHY_CCK_		(RTL8712_IOBASE_IOREG + 0xA00)
@@ -611,6 +612,32 @@
 /* ----------------------------------------------------- */
 #define REG_IOCMD_CTRL			(RTL8712_IOCMD_ + 0x00)
 #define REG_IOCMD_DATA			(RTL8712_IOCMD_ + 0x04)
+
+/* ----------------------------------------------------- */
+/* 0x10250500h ~ 0x10250???h PCIE Config */
+/* ----------------------------------------------------- */
+#define	REG_TP_POLL			(RTL8712_PCIE_ + 0x00)
+#define	REG_PM_CTRL			(RTL8712_PCIE_ + 0x02)
+#define	REG_PCIF			(RTL8712_PCIE_ + 0x03)
+
+#define	REG_PCIE_THPDA			(RTL8712_PCIE_ + 0x14)
+#define	REG_PCIE_TMDA			(RTL8712_PCIE_ + 0x18)
+#define	REG_PCIE_TCDA			(RTL8712_PCIE_ + 0x1C)
+#define	REG_PCIE_HDA			(RTL8712_PCIE_ + 0x20)
+#define	REG_PCIE_TVODA			(RTL8712_PCIE_ + 0x24)
+#define	REG_PCIE_TVIDA			(RTL8712_PCIE_ + 0x28)
+#define	REG_PCIE_TBEDA			(RTL8712_PCIE_ + 0x2C)
+#define	REG_PCIE_TBKDA			(RTL8712_PCIE_ + 0x30)
+#define	REG_PCIE_TBDA			(RTL8712_PCIE_ + 0x34)
+#define	REG_PCIE_RCDA			(RTL8712_PCIE_ + 0x38)
+#define	REG_RDQDA			(RTL8712_PCIE_ + 0x3C)
+#define	REG_DBI_WDATA			(RTL8712_PCIE_ + 0x40)
+#define	REG_DBI_RDATA			(RTL8712_PCIE_ + 0x44)
+#define	REG_DBI_CTRL			(RTL8712_PCIE_ + 0x48)
+#define	REG_MDIO_DATA			(RTL8712_PCIE_ + 0x50)
+#define	REG_MDIO_CTRL			(RTL8712_PCIE_ + 0x54)
+#define	REG_PCI_HRPWM			(RTL8712_PCIE_ + 0x61)
+#define	REG_PCI_CPWM			(RTL8712_PCIE_ + 0x63)
 
 /* ----------------------------------------------------- */
 /* 0x10250800 ~ 0x10250DFF PHY */

@@ -29,6 +29,7 @@
 #include "../cam.h"
 #include "../ps.h"
 #include "../pci.h"
+#include "../usb.h"
 #include "reg_common.h"
 #include "def_common.h"
 #include "phy_common.h"
@@ -95,6 +96,21 @@ static void rtl92s_set_mac_addr(struct ieee80211_hw *hw,
 
 	for (i = 0; i < ETH_ALEN; i++)
 		rtl_write_byte(rtlpriv, reg + i, addr[i]);
+}
+
+static enum acm_method rtl92s_get_acm_method(struct ieee80211_hw *hw)
+{
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+
+	if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
+		struct rtl_pci *rtlpci;
+		rtlpci = rtl_pcidev(rtl_pcipriv(hw));
+		return rtlpci->acm_method;
+	} else {
+		struct rtl_usb *rtlusb;
+		rtlusb = rtl_usbdev(rtl_usbpriv(hw));
+		return rtlusb->acm_method;
+	}
 }
 
 void rtl92s_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
@@ -257,37 +273,25 @@ void rtl92s_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			break;
 		}
 	case HW_VAR_AC_PARAM:{
-			struct rtl_pci *rtlpci;
-
 			rtl92s_dm_init_edca_turbo(hw);
-			if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
+
+			if (rtl92s_get_acm_method(hw) != EACMWAY2_SW) {
 				u8 e_aci = *val;
-
-				rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-
-				if (rtlpci->acm_method != EACMWAY2_SW) {
-					rtlpriv->cfg->ops->set_hw_reg(hw,
+				rtlpriv->cfg->ops->set_hw_reg(hw,
 							 HW_VAR_ACM_CTRL,
 							 &e_aci);
-				}
 			}
 			break;
 		}
 	case HW_VAR_ACM_CTRL:{
-			struct rtl_pci *rtlpci;
 			u8 e_aci = *val;
 			union aci_aifsn *p_aci_aifsn = (union aci_aifsn *)(&(
 							mac->ac[0].aifs));
 			u8 acm = p_aci_aifsn->f.acm;
 			u8 acm_ctrl = rtl_read_byte(rtlpriv, AcmHwCtrl);
 
-			if (!IS_HARDWARE_TYPE_8192SE(rtlhal))
-				goto out;
-
-			rtlpci = rtl_pcidev(rtl_pcipriv(hw));
-
-			acm_ctrl = acm_ctrl | ((rtlpci->acm_method == 2) ?
-				   0x0 : 0x1);
+			acm_ctrl = acm_ctrl |
+				((rtl92s_get_acm_method(hw) == 2) ? 0x0 : 0x1);
 
 			if (acm) {
 				switch (e_aci) {
@@ -317,6 +321,8 @@ void rtl92s_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				case AC3_VO:
 					acm_ctrl &= (~AcmHw_VoqEn);
 					break;
+				case AC1_BK:
+					break;
 				default:
 					RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 						 "switch case not processed\n");
@@ -327,7 +333,6 @@ void rtl92s_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			RT_TRACE(rtlpriv, COMP_QOS, DBG_TRACE,
 				 "HW_VAR_ACM_CTRL Write 0x%X\n", acm_ctrl);
 			rtl_write_byte(rtlpriv, AcmHwCtrl, acm_ctrl);
-out:
 			break;
 		}
 	case HW_VAR_RCR:{
@@ -368,6 +373,20 @@ out:
 			break;
 		}
 	case HW_VAR_SET_RPWM:{
+			uint32_t reg;
+			u8 rpwm_val;
+
+			if (IS_HARDWARE_TYPE_8192SE(rtlhal))
+				reg = REG_PCI_HRPWM;
+			else
+				reg = REG_USB_HRPWM;
+
+			rpwm_val = rtl_read_byte(rtlpriv, reg);
+
+			if (rpwm_val & BIT(7))
+				rtl_write_byte(rtlpriv, reg, *val);
+			else
+				rtl_write_byte(rtlpriv, reg, *val | BIT(7));
 			break;
 		}
 	case HW_VAR_H2C_FW_PWRMODE:{
