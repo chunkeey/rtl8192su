@@ -494,7 +494,8 @@ static void r92su_bss_free(struct r92su *r92su, struct cfg80211_bss *bss)
 	cfg80211_put_bss(r92su->wdev.wiphy, bss);
 }
 
-static void r92su_bss_free_connected(struct r92su *r92su)
+static void r92su_bss_free_connected(struct r92su *r92su,
+				     bool locally_generated)
 {
 	struct cfg80211_bss *old_bss;
 
@@ -513,7 +514,7 @@ static void r92su_bss_free_connected(struct r92su *r92su)
 			 */
 			cfg80211_disconnected(r92su->wdev.netdev,
 				      WLAN_STATUS_UNSPECIFIED_FAILURE, NULL, 0,
-				      GFP_ATOMIC);
+				      locally_generated, GFP_ATOMIC);
 			break;
 
 		case NL80211_IFTYPE_ADHOC:
@@ -537,7 +538,7 @@ static int __r92su_disconnect(struct r92su *r92su)
 		err = r92su_h2c_disconnect(r92su);
 
 	/* always free the connected bss */
-	r92su_bss_free_connected(r92su);
+	r92su_bss_free_connected(r92su, true);
 	return err;
 }
 
@@ -568,7 +569,7 @@ static void r92su_disconnect_work(struct work_struct *work)
 	r92su = container_of(work, struct r92su, disconnect_work);
 
 	mutex_lock(&r92su->lock);
-	r92su_bss_free_connected(r92su);
+	r92su_bss_free_connected(r92su, false);
 	mutex_unlock(&r92su->lock);
 }
 
