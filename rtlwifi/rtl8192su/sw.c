@@ -164,7 +164,7 @@ static struct rtl_mod_params rtl92su_mod_params = {
 	.sw_crypto = false,
 	.inactiveps = false,
 	.fwctrl_lps = false,
-	.swctrl_lps = true,
+	.swctrl_lps = false,
 	.debug = DBG_EMERG,
 };
 

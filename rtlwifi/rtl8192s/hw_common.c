@@ -284,13 +284,15 @@ void rtl92s_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			break;
 		}
 	case HW_VAR_ACM_CTRL:{
-			u8 e_aci = *val;
-			union aci_aifsn *p_aci_aifsn = (union aci_aifsn *)(&(
-							mac->ac[0].aifs));
-			u8 acm = p_aci_aifsn->f.acm;
-			u8 acm_ctrl = rtl_read_byte(rtlpriv, AcmHwCtrl);
+			u8 e_aci;
+			union aci_aifsn *p_aci_aifsn;
+			u8 acm;
+			u8 acm_ctrl;
 
-			acm_ctrl = acm_ctrl |
+			e_aci = *val;
+			p_aci_aifsn = (union aci_aifsn *)(&(mac->ac[0].aifs));
+			acm = p_aci_aifsn->f.acm;
+			acm_ctrl = rtl_read_byte(rtlpriv, AcmHwCtrl) |
 				((rtl92s_get_acm_method(hw) == 2) ? 0x0 : 0x1);
 
 			if (acm) {
@@ -483,6 +485,8 @@ void rtl92s_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		}
 		break;
 	case HW_VAR_KEEP_ALIVE:
+		break;
+	case HAL_DEF_WOWLAN:
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
