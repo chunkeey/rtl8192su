@@ -187,7 +187,7 @@ static struct rtl_hal_usbint_cfg rtl92su_interface_cfg = {
 
 static struct rtl_hal_cfg rtl92su_hal_cfg = {
 	.name = "rtl8192su",
-	.fw_name = "rtlwifi/rtl8192sufw.bin",
+	.fw_name = "RTL8192SU/rtl8192sfw.bin",
 	.ops = &rtl8192su_hal_ops,
 	.mod_params = &rtl92su_mod_params,
 	.usb_interface_cfg = &rtl92su_interface_cfg,
@@ -422,7 +422,7 @@ MODULE_AUTHOR("Joshua Roys		<Joshua.Roys@gtri.gatech.edu>");
 MODULE_AUTHOR("Christian Lamparter	<chunkeey@googlemail.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek 8188S/8191S/8192S 802.11n USB wireless");
-MODULE_FIRMWARE("rtlwifi/rtl8192sufw.bin");
+MODULE_FIRMWARE("RTL8192SU/rtl8192sfw.bin");
 
 module_param_named(swenc, rtl92su_mod_params.sw_crypto, bool, 0444);
 module_param_named(debug, rtl92su_mod_params.debug, int, 0444);
