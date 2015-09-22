@@ -138,7 +138,7 @@ struct r92su_sta *r92su_sta_alloc(struct r92su *r92su, const u8 *mac_addr,
 		sta->mac_id = mac_id;
 		sta->aid = aid;
 
-		do_posix_clock_monotonic_gettime(&uptime);
+		ktime_get_ts(&uptime);
 		sta->last_connected = uptime.tv_sec;
 
 		/* Remove the old station */
@@ -264,7 +264,7 @@ void r92su_sta_set_sinfo(struct r92su *r92su, struct r92su_sta *sta,
 			BIT(NL80211_STA_INFO_RX_BITRATE) |
 			BIT(NL80211_STA_INFO_STA_FLAGS);
 
-	do_posix_clock_monotonic_gettime(&uptime);
+	ktime_get_ts(&uptime);
 	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
 
 	sinfo->rxrate.flags = sta->last_rx_rate_flag;
