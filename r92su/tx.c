@@ -341,7 +341,7 @@ r92su_tx_rate_control_hint(struct r92su *r92su, struct sk_buff *skb,
 	 * we force the firmware/hardware to use lower and
 	 * more robust rates.
 	 */
-	bool low_rate;
+	bool low_rate = false;
 
 	struct r92su_tx_info *tx_info = r92su_get_tx_info(skb);
 	switch (skb->protocol) {
