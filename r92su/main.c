@@ -1378,8 +1378,6 @@ static int r92su_open(struct net_device *ndev)
 	/* uploading the firmware resets the c2h and h2c command counters */
 	r92su_cmd_init(r92su);
 
-	r92su_cmd_init(r92su);
-
 	err = r92su_hw_late_mac_setup(r92su);
 	if (err)
 		goto out;
