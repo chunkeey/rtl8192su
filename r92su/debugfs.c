@@ -270,13 +270,13 @@ static char *r92su_debugfs_sta_table_read(struct r92su *r92su,
 		key = rcu_dereference(sta->sta_key);
 		ADD(buf, *len, buf_size,
 		    "mac_addr:%pM aid:%d id2:%d enc:%d qos:%d ht:%d\n",
-		    sta->mac_addr, sta->aid, sta->mac_id, sta->qos_sta,
-		    sta->enc_sta, sta->ht_sta);
+		    sta->mac_addr, sta->aid, sta->mac_id, sta->enc_sta,
+		    sta->qos_sta, sta->ht_sta);
 
 		if (key) {
 			ADD(buf, *len, buf_size,
-			    "key: type:%d, key_len:%d, seq_len:%d idx:%d\n",
-			    key->type, key->key_len, key->seq_len, key->index);
+			    "key: type:%d, key_len:%d, idx:%d\n",
+			    key->type, key->key_len, key->index);
 		}
 	}
 	rcu_read_unlock();
@@ -315,8 +315,8 @@ static char *r92su_debugfs_connected_bss_read(struct r92su *r92su,
 			continue;
 
 		ADD(buf, *len, buf_size,
-		    "key: type:%d, key_len:%d, seq_len:%d idx:%d\n",
-		    key->type, key->key_len, key->seq_len, key->index);
+		    "key: type:%d, key_len:%d, idx:%d\n",
+		    key->type, key->key_len, key->index);
 	}
 	rcu_read_unlock();
 	return buf;

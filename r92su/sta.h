@@ -72,7 +72,6 @@ struct r92su_key {
 	u8 mac_addr[ETH_ALEN];
 	enum r92su_enc_alg type;
 	unsigned int key_len;
-	unsigned int seq_len;
 	bool pairwise;
 	unsigned int index;
 	union {
