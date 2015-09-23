@@ -53,24 +53,24 @@ struct h2c_iocmd {
 	} __packed;
 } __packed;
 
-struct h2c_set_pwrmode {
+struct h2c_set_power_mode {
 	u8 mode;
 	u8 flag_low_traffic_en;
 	u8 flag_lpnav_en;
 	u8 flag_rf_low_snr_en;
-	/* 1: dps, 0: 32k */
-	u8 flag_dps_en;
+
+	u8 flag_dps_en;		/* 1: dps, 0: 32k */
 	u8 bcn_rx_en;
-	u8 bcn_pass_cnt;
-	/* beacon TO (ms). ¡§=0¡¨ no limit. */
-	u8 bcn_to;
-	__le16	bcn_itv;
-	/* only for VOIP mode. */
-	u8 app_itv;
-	u8 awake_bcn_itvl;
+	u8 bcn_pass_cnt;	/* fw report one beacon information to driver
+				   when it receives bcn_pass_cnt  beacons */
+	u8 bcn_to;		/* beacon TO (ms).  0 = no limit. */
+
+	__le16 bcn_itv;
+	u8 app_itv;		/* only for VOIP mode. */
+	u8 awake_bcn_itv;
+
 	u8 smart_ps;
-	/* unit: 100 ms */
-	u8 bcn_pass_period;
+	u8 bcn_pass_time;	/* unit: 100ms */
 } __packed;
 
 struct h2c_sta_psm {
@@ -319,6 +319,55 @@ struct c2h_add_ba_event {
 	u8 tid;
 } __packed;
 
+enum r92su_power_mgnt {
+	PS_MODE_ACTIVE = 0,
+	PS_MODE_MIN,
+	PS_MODE_MAX,
+	PS_MODE_DTIM,
+	PS_MODE_VOIP,
+	PS_MODE_UAPSD_WMM,
+	PS_MODE_UAPSD,
+	PS_MODE_IBSS,
+	PS_MODE_WOWWLAN,
+	PS_MODE_RADIO_OFF,
+	PS_MODE_CARD_DISABLE,
+
+	/* keep last */
+	__PS_MODE_NUM,
+};
+
+/*
+ * BIT[2:0] = HW state
+ * BIT[3] = Protocol PS state, 0: register active state,
+ *			       1: register sleep state
+ * BIT[4] = sub-state
+*/
+#define PS_ACTIVE		0
+#define PS_DYNAMIC_POWER_SAVE	BIT(0)
+#define PS_LOW_CLOCK		(PS_DYNAMIC_POWER_SAVE)
+#define PS_RADIO_OFF		BIT(1)
+#define PS_ALL_ON		BIT(2)
+#define PS_ST_ACTIVE		BIT(3)
+#define PS_LOW_PERFORMANCE	BIT(4)
+#define PS_STATE_MASK		(PS_DYNAMIC_POWER_SAVE | PS_RADIO_OFF | \
+				 PS_ALL_ON | PS_LOW_PERFORMANCE)
+#define PS_STATE_HW_MASK	(PS_DYNAMIC_POWER_SAVE | PS_RADIO_OFF | \
+				 PS_ALL_ON)
+#define PS_TOG			BIT(7)
+
+#define PS_STATE_S0		(PS_DYNAMIC_POWER_SAVE)
+
+#define PS_STATE_S1		(PS_LOW_CLOCK)
+#define PS_STATE_S2		(PS_RADIO_OFF)
+#define PS_STATE_S3		(PS_ALL_ON)
+#define PS_STATE_S4		(PS_ST_ACTIVE | PS_ALL_ON)
+
+struct c2h_pwr_state_event {
+	u8 mode;
+	u8 state; /* PS_... / CPWM value */
+	__le16 rsvd;
+} __packed;
+
 enum fw_c2h_event {
 	C2H_READ_MACREG_EVENT,				/* 0 */
 	C2H_READBB_EVENT,
@@ -415,23 +464,25 @@ enum fw_h2c_cmd {
 	H2C_SET_CHANNELPLAN_CMD,			/* 60 */
 	H2C_DISCONNECT_CTRL_EX_CMD,
 	H2C_GET_H2C_LBK_CMD,
-	H2C_SET_PROBE_REQ_EXTRA_IE_CMD,
+	H2C_SET_PWR_PARAM_CMD,
+	H2C_WOWWLAN_CONTROL_CMD,
+	H2C_SET_PROBE_REQ_EXTRA_IE_CMD,			/* 65 */
 	H2C_SET_ASSOC_REQ_EXTRA_IE_CMD,
-	H2C_SET_PROBE_RSP_EXTRA_IE_CMD,			/* 65 */
+	H2C_SET_PROBE_RSP_EXTRA_IE_CMD,
 	H2C_SET_ASSOC_RSP_EXTRA_IE_CMD,
 	H2C_GET_CURRENT_DATA_RATE_CMD,
-	H2C_GET_TX_RETRY_CNT_CMD,
+	H2C_GET_TX_RETRY_CNT_CMD,			/* 70 */
 	H2C_GET_RX_RETRY_CNT_CMD,
-	H2C_GET_BCN_OK_CNT_CMD,				/* 70 */
+	H2C_GET_BCN_OK_CNT_CMD,
 	H2C_GET_BCN_ERR_CNT_CMD,
 	H2C_GET_CURRENT_TXPOWER_CMD,
-	H2C_SET_DIG_CMD,
+	H2C_SET_DIG_CMD,				/* 75 */
 	H2C_SET_RA_CMD,
-	H2C_SET_PT_CMD,					/* 75 */
+	H2C_SET_PT_CMD,
 	H2C_READ_RSSI_CMD,
 
 	/* keep it last */
-	__MAX_H2C					/* 77 */
+	__MAX_H2C					/* 79 */
 };
 
 static inline void __check_h2cc2h__(void)
@@ -453,7 +504,7 @@ static inline void __check_h2cc2h__(void)
 	BUILD_BUG_ON(sizeof(struct h2c_sta_psm) != 8);
 	BUILD_BUG_ON(sizeof(struct h2c_basic_rates) != 8);
 	BUILD_BUG_ON(sizeof(struct h2c_join_bss_rpt) != 12);
-	BUILD_BUG_ON(sizeof(struct h2c_set_pwrmode) != 14);
+	BUILD_BUG_ON(sizeof(struct h2c_set_power_mode) != 14);
 	BUILD_BUG_ON(sizeof(struct h2c_ext_rates) != 16);
 	BUILD_BUG_ON(sizeof(struct h2c_key) != 19);
 	BUILD_BUG_ON(sizeof(struct h2c_sta_key) != 23);

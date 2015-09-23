@@ -28,21 +28,10 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  *****************************************************************************/
-#ifndef __R92SU_HW_H__
-#define __R92SU_HW_H__
+#ifndef __R92SU_PWR_H__
+#define __R92SU_PWR_H__
 
 struct r92su;
 
-void r92su_hw_init(struct r92su *r92su);
-
-int r92su_hw_read_chip_version(struct r92su *r92su);
-
-int r92su_hw_early_mac_setup(struct r92su *r92su);
-int r92su_hw_late_mac_setup(struct r92su *r92su);
-int r92su_hw_mac_deinit(struct r92su *r92su);
-bool r92su_hw_wps_detect(struct r92su *r92su);
-int r92su_hw_mac_set_rx_filter(struct r92su *r92su,
-	bool data, bool mgt, bool ctrl, bool monitor);
-void r92su_hw_queue_service_work(struct r92su *r92su);
-int r92su_signal_scale_mapping(u32 raw_signal);
-#endif /* __R92SU_HW_H__ */
+void r92su_set_power(struct r92su *r92su, bool on);
+#endif /* __R92SU_PWR_H__ */

@@ -199,6 +199,19 @@ struct r92su {
 	struct input_dev *wps_pbc;
 	bool wps_pbc_state;
 
+	/* power save */
+	u8 rpwm;		/* requested power state for fw */
+	u8 rpwm_tog;		/* toggling - keeps track if "rpwm"
+				 * was updated */
+
+	u8 cpwm;		/* fw current power state. updated when
+				 * 1. read from HCPWM
+				 * 2. driver lowers power level
+				 */
+
+	u8 cpwm_tog;		/* toggling - keeps track if "cpwm"
+				 * was updated */
+
 	/* debug */
 	struct dentry *dfs;
 	struct r92su_debug debug;

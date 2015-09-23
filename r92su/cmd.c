@@ -279,3 +279,15 @@ int r92su_h2c_start_ba(struct r92su *r92su, const unsigned int tid)
 	return r92su_h2c_copy(r92su, H2C_ADDBA_REQ_CMD, sizeof(req),
 			      &req, GFP_ATOMIC);
 }
+
+int r92su_h2c_set_power_mode(struct r92su *r92su, const u8 ps_mode,
+			     const u8 smart_ps)
+{
+	struct h2c_set_power_mode pwr = { };
+	pwr.mode = ps_mode;
+	pwr.bcn_pass_cnt = 0;
+	pwr.smart_ps = smart_ps;
+
+	return r92su_h2c_copy(r92su, H2C_SETPWRMODE_CMD, sizeof(pwr),
+			      &pwr, GFP_ATOMIC);
+}

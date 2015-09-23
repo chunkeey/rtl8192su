@@ -45,6 +45,7 @@
 #include "rx.h"
 #include "fw.h"
 #include "hw.h"
+#include "pwr.h"
 #include "debug.h"
 #include "debugfs.h"
 
@@ -686,6 +687,7 @@ static void r92su_bss_connect_work(struct work_struct *work)
 
 		sta->enc_sta = le32_to_cpu(join_bss->bss.privacy) ?
 			       true : false;
+
 		sta->qos_sta = r92su_parse_wmm_cap_ie(r92su, resp_ie,
 						      resp_ie_len);
 
@@ -714,6 +716,8 @@ report_cfg80211:
 			join_bss->bss.bssid, bss_priv->assoc_ie,
 			bss_priv->assoc_ie_len, resp_ie, resp_ie_len,
 			status, GFP_KERNEL);
+		if (status == WLAN_STATUS_SUCCESS)
+			r92su_set_power(r92su, true);
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		if (status == WLAN_STATUS_SUCCESS) {
@@ -1442,6 +1446,8 @@ static int r92su_stop(struct net_device *ndev)
 		err = __r92su_disconnect(r92su);
 		WARN_ONCE(err, "disconnect failed");
 	}
+
+	r92su_set_power(r92su, false);
 
 	if (r92su_is_initializing(r92su)) {
 		err = r92su_hw_mac_deinit(r92su);

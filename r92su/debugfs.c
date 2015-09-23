@@ -467,6 +467,9 @@ DEBUGFS_READONLY_FILE(rx_queue_len, 20, "%d", skb_queue_len(&r92su->rx_queue));
 
 DEBUGFS_READONLY_FILE(rf_type, 12, "0x%x", r92su->rf_type);
 
+DEBUGFS_READONLY_FILE(cpwm, 12, "0x%x", r92su->cpwm);
+DEBUGFS_READONLY_FILE(rpwm, 12, "0x%x", r92su->rpwm);
+
 DEBUGFS_READONLY_FILE(h2c_seq, 12, "%d", r92su->h2c_seq);
 DEBUGFS_READONLY_FILE(c2h_seq, 12, "%d", r92su->c2h_seq);
 
@@ -495,6 +498,8 @@ int r92su_register_debugfs(struct r92su *r92su)
 	DEBUGFS_ADD(eeprom_raw);
 	DEBUGFS_ADD(h2c_seq);
 	DEBUGFS_ADD(c2h_seq);
+	DEBUGFS_ADD(cpwm);
+	DEBUGFS_ADD(rpwm);
 	DEBUGFS_ADD(rx_queue_len);
 	return 0;
 

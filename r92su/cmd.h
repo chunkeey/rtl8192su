@@ -72,4 +72,6 @@ int r92su_h2c_set_auth(struct r92su *r92su, const enum r92su_auth_mode auth,
 
 int r92su_h2c_start_ba(struct r92su *r92su, const unsigned int tid);
 
+int r92su_h2c_set_power_mode(struct r92su *r92su, const u8 ps_mode,
+                             const u8 smart_ps);
 #endif /* __R92SU_CMD_H__ */

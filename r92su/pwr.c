@@ -28,21 +28,35 @@
  * Larry Finger <Larry.Finger@lwfinger.net>
  *
  *****************************************************************************/
-#ifndef __R92SU_HW_H__
-#define __R92SU_HW_H__
+#include <linux/kernel.h>
 
-struct r92su;
+#include "r92su.h"
+#include "usb.h"
+#include "cmd.h"
+#include "reg.h"
+#include "pwr.h"
 
-void r92su_hw_init(struct r92su *r92su);
+#include "debug.h"
 
-int r92su_hw_read_chip_version(struct r92su *r92su);
+static void r92su_set_rpwn(struct r92su *r92su, u8 mode)
+{
+	u8 rpwm;
 
-int r92su_hw_early_mac_setup(struct r92su *r92su);
-int r92su_hw_late_mac_setup(struct r92su *r92su);
-int r92su_hw_mac_deinit(struct r92su *r92su);
-bool r92su_hw_wps_detect(struct r92su *r92su);
-int r92su_hw_mac_set_rx_filter(struct r92su *r92su,
-	bool data, bool mgt, bool ctrl, bool monitor);
-void r92su_hw_queue_service_work(struct r92su *r92su);
-int r92su_signal_scale_mapping(u32 raw_signal);
-#endif /* __R92SU_HW_H__ */
+	r92su->rpwm_tog ^= 0x80;
+
+	rpwm = mode | r92su->rpwm_tog;
+	r92su->rpwm = rpwm;
+	r92su->cpwm = mode;
+	r92su_write8(r92su, REG_USB_HRPWM, rpwm);
+}
+
+void r92su_set_power(struct r92su *r92su, bool on)
+{
+	if (on) {
+		r92su_set_rpwn(r92su, PS_STATE_S4);
+		r92su_h2c_set_power_mode(r92su, PS_MODE_ACTIVE, 0);
+	} else {
+		r92su_set_rpwn(r92su, PS_STATE_S2);
+		r92su_h2c_set_power_mode(r92su, PS_MODE_RADIO_OFF, 1);
+	}
+}

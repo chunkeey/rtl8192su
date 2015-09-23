@@ -147,7 +147,16 @@ static void c2h_atim_done_event(struct r92su *r92su, const struct h2cc2h *c2h)
 static void c2h_report_pwr_state_event(struct r92su *r92su,
 				       const struct h2cc2h *c2h)
 {
+	const struct c2h_pwr_state_event *pwr = (const void *) c2h->data;
+	u8 cpwm_tog = pwr->state & PS_TOG;
 
+	if (r92su->cpwm_tog == cpwm_tog) {
+		R92SU_ERR(r92su, "firmware is stuck, it didn't update CPWM "
+			  "(it's stuck at 0x%x)", cpwm_tog);
+	}
+
+	r92su->cpwm = pwr->state & PS_STATE_MASK;
+	r92su->cpwm_tog = cpwm_tog;
 }
 
 static void c2h_wps_pbc_event(struct r92su *r92su, const struct h2cc2h *c2h)

@@ -235,7 +235,7 @@ int r92su_hw_early_mac_setup(struct r92su *r92su)
 	int err = -EINVAL;
 
 	/* Clear RPWM to ensure driver and fw are back in the initial state */
-	r92su_write8(r92su, REG_USB_HRPWM, 0x00);
+	r92su_write8(r92su, REG_USB_HRPWM, PS_ACTIVE);
 
 	switch (r92su->chip_rev) {
 	case R92SU_C_CUT:
