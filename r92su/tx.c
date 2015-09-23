@@ -304,12 +304,15 @@ r92su_tx_find_sta(struct r92su *r92su, struct sk_buff *skb,
 	struct ethhdr *hdr = (void *) skb->data;
 
 	sta = r92su_sta_get(r92su, hdr->h_dest);
-	if (!sta) {
+	if (sta) {
+		/* We only support aggregation when we are talking to the AP */
+		if (sta == bss_priv->sta)
+			tx_info->ht_possible = sta->ht_sta;
+	} else {
 		sta = bss_priv->sta;
 		if (!sta)
 			return TX_DROP;
 
-		/* We only support aggregation when we are talking to the AP */
 		tx_info->ht_possible = sta->ht_sta;
 	}
 
