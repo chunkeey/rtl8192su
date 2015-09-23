@@ -89,10 +89,10 @@ enum r92su_rf_type_t {
 };
 
 enum rtl8712_queues_t {
-	RTL8712_BKQ,
-	RTL8712_BEQ,
-	RTL8712_VIQ,
-	RTL8712_VOQ,
+	RTL8712_BKQ = 1,
+	RTL8712_BEQ = 3,
+	RTL8712_VIQ = 5,
+	RTL8712_VOQ = 7,
 
 	RTL8712_H2CCMD,
 	RTL8712_BCNQ,
