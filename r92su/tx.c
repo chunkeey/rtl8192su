@@ -82,7 +82,7 @@ r92su_tx_fill_desc(struct r92su *r92su, struct sk_buff *skb,
 	u8 prio = skb->priority % ARRAY_SIZE(ieee802_1d_to_ac);
 
 	hdr = (tx_hdr *) skb_push(skb, sizeof(*hdr));
-	memset(hdr, 0 , sizeof(*hdr));
+	memset(hdr, 0, sizeof(*hdr));
 
 	SET_TX_DESC_PKT_SIZE(hdr, skb->len - sizeof(*hdr));
 	SET_TX_DESC_OFFSET(hdr, sizeof(*hdr));
@@ -246,8 +246,7 @@ r92su_tx_add_icv_mic(struct r92su *r92su, struct sk_buff *skb,
 	switch (key->type) {
 	case WEP40_ENCRYPTION:
 	case WEP104_ENCRYPTION:
-		/* done by the firmware/hardware, just alloc the space */
-		memset(skb_put(skb, WEP_ICV_LEN), 0, WEP_ICV_LEN);
+		/* done by the firmware/hardware */
 		tx_info->ht_possible = false;
 		return TX_CONTINUE;
 
@@ -259,8 +258,7 @@ r92su_tx_add_icv_mic(struct r92su *r92su, struct sk_buff *skb,
 		return TX_CONTINUE;
 
 	case AESCCMP_ENCRYPTION:
-		/* done by the firmware/hardware, just alloc the space */
-		memset(skb_put(skb, CCMP_MIC_LEN), 0, CCMP_MIC_LEN);
+		/* done by the firmware/hardware */
 		return TX_CONTINUE;
 
 	default:
