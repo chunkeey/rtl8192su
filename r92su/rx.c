@@ -448,39 +448,8 @@ r92su_rx_iv_handle(struct r92su *r92su, struct sk_buff *skb,
 }
 
 static enum r92su_rx_control_t
-r92su_rx_iv_check(struct r92su *r92su, struct sk_buff *skb,
-		  struct r92su_bss_priv *bss_priv)
-{
-	struct r92su_rx_info *rx_info = r92su_get_rx_info(skb);
-	struct r92su_key *key;
-
-	key = rx_info->key;
-
-	if (!key)
-		return RX_CONTINUE;
-
-	switch (key->type) {
-	case WEP40_ENCRYPTION:
-	case WEP104_ENCRYPTION:
-		break;
-
-	case TKIP_ENCRYPTION:
-		key->tkip.rx_seq = rx_info->iv;
-		break;
-
-	case AESCCMP_ENCRYPTION:
-		key->ccmp.rx_seq = rx_info->iv;
-		break;
-
-	default:
-		WARN(1, "invalid key type %d\n", key->type);
-		return RX_DROP;
-	}
-	return RX_CONTINUE;
-}
-
-static enum r92su_rx_control_t
-r92su_rx_tkip_handle(struct r92su *r92su, struct sk_buff *skb, struct r92su_key *key)
+r92su_rx_tkip_handle(struct r92su *r92su, struct sk_buff *skb,
+		     struct r92su_key *key)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	int data_len;
@@ -512,6 +481,13 @@ r92su_rx_tkip_handle(struct r92su *r92su, struct sk_buff *skb, struct r92su_key 
 }
 
 static enum r92su_rx_control_t
+r92su_rx_ccmp_handle(struct r92su *r92su, struct sk_buff *skb,
+		     struct r92su_key *key)
+{
+	return RX_CONTINUE;
+}
+
+static enum r92su_rx_control_t
 r92su_rx_icv_mic_handle(struct r92su *r92su, struct sk_buff *skb,
 			struct r92su_bss_priv *bss_priv)
 {
@@ -539,6 +515,11 @@ r92su_rx_icv_mic_handle(struct r92su *r92su, struct sk_buff *skb,
 		break;
 
 	case AESCCMP_ENCRYPTION:
+		res = r92su_rx_ccmp_handle(r92su, skb, key);
+		if (res != RX_CONTINUE)
+			return res;
+
+		key->ccmp.rx_seq = rx_info->iv;
 		remove_len = 8;
 		break;
 
@@ -1007,7 +988,6 @@ static void r92su_rx_handler(struct r92su *r92su,
 		RX_HANDLER_PREP(r92su_rx_iv_handle);
 		RX_HANDLER_PREP(r92su_rx_icv_mic_handle);
 		RX_HANDLER_PREP(r92su_rx_defrag);
-		RX_HANDLER_PREP(r92su_rx_iv_check);
 		RX_HANDLER_PREP(r92su_rx_data_to_8023, &skb, &frames);
 out:
 		continue;
