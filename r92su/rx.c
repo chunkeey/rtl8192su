@@ -682,7 +682,7 @@ r92su_rx_sta_stats(struct r92su *r92su, struct sk_buff *skb,
 		else
 			bw = RATE_INFO_BW_20;
 	} else {
-		rate = r92su->band_2GHZ.bitrates[rate].bitrate / 5;
+		rate = r92su->band_2GHZ.bitrates[rate].bitrate;
 		bw = RATE_INFO_BW_20;
 	}
 
