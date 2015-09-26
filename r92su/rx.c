@@ -245,6 +245,7 @@ struct r92su_rx_info {
 	struct r92su_key *key;
 	u64 iv;
 	bool has_protect;
+	bool needs_decrypt;
 };
 
 enum r92su_rx_control_t {
@@ -479,20 +480,48 @@ r92su_rx_iv_check(struct r92su *r92su, struct sk_buff *skb,
 }
 
 static enum r92su_rx_control_t
+r92su_rx_tkip_handle(struct r92su *r92su, struct sk_buff *skb, struct r92su_key *key)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	int data_len;
+	int hdr_len = ieee80211_hdrlen(hdr->frame_control);
+	void *tail, *data;
+	u8 mic[MICHAEL_MIC_LEN];
+
+	data = ((void *) hdr) + hdr_len;
+	data_len = skb->len - hdr_len - MICHAEL_MIC_LEN - 4;
+	if (data_len < 0)
+		return RX_DROP;
+
+	tail = data + data_len;
+	michael_mic(&key->tkip.key.
+		    key[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY],
+		    hdr, data, data_len, mic);
+
+	if (memcmp(mic, tail, MICHAEL_MIC_LEN) != 0) {
+		cfg80211_michael_mic_failure(r92su->wdev.netdev,
+			hdr->addr2,
+			is_multicast_ether_addr(hdr->addr1) ?
+			NL80211_KEYTYPE_GROUP :
+			NL80211_KEYTYPE_PAIRWISE,
+			key->index, NULL, GFP_ATOMIC);
+		return RX_DROP;
+	}
+
+	return RX_CONTINUE;
+}
+
+static enum r92su_rx_control_t
 r92su_rx_icv_mic_handle(struct r92su *r92su, struct sk_buff *skb,
 			struct r92su_bss_priv *bss_priv)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct r92su_rx_info *rx_info = r92su_get_rx_info(skb);
 	struct r92su_key *key = rx_info->key;
-	int remove_len, data_len;
-	int hdr_len = ieee80211_hdrlen(hdr->frame_control);
-	void *tail, *data;
+	int remove_len;
+	enum r92su_rx_control_t res;
 
 	if (!key)
 		return RX_CONTINUE;
-
-	data = ((void *) hdr) + hdr_len;
 
 	switch (key->type) {
 	case WEP40_ENCRYPTION:
@@ -500,32 +529,14 @@ r92su_rx_icv_mic_handle(struct r92su *r92su, struct sk_buff *skb,
 		remove_len = 4;
 		break;
 
-	case TKIP_ENCRYPTION: {
-		u8 mic[MICHAEL_MIC_LEN];
-
-		data_len = skb->len - hdr_len - MICHAEL_MIC_LEN - 4;
-		if (data_len < 0)
-			return RX_DROP;
-
-		tail = data + data_len;
-		michael_mic(&key->tkip.key.
-			    key[NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY],
-			    hdr, data, data_len, mic);
-
-		if (memcmp(mic, tail, MICHAEL_MIC_LEN) != 0) {
-			cfg80211_michael_mic_failure(r92su->wdev.netdev,
-				hdr->addr2,
-				is_multicast_ether_addr(hdr->addr1) ?
-				NL80211_KEYTYPE_GROUP :
-				NL80211_KEYTYPE_PAIRWISE,
-				key->index, NULL, GFP_ATOMIC);
-			return RX_DROP;
-		}
+	case TKIP_ENCRYPTION:
+		res = r92su_rx_tkip_handle(r92su, skb, key);
+		if (res != RX_CONTINUE)
+			return res;
 
 		key->tkip.rx_seq = rx_info->iv;
 		remove_len = 12;
 		break;
-	}
 
 	case AESCCMP_ENCRYPTION:
 		remove_len = 8;
@@ -607,7 +618,7 @@ r92su_rx_hw_header_check(struct r92su *r92su, struct sk_buff *skb,
 	struct r92su_rx_info *rx_info;
 	struct ieee80211_hdr *hdr;
 	unsigned int min_len;
-	bool has_protect;
+	bool has_protect, needs_decrypt = false;
 
 	if (skb->len < (sizeof(*hdr) + FCS_LEN))
 		return RX_DROP;
@@ -625,6 +636,7 @@ r92su_rx_hw_header_check(struct r92su *r92su, struct sk_buff *skb,
 
 	if (has_protect && GET_RX_DESC_SWDEC(&rx->hdr)) {
 		R92SU_ERR(r92su, "hw didn't decipher frame.\n");
+		needs_decrypt = true;
 		return RX_DROP;
 	}
 
@@ -661,6 +673,7 @@ r92su_rx_hw_header_check(struct r92su *r92su, struct sk_buff *skb,
 
 	rx_info = r92su_get_rx_info(skb);
 	rx_info->has_protect = has_protect;
+	rx_info->needs_decrypt = needs_decrypt;
 	return RX_CONTINUE;
 }
 
