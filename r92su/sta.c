@@ -258,15 +258,18 @@ void r92su_sta_set_sinfo(struct r92su *r92su, struct r92su_sta *sta,
 			 struct station_info *sinfo)
 {
 	struct timespec uptime;
-
+	struct cfg80211_bss *bss;
+	struct r92su_bss_priv *bss_priv;
 	sinfo->generation = r92su->sta_generation;
 	sinfo->filled = BIT(NL80211_STA_INFO_CONNECTED_TIME) |
 			BIT(NL80211_STA_INFO_RX_BITRATE) |
-			BIT(NL80211_STA_INFO_STA_FLAGS);
+			BIT(NL80211_STA_INFO_BSS_PARAM) |
+			BIT(NL80211_STA_INFO_STA_FLAGS) |
+			BIT(NL80211_STA_INFO_SIGNAL);
 
 	ktime_get_ts(&uptime);
 	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
-
+	sinfo->signal = sta->signal;
 	sinfo->rxrate.flags = sta->last_rx_rate_flag;
 	sinfo->rxrate.bw = sta->last_rx_rate_bw;
 	if (sta->last_rx_rate_flag & RATE_INFO_FLAGS_MCS)
@@ -283,6 +286,20 @@ void r92su_sta_set_sinfo(struct r92su *r92su, struct r92su_sta *sta,
 
 	if (sta->qos_sta)
 		sinfo->sta_flags.set |= BIT(NL80211_STA_FLAG_WME);
+
+	sinfo->bss_param.flags = 0;
+	rcu_read_lock();
+	bss = rcu_dereference(r92su->connect_bss);
+	if (bss) {
+		bss_priv = r92su_get_bss_priv(bss);
+		if (bss->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
+			sinfo->bss_param.flags |= BSS_PARAM_FLAGS_SHORT_PREAMBLE;
+		if (bss->capability & WLAN_CAPABILITY_SHORT_SLOT_TIME)
+			sinfo->bss_param.flags |= BSS_PARAM_FLAGS_SHORT_SLOT_TIME;
+		sinfo->bss_param.dtim_period = bss_priv->dtim_period;
+		sinfo->bss_param.beacon_interval = bss->beacon_interval;
+	}
+	rcu_read_unlock();
 }
 
 struct r92su_sta *r92su_sta_get_by_idx(struct r92su *r92su, int idx)

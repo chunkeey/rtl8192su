@@ -244,6 +244,8 @@ struct r92su_bss_priv {
 	__be16 control_port_ethertype;
 	bool control_port_no_encrypt;
 	bool control_port;
+
+	unsigned int dtim_period;
 };
 
 static inline bool r92su_is_dead(struct r92su *r92su)

@@ -195,6 +195,18 @@ static bool r92su_parse_ht_cap_ie(struct r92su *r92su, u8 *ies, const u32 len)
 	return true;
 }
 
+static unsigned int r92su_get_dtim_period(u8 *ies, const u32 len)
+{
+	const u8 *ie;
+
+	ie = r92su_find_ie(ies, len, WLAN_EID_TIM);
+	if (ie) {
+		const struct ieee80211_tim_ie *tim_ie = (const void *)ie;
+		return tim_ie->dtim_period;
+	}
+	return 1;
+}
+
 static u8 *r92su_find_wmm_ie(u8 *ies, const u32 len)
 {
 	u8 *wmm_ie = ies;
@@ -578,10 +590,14 @@ static void r92su_bss_init(struct r92su *r92su, struct cfg80211_bss *bss,
 			   const struct h2cc2h_bss *c2h_bss)
 {
 	struct r92su_bss_priv *cfg_priv;
-	int i;
+	int i, ie_len;
 
 	cfg_priv = (void *) bss->priv;
 	memcpy(&cfg_priv->fw_bss, c2h_bss, sizeof(*c2h_bss));
+
+	ie_len = le32_to_cpu(c2h_bss->ie_length) - 12;
+	cfg_priv->dtim_period = r92su_get_dtim_period(
+		(void *)c2h_bss->ies.ie, ie_len);
 
 	for (i = 0; i < ARRAY_SIZE(cfg_priv->tx_tid); i++)
 		skb_queue_head_init(&cfg_priv->tx_tid[i].agg_queue);
