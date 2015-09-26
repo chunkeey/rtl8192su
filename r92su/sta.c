@@ -34,6 +34,7 @@
 #include "r92su.h"
 #include "sta.h"
 #include "rx.h"
+#include "aes_ccm.h"
 
 static void r92su_free_tid_rcu(struct rcu_head *head)
 {
@@ -238,6 +239,12 @@ struct r92su_key *r92su_key_alloc(const u32 cipher, const u8 idx,
 		new_key->ccmp.tx_seq = 0;
 		new_key->ccmp.rx_seq = 0;
 		memcpy(new_key->ccmp.key, key, sizeof(new_key->ccmp.key));
+		new_key->ccmp.tfm = ieee80211_aes_key_setup_encrypt(key,
+			WLAN_KEY_LEN_CCMP, IEEE80211_CCMP_MIC_LEN);
+		if (IS_ERR(new_key->ccmp.tfm)) {
+			kfree(new_key);
+			return ERR_PTR(PTR_ERR(new_key->ccmp.tfm));
+		}
 		break;
 
 	default:
@@ -250,8 +257,24 @@ struct r92su_key *r92su_key_alloc(const u32 cipher, const u8 idx,
 
 void r92su_key_free(struct r92su_key *key)
 {
-	if (key)
+	if (key) {
+		/* WARN(key->uploaded, "Delete %s key of type %d in slot %d which is still uploaded in hw",
+		 *	key->pairwise ? "pairwise" : "", key->type, key->index);
+		 */
+		switch (key->type) {
+		case WEP40_ENCRYPTION:
+		case WEP104_ENCRYPTION:
+			break;
+		case TKIP_ENCRYPTION:
+			break;
+		case AESCCMP_ENCRYPTION:
+			ieee80211_aes_key_free(key->ccmp.tfm);
+			break;
+		default:
+			break;
+		}
 		kfree_rcu(key, rcu_head);
+	}
 }
 
 void r92su_sta_set_sinfo(struct r92su *r92su, struct r92su_sta *sta,

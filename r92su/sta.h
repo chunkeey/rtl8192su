@@ -38,6 +38,7 @@
 
 #include "def.h"
 
+struct crypto_aead;
 struct r92su;
 struct r92su_key;
 struct r92su_sta;
@@ -73,12 +74,14 @@ struct r92su_key {
 	enum r92su_enc_alg type;
 	unsigned int key_len;
 	bool pairwise;
+	bool uploaded;
 	unsigned int index;
 	union {
 		struct {
 			u64 tx_seq:48;
 			u64 rx_seq:48;
 			u8 key[WLAN_KEY_LEN_CCMP];
+			struct crypto_aead *tfm;
 		} ccmp;
 
 		struct {

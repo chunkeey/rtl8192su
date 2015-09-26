@@ -37,6 +37,7 @@
 #include <linux/udp.h>
 
 #include "r92su.h"
+#include "aes_ccm.h"
 #include "tx.h"
 #include "reg.h"
 #include "def.h"
@@ -60,10 +61,12 @@ enum r92su_tx_control_t {
 struct r92su_tx_info {
 	struct r92su_sta *sta;
 	struct r92su_key *key;
+	u64 pn;
 	u8 tid;
 	bool low_rate;
 	bool ampdu;
 	bool ht_possible;
+	bool needs_encrypt;
 };
 
 static inline struct r92su_tx_info *r92su_get_tx_info(struct sk_buff *skb)
@@ -109,7 +112,7 @@ r92su_tx_fill_desc(struct r92su *r92su, struct sk_buff *skb,
 
 	SET_TX_DESC_BMC(hdr, is_multicast_ether_addr(ieee80211_get_DA(i3e)));
 
-	if (tx_info->key) {
+	if (tx_info->key && !tx_info->needs_encrypt) {
 		switch (tx_info->key->type) {
 		case WEP40_ENCRYPTION:
 		case WEP104_ENCRYPTION: {
@@ -191,7 +194,7 @@ r92su_tx_add_iv(struct r92su *r92su, struct sk_buff *skb,
 		iv[1] = (key->wep.seq >> 8) & 0xff;
 		iv[2] = (key->wep.seq) & 0xff;
 		iv[3] = key->index;
-		key->wep.seq++;
+		tx_info->pn = key->wep.seq++;
 		break;
 
 	case TKIP_ENCRYPTION:
@@ -203,7 +206,7 @@ r92su_tx_add_iv(struct r92su *r92su, struct sk_buff *skb,
 		iv[5] = (key->tkip.tx_seq >> 24) & 0xff;
 		iv[6] = (key->tkip.tx_seq >> 32) & 0xff;
 		iv[7] = (key->tkip.tx_seq >> 40) & 0xff;
-		key->tkip.tx_seq++;
+		tx_info->pn = key->tkip.tx_seq++;
 		break;
 
 	case AESCCMP_ENCRYPTION:
@@ -215,7 +218,7 @@ r92su_tx_add_iv(struct r92su *r92su, struct sk_buff *skb,
 		iv[5] = (key->ccmp.tx_seq >> 24) & 0xff;
 		iv[6] = (key->ccmp.tx_seq >> 32) & 0xff;
 		iv[7] = (key->ccmp.tx_seq >> 40) & 0xff;
-		key->ccmp.tx_seq++;
+		tx_info->pn = key->ccmp.tx_seq++;
 		break;
 
 	default:
@@ -227,30 +230,40 @@ r92su_tx_add_iv(struct r92su *r92su, struct sk_buff *skb,
 }
 
 static enum r92su_tx_control_t
-r92su_tx_add_icv_mic(struct r92su *r92su, struct sk_buff *skb,
+r92su_tx_add_crypto(struct r92su *r92su, struct sk_buff *skb,
 			struct r92su_bss_priv *bss_priv)
 {
 	struct ieee80211_hdr *hdr = (void *) skb->data;
 	struct r92su_tx_info *tx_info = r92su_get_tx_info(skb);
 	struct r92su_key *key = tx_info->key;
-	unsigned int data_len, hdr_len;
+	unsigned int data_len, hdr_len, iv_len;
 	u8 *data;
 
 	if (!key)
 		return TX_CONTINUE;
 
+	iv_len = r92su_get_iv_len(key);
 	hdr_len = ieee80211_hdrlen(hdr->frame_control);
-	data_len = skb->len - hdr_len;
-	data = ((u8 *) hdr) + hdr_len;
+	data_len = skb->len - hdr_len - iv_len;
+	data = ((u8 *) hdr) + hdr_len + iv_len;
 
 	switch (key->type) {
 	case WEP40_ENCRYPTION:
 	case WEP104_ENCRYPTION:
-		/* done by the firmware/hardware */
+		if (tx_info->needs_encrypt) {
+			/* Not implemented */
+			return TX_DROP;
+		}
+
 		tx_info->ht_possible = false;
 		return TX_CONTINUE;
 
 	case TKIP_ENCRYPTION:
+		if (tx_info->needs_encrypt) {
+			/* Not implemented */
+			return TX_DROP;
+		}
+
 		michael_mic(&key->tkip.key.
 			    key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY],
 			    hdr, data, data_len, skb_put(skb, MICHAEL_MIC_LEN));
@@ -258,7 +271,11 @@ r92su_tx_add_icv_mic(struct r92su *r92su, struct sk_buff *skb,
 		return TX_CONTINUE;
 
 	case AESCCMP_ENCRYPTION:
-		/* done by the firmware/hardware */
+		if (tx_info->needs_encrypt) {
+			ieee80211_aes_ccm_encrypt(key->ccmp.tfm, skb,
+						  tx_info->pn,
+						  IEEE80211_CCMP_MIC_LEN);
+		}
 		return TX_CONTINUE;
 
 	default:
@@ -553,6 +570,7 @@ r92su_tx_select_key(struct r92su *r92su, struct sk_buff *skb,
 
 	hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 	tx_info->key = key;
+	tx_info->needs_encrypt |= !key->uploaded;
 	return TX_CONTINUE;
 }
 
@@ -619,8 +637,8 @@ void r92su_tx(struct r92su *r92su, struct sk_buff *skb, bool inject)
 	TX_HANDLER_PREP(r92su_tx_fragment, &in_queue);
 
 	while ((skb = __skb_dequeue(&in_queue))) {
-		TX_HANDLER(r92su_tx_add_icv_mic);
 		TX_HANDLER(r92su_tx_add_iv);
+		TX_HANDLER(r92su_tx_add_crypto);
 		TX_HANDLER(r92su_tx_fill_desc);
 		TX_HANDLER(r92su_tx_invalidate_rcu_data);
 		__skb_queue_tail(&out_queue, skb);

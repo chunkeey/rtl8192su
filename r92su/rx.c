@@ -40,6 +40,7 @@
 #include "def.h"
 #include "event.h"
 #include "michael.h"
+#include "aes_ccm.h"
 #include "debug.h"
 #include "trace.h"
 
@@ -348,6 +349,7 @@ r92su_rx_find_key(struct r92su *r92su, struct sk_buff *skb,
 			return RX_DROP;
 
 		rx_info->key = key;
+		rx_info->needs_decrypt |= !key->uploaded;
 	} else {
 		/* see r92su_rx_port_check */
 	}
@@ -481,15 +483,8 @@ r92su_rx_tkip_handle(struct r92su *r92su, struct sk_buff *skb,
 }
 
 static enum r92su_rx_control_t
-r92su_rx_ccmp_handle(struct r92su *r92su, struct sk_buff *skb,
-		     struct r92su_key *key)
-{
-	return RX_CONTINUE;
-}
-
-static enum r92su_rx_control_t
-r92su_rx_icv_mic_handle(struct r92su *r92su, struct sk_buff *skb,
-			struct r92su_bss_priv *bss_priv)
+r92su_rx_crypto_handle(struct r92su *r92su, struct sk_buff *skb,
+		       struct r92su_bss_priv *bss_priv)
 {
 	struct r92su_rx_info *rx_info = r92su_get_rx_info(skb);
 	struct r92su_key *key = rx_info->key;
@@ -502,10 +497,20 @@ r92su_rx_icv_mic_handle(struct r92su *r92su, struct sk_buff *skb,
 	switch (key->type) {
 	case WEP40_ENCRYPTION:
 	case WEP104_ENCRYPTION:
+		if (rx_info->needs_decrypt) {
+			/* not implemented */
+			return RX_DROP;
+		}
+
 		remove_len = 4;
 		break;
 
 	case TKIP_ENCRYPTION:
+		if (rx_info->needs_decrypt) {
+			/* not implemented */
+			return RX_DROP;
+		}
+
 		res = r92su_rx_tkip_handle(r92su, skb, key);
 		if (res != RX_CONTINUE)
 			return res;
@@ -515,9 +520,13 @@ r92su_rx_icv_mic_handle(struct r92su *r92su, struct sk_buff *skb,
 		break;
 
 	case AESCCMP_ENCRYPTION:
-		res = r92su_rx_ccmp_handle(r92su, skb, key);
-		if (res != RX_CONTINUE)
-			return res;
+		/* frame wasn't decrypted - do it now */
+		if (rx_info->needs_decrypt) {
+			if (ieee80211_aes_ccm_decrypt(key->ccmp.tfm, skb,
+						      rx_info->iv,
+						      IEEE80211_CCMP_MIC_LEN))
+				return RX_DROP;
+		}
 
 		key->ccmp.rx_seq = rx_info->iv;
 		remove_len = 8;
@@ -615,11 +624,8 @@ r92su_rx_hw_header_check(struct r92su *r92su, struct sk_buff *skb,
 
 	has_protect = ieee80211_has_protected(hdr->frame_control);
 
-	if (has_protect && GET_RX_DESC_SWDEC(&rx->hdr)) {
-		R92SU_ERR(r92su, "hw didn't decipher frame.\n");
+	if (has_protect && GET_RX_DESC_SWDEC(&rx->hdr))
 		needs_decrypt = true;
-		return RX_DROP;
-	}
 
 	/* TCP/IP checksum offloading needs to be tested and verified first.
 	 * If you enable this code, don't forget to edit r92su_rx_deliver!
@@ -986,7 +992,7 @@ static void r92su_rx_handler(struct r92su *r92su,
 	while ((skb = __skb_dequeue(queue))) {
 		RX_HANDLER_PREP(r92su_rx_find_key);
 		RX_HANDLER_PREP(r92su_rx_iv_handle);
-		RX_HANDLER_PREP(r92su_rx_icv_mic_handle);
+		RX_HANDLER_PREP(r92su_rx_crypto_handle);
 		RX_HANDLER_PREP(r92su_rx_defrag);
 		RX_HANDLER_PREP(r92su_rx_data_to_8023, &skb, &frames);
 out:

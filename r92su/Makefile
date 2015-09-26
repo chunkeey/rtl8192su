@@ -1,6 +1,6 @@
 r92su-objs	+= 						\
-	michael.o eeprom.o event.o debug.o main.o sta.o usb.o	\
-	cmd.o fw.o rx.o hw.o tx.o pwr.o				\
+	michael.o aes_ccm.o eeprom.o event.o debug.o main.o	\
+	sta.o usb.o cmd.o fw.o rx.o hw.o tx.o pwr.o		\
 
 
 r92su-$(CONFIG_R92SU_DEBUGFS)	+= debugfs.o

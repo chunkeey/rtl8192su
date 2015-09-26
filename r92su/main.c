@@ -53,6 +53,10 @@ static bool modparam_noht;
 module_param_named(noht, modparam_noht, bool, S_IRUGO);
 MODULE_PARM_DESC(noht, "Disable MPDU aggregation.");
 
+static bool modparam_nohwcrypt;
+module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
+MODULE_PARM_DESC(nohwcrypt, "Disable hardware crypto-engine.");
+
 #define CHAN2G(_hw_value, _freq, _flags) {	\
 	.band		= IEEE80211_BAND_2GHZ,	\
 	.center_freq	= (_freq),		\
@@ -363,8 +367,11 @@ static int r92su_connect_set_shared_key(struct r92su *r92su,
 		return -EINVAL;
 	}
 
+	if (modparam_nohwcrypt)
+		return -EIO; /* Not implemented */
+
 	return r92su_h2c_set_key(r92su, algo, sme->key_idx, true,
-				sme->key);
+				 sme->key);
 }
 
 static int r92su_internal_scan(struct r92su *r92su, const u8 *ssid,
@@ -894,11 +901,14 @@ static int r92su_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	if (pairwise) {
-		err = r92su_h2c_set_sta_key(r92su, new_key->type,
-					    new_key->mac_addr,
-					    params->key);
-		if (err)
-			goto out_unlock;
+		if (!modparam_nohwcrypt) {
+			err = r92su_h2c_set_sta_key(r92su, new_key->type,
+						    new_key->mac_addr,
+						    params->key);
+			if (!err)
+				new_key->uploaded = true;
+		} else
+			err = 0;
 
 		rcu_read_lock();
 		sta = r92su_sta_get(r92su, mac_addr);
@@ -907,22 +917,30 @@ static int r92su_add_key(struct wiphy *wiphy, struct net_device *ndev,
 			goto out_rcu_unlock;
 		}
 		old_key = rcu_dereference(sta->sta_key);
+		if (old_key)
+			old_key->uploaded = false;
 		rcu_assign_pointer(sta->sta_key, new_key);
 	} else {
 		struct cfg80211_bss *bss;
 		struct r92su_bss_priv *bss_priv;
-		err = r92su_h2c_set_key(r92su, new_key->type,
-					new_key->index,
-					!new_key->pairwise,
-					params->key);
-		if (err)
-			goto out_unlock;
+
+		if (!modparam_nohwcrypt) {
+			err = r92su_h2c_set_key(r92su, new_key->type,
+						new_key->index,
+						!new_key->pairwise,
+						params->key);
+			if (!err)
+				new_key->uploaded = true;
+		} else
+			err = 0;
 
 		rcu_read_lock();
 		bss = rcu_dereference(r92su->connect_bss);
 		if (bss) {
 			bss_priv = r92su_get_bss_priv(bss);
 			old_key = rcu_dereference(bss_priv->group_key[idx]);
+			if (old_key)
+				old_key->uploaded = false;
 			rcu_assign_pointer(bss_priv->group_key[idx],
 					   new_key);
 		}
@@ -953,6 +971,19 @@ static int r92su_del_key(struct wiphy *wiphy, struct net_device *ndev,
 
 	if (pairwise) {
 		struct r92su_sta *sta;
+
+		rcu_read_lock();
+		sta = r92su_sta_get(r92su, mac_addr);
+		if (sta) {
+			old_key = rcu_dereference(sta->sta_key);
+			/* check if key was uploaded ? */
+			if (old_key && old_key->uploaded == false) {
+				err = 0;
+				goto out_free;
+			}
+		}
+		rcu_read_unlock();
+
 		err = r92su_h2c_set_sta_key(r92su, no_key, mac_addr,
 					    NULL);
 		if (err)
@@ -964,10 +995,28 @@ static int r92su_del_key(struct wiphy *wiphy, struct net_device *ndev,
 			goto out_free;
 
 		old_key = rcu_dereference(sta->sta_key);
+		if (old_key) {
+			WARN(!old_key->uploaded, "pairwise-key for station %pM was ninja-deleted",
+			     mac_addr);
+			old_key->uploaded = false;
+		}
 		rcu_assign_pointer(sta->sta_key, NULL);
 	} else {
 		struct cfg80211_bss *bss;
 		struct r92su_bss_priv *bss_priv;
+
+		rcu_read_lock();
+		bss = rcu_dereference(r92su->connect_bss);
+		if (bss) {
+			bss_priv = r92su_get_bss_priv(bss);
+			old_key = rcu_dereference(bss_priv->group_key[idx]);
+			if (old_key && old_key->uploaded == false) {
+				err = 0;
+				goto out_free;
+			}
+		}
+		rcu_read_unlock();
+
 		err = r92su_h2c_set_key(r92su, no_key, idx, !pairwise,
 					NULL);
 		if (err)
@@ -978,6 +1027,8 @@ static int r92su_del_key(struct wiphy *wiphy, struct net_device *ndev,
 		if (bss) {
 			bss_priv = r92su_get_bss_priv(bss);
 			old_key = rcu_dereference(bss_priv->group_key[idx]);
+			if (old_key)
+				old_key->uploaded = false;
 			rcu_assign_pointer(bss_priv->group_key[idx], NULL);
 		} else {
 			/* BSS which held the key is already gone! */
