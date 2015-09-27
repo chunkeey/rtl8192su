@@ -38,11 +38,13 @@
 
 #include "r92su.h"
 #include "aes_ccm.h"
+#include "tkip.h"
 #include "tx.h"
 #include "reg.h"
 #include "def.h"
 #include "usb.h"
 #include "cmd.h"
+#include "wep.h"
 #include "michael.h"
 #include "trace.h"
 
@@ -149,11 +151,6 @@ r92su_tx_fill_desc(struct r92su *r92su, struct sk_buff *skb,
 	return TX_CONTINUE;
 }
 
-#define WEP_ICV_LEN		4
-#define CCMP_MIC_LEN		8
-#define CCMP_TK_LEN		16
-#define TKIP_ICV_LEN		4
-
 static enum r92su_tx_control_t
 r92su_tx_add_iv(struct r92su *r92su, struct sk_buff *skb,
 		struct r92su_bss_priv *bss_priv)
@@ -184,17 +181,17 @@ r92su_tx_add_iv(struct r92su *r92su, struct sk_buff *skb,
 	case WEP40_ENCRYPTION:
 	case WEP104_ENCRYPTION:
 		/* filter weak wep iv */
-		if ((key->wep.seq & 0xff00) == 0xff00) {
-			u8 B = (key->wep.seq >> 16) & 0xff;
+		if ((key->wep.tx_seq & 0xff00) == 0xff00) {
+			u8 B = (key->wep.tx_seq >> 16) & 0xff;
 			if (B >= 3 && B < (3 + key->key_len))
-				key->wep.seq += 0x0100;
+				key->wep.tx_seq += 0x0100;
 		}
 
-		iv[0] = (key->wep.seq >> 16) & 0xff;
-		iv[1] = (key->wep.seq >> 8) & 0xff;
-		iv[2] = (key->wep.seq) & 0xff;
-		iv[3] = key->index;
-		tx_info->pn = key->wep.seq++;
+		iv[0] = (key->wep.tx_seq >> 16) & 0xff;
+		iv[1] = (key->wep.tx_seq >> 8) & 0xff;
+		iv[2] = (key->wep.tx_seq) & 0xff;
+		iv[3] = key->index << 6;
+		tx_info->pn = key->wep.tx_seq++;
 		break;
 
 	case TKIP_ENCRYPTION:
@@ -236,39 +233,45 @@ r92su_tx_add_crypto(struct r92su *r92su, struct sk_buff *skb,
 	struct ieee80211_hdr *hdr = (void *) skb->data;
 	struct r92su_tx_info *tx_info = r92su_get_tx_info(skb);
 	struct r92su_key *key = tx_info->key;
-	unsigned int data_len, hdr_len, iv_len;
-	u8 *data;
 
 	if (!key)
 		return TX_CONTINUE;
-
-	iv_len = r92su_get_iv_len(key);
-	hdr_len = ieee80211_hdrlen(hdr->frame_control);
-	data_len = skb->len - hdr_len - iv_len;
-	data = ((u8 *) hdr) + hdr_len + iv_len;
 
 	switch (key->type) {
 	case WEP40_ENCRYPTION:
 	case WEP104_ENCRYPTION:
 		if (tx_info->needs_encrypt) {
-			/* Not implemented */
-			return TX_DROP;
+			ieee80211_wep_encrypt(key->wep.tfm, skb,
+					      key->wep.key, tx_info->pn,
+					      key->key_len, key->index);
 		}
 
 		tx_info->ht_possible = false;
-		return TX_CONTINUE;
+		break;
 
-	case TKIP_ENCRYPTION:
-		if (tx_info->needs_encrypt) {
-			/* Not implemented */
-			return TX_DROP;
-		}
+	case TKIP_ENCRYPTION: {
+		unsigned int data_len, hdr_len, iv_len;
+		u8 *data;
+
+		iv_len = r92su_get_iv_len(key);
+		hdr_len = ieee80211_hdrlen(hdr->frame_control);
+		data_len = skb->len - hdr_len - iv_len;
+		data = ((u8 *) hdr) + hdr_len + iv_len;
 
 		michael_mic(&key->tkip.key.
 			    key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY],
 			    hdr, data, data_len, skb_put(skb, MICHAEL_MIC_LEN));
+
+		if (tx_info->needs_encrypt) {
+			skb_put(skb, IEEE80211_TKIP_ICV_LEN);
+			ieee80211_tkip_encrypt_data(key->tkip.tfm,
+						    key->tkip.key._key.key,
+						    skb, tx_info->pn);
+		}
+
 		tx_info->ht_possible = false;
-		return TX_CONTINUE;
+		break;
+		}
 
 	case AESCCMP_ENCRYPTION:
 		if (tx_info->needs_encrypt) {
@@ -276,12 +279,14 @@ r92su_tx_add_crypto(struct r92su *r92su, struct sk_buff *skb,
 						  tx_info->pn,
 						  IEEE80211_CCMP_MIC_LEN);
 		}
-		return TX_CONTINUE;
+		break;
 
 	default:
 		WARN(1, "invalid encryption type %d\n", key->type);
 		return TX_DROP;
 	}
+
+	return TX_CONTINUE;
 }
 
 static enum r92su_tx_control_t

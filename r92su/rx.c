@@ -39,6 +39,8 @@
 #include "usb.h"
 #include "def.h"
 #include "event.h"
+#include "wep.h"
+#include "tkip.h"
 #include "michael.h"
 #include "aes_ccm.h"
 #include "debug.h"
@@ -349,7 +351,6 @@ r92su_rx_find_key(struct r92su *r92su, struct sk_buff *skb,
 			return RX_DROP;
 
 		rx_info->key = key;
-		rx_info->needs_decrypt |= !key->uploaded;
 	} else {
 		/* see r92su_rx_port_check */
 	}
@@ -393,8 +394,15 @@ r92su_rx_iv_handle(struct r92su *r92su, struct sk_buff *skb,
 
 	switch (key->type) {
 	case WEP40_ENCRYPTION:
-	case WEP104_ENCRYPTION:
+	case WEP104_ENCRYPTION: {
+		u32 seq;
+
+		seq = iv[0];
+		seq = (seq << 8) + iv[1];
+		seq = (seq << 8) + iv[2];
+		rx_info->iv = seq;
 		break;
+	}
 
 	case TKIP_ENCRYPTION: {
 		u64 seq;
@@ -460,7 +468,8 @@ r92su_rx_tkip_handle(struct r92su *r92su, struct sk_buff *skb,
 	u8 mic[MICHAEL_MIC_LEN];
 
 	data = ((void *) hdr) + hdr_len;
-	data_len = skb->len - hdr_len - MICHAEL_MIC_LEN - 4;
+	data_len = skb->len - hdr_len - IEEE80211_TKIP_ICV_LEN -
+		   MICHAEL_MIC_LEN;
 	if (data_len < 0)
 		return RX_DROP;
 
@@ -498,17 +507,23 @@ r92su_rx_crypto_handle(struct r92su *r92su, struct sk_buff *skb,
 	case WEP40_ENCRYPTION:
 	case WEP104_ENCRYPTION:
 		if (rx_info->needs_decrypt) {
-			/* not implemented */
-			return RX_DROP;
+			if (ieee80211_wep_decrypt(key->wep.tfm, skb,
+						  key->wep.key, rx_info->iv,
+						  key->key_len, key->index)) {
+				return RX_DROP;
+			}
 		}
 
+		key->wep.rx_seq = rx_info->iv;
 		remove_len = 4;
 		break;
 
 	case TKIP_ENCRYPTION:
 		if (rx_info->needs_decrypt) {
-			/* not implemented */
-			return RX_DROP;
+			if (ieee80211_tkip_decrypt_data(key->tkip.tfm,
+							key->tkip.key._key.key,
+							skb, rx_info->iv))
+				return RX_DROP;
 		}
 
 		res = r92su_rx_tkip_handle(r92su, skb, key);
@@ -516,7 +531,7 @@ r92su_rx_crypto_handle(struct r92su *r92su, struct sk_buff *skb,
 			return res;
 
 		key->tkip.rx_seq = rx_info->iv;
-		remove_len = 12;
+		remove_len = IEEE80211_TKIP_ICV_LEN + MICHAEL_MIC_LEN;
 		break;
 
 	case AESCCMP_ENCRYPTION:
@@ -529,7 +544,7 @@ r92su_rx_crypto_handle(struct r92su *r92su, struct sk_buff *skb,
 		}
 
 		key->ccmp.rx_seq = rx_info->iv;
-		remove_len = 8;
+		remove_len = IEEE80211_CCMP_MIC_LEN;
 		break;
 
 	default:
@@ -1056,6 +1071,7 @@ out:
 
 rx_drop:
 	rcu_read_unlock();
+
 	r92su_rx_dropped(r92su, 1);
 	__skb_queue_purge(&frames);
 	dev_kfree_skb_any(skb);

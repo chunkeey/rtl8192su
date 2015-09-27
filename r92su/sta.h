@@ -73,8 +73,8 @@ struct r92su_key {
 	u8 mac_addr[ETH_ALEN];
 	enum r92su_enc_alg type;
 	unsigned int key_len;
-	bool pairwise;
 	bool uploaded;
+	bool pairwise;
 	unsigned int index;
 	union {
 		struct {
@@ -95,14 +95,18 @@ struct r92su_key {
 				} __packed _key;
 				u8 key[WLAN_KEY_LEN_TKIP];
 			} key;
+			struct crypto_cipher *tfm;
 		} tkip;
 
 		struct {
-			u32 seq:24; /* only for tx */
+			u32 tx_seq:24;
+			u32 rx_seq:24;
 			union {
 				u8 wep104_key[WLAN_KEY_LEN_WEP104];
 				u8 wep40_key[WLAN_KEY_LEN_WEP40];
+				u8 key[WLAN_KEY_LEN_WEP104];
 			};
+			struct crypto_cipher *tfm;
 		} wep;
 	};
 };

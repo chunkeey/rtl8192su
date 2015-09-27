@@ -167,6 +167,7 @@ struct r92su {
 	/* scan / site survey */
 	struct cfg80211_scan_request *scan_request;
 	struct c2h_join_bss_event *connect_result;
+	struct cfg80211_bss *wep_shared_bss;
 	struct cfg80211_bss *want_connect_bss;
 	struct cfg80211_bss __rcu *connect_bss;
 	struct work_struct connect_bss_work;
