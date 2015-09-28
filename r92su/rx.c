@@ -515,7 +515,7 @@ r92su_rx_crypto_handle(struct r92su *r92su, struct sk_buff *skb,
 		}
 
 		key->wep.rx_seq = rx_info->iv;
-		remove_len = 4;
+		remove_len = IEEE80211_WEP_ICV_LEN;
 		break;
 
 	case TKIP_ENCRYPTION:
@@ -535,7 +535,6 @@ r92su_rx_crypto_handle(struct r92su *r92su, struct sk_buff *skb,
 		break;
 
 	case AESCCMP_ENCRYPTION:
-		/* frame wasn't decrypted - do it now */
 		if (rx_info->needs_decrypt) {
 			if (ieee80211_aes_ccm_decrypt(key->ccmp.tfm, skb,
 						      rx_info->iv,

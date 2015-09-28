@@ -148,7 +148,6 @@ int ieee80211_aes_ccm_decrypt(struct crypto_aead *tfm, struct sk_buff *skb,
 	ccmp_special_blocks(hdr, hdr_len, pn, b_0, aad);
 
 	memset(aead_req, 0, sizeof(aead_req_data));
-
 	mic = skb->data + skb->len - mic_len;
 	data = skb->data + hdr_len;
 	sg_init_table(sg, 3);
