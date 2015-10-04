@@ -100,15 +100,18 @@ static void rtl92s_set_mac_addr(struct ieee80211_hw *hw,
 
 static enum acm_method rtl92s_get_acm_method(struct ieee80211_hw *hw)
 {
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 
 	if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
 		struct rtl_pci *rtlpci;
-		rtlpci = rtl_pcidev(rtl_pcipriv(hw));
+
+		rtlpci = rtl_pcidev(rtl_pcipriv(rtlpriv));
 		return rtlpci->acm_method;
 	} else {
 		struct rtl_usb *rtlusb;
-		rtlusb = rtl_usbdev(rtl_usbpriv(hw));
+
+		rtlusb = rtl_usbdev(rtl_usbpriv(rtlpriv));
 		return rtlusb->acm_method;
 	}
 }
@@ -284,27 +287,27 @@ void rtl92s_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			break;
 		}
 	case HW_VAR_ACM_CTRL:{
-			u8 e_aci;
 			union aci_aifsn *p_aci_aifsn;
+			u8 e_aci;
 			u8 acm;
 			u8 acm_ctrl;
 
 			e_aci = *val;
 			p_aci_aifsn = (union aci_aifsn *)(&(mac->ac[0].aifs));
 			acm = p_aci_aifsn->f.acm;
-			acm_ctrl = rtl_read_byte(rtlpriv, AcmHwCtrl) |
-				((rtl92s_get_acm_method(hw) == 2) ? 0x0 : 0x1);
+			acm_ctrl = rtl_read_byte(rtlpriv, REG_ACMHWCTRL) |
+				((rtl92s_get_acm_method(hw) == EACMWAY2_SW) ? 0x0 : 0x1);
 
 			if (acm) {
 				switch (e_aci) {
 				case AC0_BE:
-					acm_ctrl |= AcmHw_BeqEn;
+					acm_ctrl |= ACMHW_BEQEN;
 					break;
 				case AC2_VI:
-					acm_ctrl |= AcmHw_ViqEn;
+					acm_ctrl |= ACMHW_VIQEN;
 					break;
 				case AC3_VO:
-					acm_ctrl |= AcmHw_VoqEn;
+					acm_ctrl |= ACMHW_VOQEN;
 					break;
 				default:
 					RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
@@ -315,13 +318,13 @@ void rtl92s_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			} else {
 				switch (e_aci) {
 				case AC0_BE:
-					acm_ctrl &= (~AcmHw_BeqEn);
+					acm_ctrl &= ~ACMHW_BEQEN;
 					break;
 				case AC2_VI:
-					acm_ctrl &= (~AcmHw_ViqEn);
+					acm_ctrl &= ~ACMHW_VIQEN;
 					break;
 				case AC3_VO:
-					acm_ctrl &= (~AcmHw_VoqEn);
+					acm_ctrl &= ~ACMHW_VOQEN;
 					break;
 				case AC1_BK:
 					break;
@@ -334,7 +337,7 @@ void rtl92s_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 
 			RT_TRACE(rtlpriv, COMP_QOS, DBG_TRACE,
 				 "HW_VAR_ACM_CTRL Write 0x%X\n", acm_ctrl);
-			rtl_write_byte(rtlpriv, AcmHwCtrl, acm_ctrl);
+			rtl_write_byte(rtlpriv, REG_ACMHWCTRL, acm_ctrl);
 			break;
 		}
 	case HW_VAR_RCR:{
