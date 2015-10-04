@@ -431,6 +431,8 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
+	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(rtlpriv));
+
 	int err = 0;
 	bool rtstatus = true;
 	u8 i;
@@ -568,6 +570,9 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 
 	for (i = 0; i < 4; i++)
 		rtl_write_dword(rtlpriv, wdcapra_add[i], 0x5e4322);
+
+	if (rtlusb->acm_method == eAcmWay1_HW)
+		rtl_write_byte(rtlpriv, REG_ACMHWCTRL, ACMHW_HWEN);
 
 	if (rtlphy->rf_type == RF_1T2R) {
 		bool mrc2set = true;
