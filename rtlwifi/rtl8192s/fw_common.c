@@ -397,7 +397,7 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 	/* 1. Retrieve FW header. */
 	firmware->pfwheader = (struct fw_hdr *) puc_mappedfile;
 	pfwheader = firmware->pfwheader;
-	firmware->firmwareversion = le16_to_cpu(pfwheader->version);
+	firmware->firmwareversion = le16_to_cpu(pfwheader->version) & 0xff;
 
 	if (IS_HARDWARE_TYPE_8192SE(rtlhal)) {
 		pfwheader->fwpriv.hci_sel = RTL8712_HCI_TYPE_PCIE;
