@@ -1919,10 +1919,10 @@ void rtl_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	ieee80211_tx_info_clear_status(txinfo);
 
-	/* All realtek hardware doesn't provide any tx feedback.
-	 * However wpa_supplicant requires ACKs for auth and
-	 * (re-)assoc_req management frames in order to connect
-	 * to a network
+	/* Realtek hardware doesn't provide any tx feedback by
+	 * default without the CCX flag set. However wpa_supplicant
+	 * requires ACKs for auth and (re-)assoc_req management
+	 * frames in order to connect to a network
 	 */
 	if (ieee80211_is_auth(hdr->frame_control) ||
 	    ieee80211_is_assoc_req(hdr->frame_control) ||

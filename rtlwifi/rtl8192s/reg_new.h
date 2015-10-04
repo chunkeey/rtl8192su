@@ -515,7 +515,7 @@
 #define		SCR_NOSKMC			BIT(5)
 
 /* ----------------------------------------------------- */
-/* 0x10250260h ~ 0x102502BFh Powersave Control */
+/* 0x10250260h ~ 0x102502DFh Powersave Control */
 /* ----------------------------------------------------- */
 #define REG_WOWCTRL			(RTL8712_POWERSAVE_ + 0x00)
 #define REG_PSSTATUS			(RTL8712_POWERSAVE_ + 0x01)

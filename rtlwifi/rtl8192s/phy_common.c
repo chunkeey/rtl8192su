@@ -228,7 +228,7 @@ static void _rtl92su_phy_rf_serial_write(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	rtl_write_dword(rtlpriv, REG_RF_BB_CMD_DATA, data);
-	rtl_write_dword(rtlpriv, REG_RF_BB_CMD_ADDR, 0xF0000003 |
+	rtl_write_dword(rtlpriv, REG_RF_BB_CMD_ADDR, 0xf0000003 |
 			(offset << 8) | (rfpath << 16));
 	_rtl92su_phy_rf_serial_ready(rtlpriv);
 }
