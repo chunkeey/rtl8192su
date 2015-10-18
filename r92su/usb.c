@@ -554,6 +554,7 @@ static struct usb_device_id r92su_usb_product_ids[] = {
 	{USB_DEVICE(0x0409, 0x02B6)},
 	/* Sitecom */
 	{USB_DEVICE(0x0DF6, 0x0061)},
+	{USB_DEVICE(0x0DF6, 0x006C)},
 
 /* Unknown Chips */
 	/* Sagemcom */

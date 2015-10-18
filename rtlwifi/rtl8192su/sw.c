@@ -378,6 +378,7 @@ static struct usb_device_id rtl92s_usb_ids[] = {
 	{RTL_USB_DEVICE(0x0409, 0x02B6, rtl92su_hal_cfg)},
 	/* Sitecom */
 	{RTL_USB_DEVICE(0x0DF6, 0x0061, rtl92su_hal_cfg)},
+	{RTL_USB_DEVICE(0x0DF6, 0x006C, rtl92su_hal_cfg)},
 
 /* Unknown Chips */
 	/* Sagemcom */
