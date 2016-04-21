@@ -58,7 +58,7 @@ module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware crypto-engine.");
 
 #define CHAN2G(_hw_value, _freq, _flags) {	\
-	.band		= IEEE80211_BAND_2GHZ,	\
+	.band		= NL80211_BAND_2GHZ,	\
 	.center_freq	= (_freq),		\
 	.hw_value	= (_hw_value),		\
 	.flags		= (_flags),		\
@@ -1433,7 +1433,7 @@ static int r92su_open(struct net_device *ndev)
 	 * would panic
 	 */
 	r92su->current_channel =
-		&r92su->wdev.wiphy->bands[IEEE80211_BAND_2GHZ]->channels[0];
+		&r92su->wdev.wiphy->bands[NL80211_BAND_2GHZ]->channels[0];
 
 	err = r92su_load_firmware(r92su);
 	if (err)
@@ -1644,7 +1644,7 @@ static int r92su_init_band(struct r92su *r92su)
 		break;
 	}
 
-	r92su->wdev.wiphy->bands[IEEE80211_BAND_2GHZ] = &r92su->band_2GHZ;
+	r92su->wdev.wiphy->bands[NL80211_BAND_2GHZ] = &r92su->band_2GHZ;
 
 	return 0;
 }
