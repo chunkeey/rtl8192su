@@ -154,7 +154,7 @@ static bool _rtl_is_radar_freq(u16 center_freq)
 static void _rtl_reg_apply_beaconing_flags(struct wiphy *wiphy,
 					   enum nl80211_reg_initiator initiator)
 {
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	struct ieee80211_supported_band *sband;
 	const struct ieee80211_reg_rule *reg_rule;
 	struct ieee80211_channel *ch;
@@ -301,7 +301,7 @@ static void _rtl_reg_apply_world_flags(struct wiphy *wiphy,
 
 static void _rtl_dump_channel_map(struct wiphy *wiphy)
 {
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
 	unsigned int i;
