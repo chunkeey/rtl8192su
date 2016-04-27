@@ -163,7 +163,7 @@ static struct rtl_hal_ops rtl8192su_hal_ops = {
 };
 
 static struct rtl_mod_params rtl92su_mod_params = {
-	.sw_crypto = false,
+	.sw_crypto = true,
 	.inactiveps = false,
 	.fwctrl_lps = false,
 	.swctrl_lps = false,
@@ -429,7 +429,7 @@ MODULE_FIRMWARE("RTL8192SU/rtl8192sfw.bin");
 
 module_param_named(swenc, rtl92su_mod_params.sw_crypto, bool, 0444);
 module_param_named(debug, rtl92su_mod_params.debug, int, 0444);
-MODULE_PARM_DESC(swenc, "Set to 1 for software crypto (default 0)\n");
+MODULE_PARM_DESC(swenc, "Set to 0 for hardware crypto (default 1)\n");
 MODULE_PARM_DESC(debug, "Set debug level (0-5) (default 0)");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 0)\n");
 MODULE_PARM_DESC(fwlps, "Set to 1 to use FW control power save (default 0)\n");
