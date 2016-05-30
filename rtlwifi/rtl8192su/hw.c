@@ -692,15 +692,23 @@ void rtl92su_read_eeprom_info(struct ieee80211_hw *hw)
 
 	rtl92s_read_eeprom_info(hw);
 
-	if (rtlefuse->epromtype == EEPROM_93C46) {
+	switch (rtlefuse->epromtype) {
+	case EEPROM_BOOT_EFUSE:
+		rtl_efuse_shadow_map_update(hw);
+		break;
+
+	case EEPROM_93C46:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "RTL819X Not boot from eeprom, check it !!\n");
-	} else if (rtlefuse->epromtype == EEPROM_BOOT_EFUSE) {
-		rtl_efuse_shadow_map_update(hw);
-		memcpy((void *)&eeprom, (void *)
-			&rtlefuse->efuse_map[EFUSE_INIT_MAP][0],
-			sizeof(eeprom));
+		return;
+
+	default:
+		pr_warn("rtl92su: no efuse data\n\n");
+		return;
 	}
+
+	memcpy(&eeprom, &rtlefuse->efuse_map[EFUSE_INIT_MAP][0],
+	       HWSET_MAX_SIZE_92S);
 
 	RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_DMESG, "MAP",
 		      &eeprom, sizeof(eeprom));
