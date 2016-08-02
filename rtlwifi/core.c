@@ -1167,7 +1167,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 			 * as sta_remove isn't called concurrently, we should be
 			 * "fine" (of course, we aren't).
 			 */
-			if (vif->type == NL80211_IFTYPE_STATION && sta)
+			if (vif->type == NL80211_IFTYPE_STATION)
 				rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0);
 
 			/* to avoid AP Disassociation caused by inactivity */
