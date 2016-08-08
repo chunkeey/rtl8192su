@@ -1498,8 +1498,12 @@ static void r92su_survey_done_work(struct work_struct *work)
 	req = r92su->scan_request;
 	r92su->scan_request = NULL;
 
-	if (req)
-		cfg80211_scan_done(req, req->aborted);
+	if (req) {
+		struct cfg80211_scan_info info = {
+			.aborted = false,
+		};
+		cfg80211_scan_done(req, &info);
+	}
 
 	r92su->scanned = true;
 	complete(&r92su->scan_done);
@@ -1531,8 +1535,12 @@ static int r92su_stop(struct net_device *ndev)
 	if (r92su_is_initializing(r92su))
 		r92su_set_state(r92su, R92SU_STOP);
 
-	if (r92su->scan_request)
-		cfg80211_scan_done(r92su->scan_request, true);
+	if (r92su->scan_request) {
+		struct cfg80211_scan_info info = {
+			.aborted = true,
+		};
+		cfg80211_scan_done(r92su->scan_request, &info);
+	}
 
 	tmp_bss = r92su->want_connect_bss;
 	r92su->want_connect_bss = NULL;
