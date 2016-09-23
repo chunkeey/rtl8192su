@@ -1435,7 +1435,7 @@ bool rtl92se_phy_set_rf_power_state(struct ieee80211_hw *hw,
 			break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case not processed\n");
+			 "switch case %#x not processed\n", rfpwr_state);
 		bresult = false;
 		break;
 	}
