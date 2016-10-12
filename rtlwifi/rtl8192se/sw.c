@@ -40,6 +40,8 @@
 
 #include <linux/module.h>
 
+#define RTL8192SE_FW_NAME "rtlwifi/rtl8192sefw.bin"
+
 static void rtl92s_init_aspm_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
@@ -184,9 +186,9 @@ static int rtl92s_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->max_fw_size = RTL8190_MAX_FIRMWARE_CODE_SIZE*2 +
 			       sizeof(struct fw_hdr);
 	pr_info("Driver for Realtek RTL8192SE/RTL8191SE\n"
-		"Loading firmware %s\n", rtlpriv->cfg->fw_name);
+		"Loading firmware " RTL8192SE_FW_NAME "\n");
 	/* request fw */
-	err = request_firmware_nowait(THIS_MODULE, 1, rtlpriv->cfg->fw_name,
+	err = request_firmware_nowait(THIS_MODULE, 1, RTL8192SE_FW_NAME,
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl92s_fw_cb);
 	if (err) {
@@ -281,7 +283,6 @@ static const struct rtl_hal_cfg rtl92se_hal_cfg = {
 	.bar_id = 1,
 	.write_readback = false,
 	.name = "rtl92s_pci",
-	.fw_name = "rtlwifi/rtl8192sefw.bin",
 	.ops = &rtl8192se_hal_ops,
 	.mod_params = &rtl92se_mod_params,
 
@@ -389,7 +390,7 @@ MODULE_AUTHOR("Realtek WlanFAE	<wlanfae@realtek.com>");
 MODULE_AUTHOR("Larry Finger	<Larry.Finger@lwfinger.net>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek 8192S/8191S 802.11n PCI wireless");
-MODULE_FIRMWARE("rtlwifi/rtl8192sefw.bin");
+MODULE_FIRMWARE(RTL8192SE_FW_NAME);
 
 module_param_named(swenc, rtl92se_mod_params.sw_crypto, bool, 0444);
 module_param_named(debug, rtl92se_mod_params.debug, int, 0444);

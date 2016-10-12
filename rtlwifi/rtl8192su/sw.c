@@ -40,6 +40,8 @@
 
 #include <linux/module.h>
 
+#define RTL8192SU_FW_NAME "RTL8192SU/rtl8192sfw.bin"
+
 static int rtl92su_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 			   bool set)
 {
@@ -92,9 +94,9 @@ static int rtl92su_init_sw_vars(struct ieee80211_hw *hw)
 			       sizeof(struct fw_hdr);
 
 	pr_info("Driver for Realtek RTL8192SU/RTL8191SU\n"
-		"Loading firmware %s\n", rtlpriv->cfg->fw_name);
+		"Loading firmware " RTL8192SU_FW_NAME "\n");
 	/* request fw */
-	err = request_firmware_nowait(THIS_MODULE, 1, rtlpriv->cfg->fw_name,
+	err = request_firmware_nowait(THIS_MODULE, 1, RTL8192SU_FW_NAME,
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl92s_fw_cb);
 	if (err) {
@@ -189,7 +191,6 @@ static struct rtl_hal_usbint_cfg rtl92su_interface_cfg = {
 
 static struct rtl_hal_cfg rtl92su_hal_cfg = {
 	.name = "rtl8192su",
-	.fw_name = "RTL8192SU/rtl8192sfw.bin",
 	.ops = &rtl8192su_hal_ops,
 	.mod_params = &rtl92su_mod_params,
 	.usb_interface_cfg = &rtl92su_interface_cfg,
@@ -425,7 +426,7 @@ MODULE_AUTHOR("Joshua Roys		<Joshua.Roys@gtri.gatech.edu>");
 MODULE_AUTHOR("Christian Lamparter	<chunkeey@googlemail.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek 8188S/8191S/8192S 802.11n USB wireless");
-MODULE_FIRMWARE("RTL8192SU/rtl8192sfw.bin");
+MODULE_FIRMWARE(RTL8192SU_FW_NAME);
 
 module_param_named(swenc, rtl92su_mod_params.sw_crypto, bool, 0444);
 module_param_named(debug, rtl92su_mod_params.debug, int, 0444);

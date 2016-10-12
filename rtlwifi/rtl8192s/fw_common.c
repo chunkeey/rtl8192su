@@ -41,7 +41,7 @@ void rtl92s_fw_cb(const struct firmware *firmware, void *context)
 			 "Firmware callback routine entered!\n");
 	complete(&rtlpriv->firmware_loading_complete);
 	if (!firmware) {
-		pr_err("Firmware %s not available\n", rtlpriv->cfg->fw_name);
+		pr_err("Firmware not available\n");
 		goto bad_fw;
 	}
 	if (firmware->size > rtlpriv->max_fw_size) {
