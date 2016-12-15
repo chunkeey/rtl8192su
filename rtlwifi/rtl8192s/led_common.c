@@ -48,8 +48,7 @@ void rtl92s_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
 		rtl_write_byte(rtlpriv, LEDCFG, ledcfg & 0x0f);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch %#x case not processed\n", pled->ledpin);
+		pr_err("switch %#x case not processed\n", pled->ledpin);
 		break;
 	}
 	pled->ledon = true;
@@ -85,8 +84,7 @@ void rtl92s_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 		rtl_write_byte(rtlpriv, LEDCFG, (ledcfg | BIT(3)));
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch %#x case not processed\n", pled->ledpin);
+		pr_err("switch %#x case not processed\n", pled->ledpin);
 		break;
 	}
 	pled->ledon = false;

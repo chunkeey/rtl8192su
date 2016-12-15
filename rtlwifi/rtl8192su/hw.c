@@ -201,8 +201,7 @@ static int _rtl92su_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 	} while (--tries);
 
 	if (tries == 0) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Polling TXDMA_INIT_VALUE timeout!! Current TCR(%#x)\n",
+		pr_err("Polling TXDMA_INIT_VALUE timeout!! Current TCR(%#x)\n",
 			 tmpu1b);
 		tmpu1b = rtl_read_byte(rtlpriv, REG_CR);
 		rtl_write_byte(rtlpriv, REG_CR, tmpu1b & (~TXDMA_EN));
@@ -473,7 +472,7 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 	/* 3. Initialize MAC/PHY Config by MACPHY_reg.txt */
 	rtstatus = rtl92s_phy_mac_config(hw);
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "MAC Config failed\n");
+		pr_err("MAC Config failed\n");
 		return -EINVAL;
 	}
 
@@ -490,7 +489,7 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 	/* 4. Initialize BB After MAC Config PHY_reg.txt, AGC_Tab.txt */
 	rtstatus = rtl92s_phy_bb_config(hw);
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_EMERG, "BB Config failed\n");
+		pr_err("BB Config failed\n");
 		return -ENODEV;
 	}
 
@@ -698,8 +697,7 @@ void rtl92su_read_eeprom_info(struct ieee80211_hw *hw)
 		break;
 
 	case EEPROM_93C46:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "RTL819X Not boot from eeprom, check it !!\n");
+		pr_err("RTL819X Not boot from eeprom, check it !!\n");
 		return;
 
 	default:
@@ -1083,8 +1081,7 @@ bool rtl92su_phy_set_rf_power_state(struct ieee80211_hw *hw,
 			rtl92s_phy_set_rf_sleep(hw);
 			break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case %#x not processed\n", rfpwr_state);
+		pr_err("switch case %#x not processed\n", rfpwr_state);
 		bresult = false;
 		break;
 	}
