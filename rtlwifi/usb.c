@@ -431,14 +431,12 @@ static void _rtl_rx_completed(struct urb *urb);
 static int _rtl_prep_rx_urb(struct ieee80211_hw *hw, struct rtl_usb *rtlusb,
 			      struct urb *urb, gfp_t gfp_mask)
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	void *buf;
 
 	buf = usb_alloc_coherent(rtlusb->udev, rtlusb->rx_max_size, gfp_mask,
 				 &urb->transfer_dma);
 	if (!buf) {
-		RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-			 "Failed to usb_alloc_coherent!!\n");
+		pr_err("Failed to usb_alloc_coherent!!\n");
 		return -ENOMEM;
 	}
 
@@ -583,8 +581,6 @@ static unsigned int _rtl_rx_get_padding(struct ieee80211_hdr *hdr,
 static void _rtl_rx_completed(struct urb *_urb)
 {
 	struct rtl_usb *rtlusb = (struct rtl_usb *)_urb->context;
-	struct ieee80211_hw *hw = usb_get_intfdata(rtlusb->intf);
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	int err = 0;
 
 	if (unlikely(IS_USB_STOP(rtlusb)))
@@ -598,17 +594,15 @@ static void _rtl_rx_completed(struct urb *_urb)
 		struct ieee80211_hdr *hdr;
 
 		if (size < RTL_RX_DESC_SIZE + sizeof(struct ieee80211_hdr)) {
-			RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-				 "Too short packet from bulk IN! (len: %d)\n",
-				 size);
+			pr_err("Too short packet from bulk IN! (len: %d)\n",
+			       size);
 			goto resubmit;
 		}
 
 		qlen = skb_queue_len(&rtlusb->rx_queue);
 		if (qlen >= __RX_SKB_MAX_QUEUED) {
-			RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-				 "Pending RX skbuff queue full! (qlen: %d)\n",
-				 qlen);
+			pr_err("Pending RX skbuff queue full! (qlen: %d)\n",
+			       qlen);
 			goto resubmit;
 		}
 
@@ -617,8 +611,7 @@ static void _rtl_rx_completed(struct urb *_urb)
 
 		skb = dev_alloc_skb(size + __RADIO_TAP_SIZE_RSV + padding);
 		if (!skb) {
-			RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-				 "Can't allocate skb for bulk IN!\n");
+			pr_err("Can't allocate skb for bulk IN!\n");
 			goto resubmit;
 		}
 
@@ -696,7 +689,6 @@ static int _rtl_usb_receive(struct ieee80211_hw *hw)
 	struct urb *urb;
 	int err;
 	int i;
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 
 	WARN_ON(0 == rtlusb->rx_urb_num);
@@ -711,8 +703,7 @@ static int _rtl_usb_receive(struct ieee80211_hw *hw)
 
 		err = _rtl_prep_rx_urb(hw, rtlusb, urb, GFP_KERNEL);
 		if (err < 0) {
-			RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-				 "Failed to prep_rx_urb!!\n");
+			pr_err("Failed to prep_rx_urb!!\n");
 			usb_free_urb(urb);
 			goto err_out;
 		}
@@ -825,7 +816,6 @@ static void rtl_usb_stop(struct ieee80211_hw *hw)
 static int _rtl_submit_tx_urb(struct ieee80211_hw *hw, struct urb *_urb)
 {
 	int err;
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 
 	usb_anchor_urb(_urb, &rtlusb->tx_submitted);
@@ -833,8 +823,7 @@ static int _rtl_submit_tx_urb(struct ieee80211_hw *hw, struct urb *_urb)
 	if (err < 0) {
 		struct sk_buff *skb;
 
-		RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-			 "Failed to submit urb\n");
+		pr_err("Failed to submit urb\n");
 		usb_unanchor_urb(_urb);
 		skb = (struct sk_buff *)_urb->context;
 		dev_kfree_skb_any(skb);
@@ -846,15 +835,13 @@ static int _rtl_submit_tx_urb(struct ieee80211_hw *hw, struct urb *_urb)
 static int _usb_tx_post(struct ieee80211_hw *hw, struct urb *urb,
 			struct sk_buff *skb)
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 
 	rtlusb->usb_tx_post_hdl(hw, urb, skb);
 	skb_pull(skb, RTL_TX_HEADER_SIZE);
 
 	if (urb->status) {
-		RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-			 "Urb has error status 0x%X\n", urb->status);
+		pr_err("Urb has error status 0x%X\n", urb->status);
 		goto out;
 	}
 	rtl_tx_status(hw, skb);
@@ -941,7 +928,6 @@ static struct urb *_rtl_usb_tx_urb_setup(struct ieee80211_hw *hw,
 int rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
 		     enum rtl_txq qnum)
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 	u32 ep_num;
 	struct urb *_urb = NULL;
@@ -952,8 +938,7 @@ int rtl_usb_transmit(struct ieee80211_hw *hw, struct sk_buff *skb,
 	_skb = skb;
 	_urb = _rtl_usb_tx_urb_setup(hw, _skb, ep_num);
 	if (unlikely(!_urb)) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't allocate urb. Drop skb!\n");
+		pr_err("Can't allocate urb. Drop skb!\n");
 		dev_kfree_skb_any(skb);
 		return -ENOMEM;
 	}
@@ -1033,8 +1018,7 @@ static int rtl_usb_tx(struct ieee80211_hw *hw,
 
 	if (unlikely(IS_USB_STOP(rtlusb)) &&
 	    tcb_desc->cmd_or_init != DESC_PACKET_TYPE_INIT) {
-		RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-			 "USB device is stopping...\n");
+		pr_err("USB device is stopping...\n");
 		goto err_free;
 	}
 	if (unlikely(is_hal_stop(rtlhal)))
@@ -1120,12 +1104,11 @@ int rtl_usb_probe(struct usb_interface *intf,
 	/* Init mac80211 sw */
 	err = rtl_init_core(hw);
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't allocate sw for mac80211\n");
+		pr_err("Can't allocate sw for mac80211\n");
 		goto error_out;
 	}
 	if (rtlpriv->cfg->ops->init_sw_vars(hw)) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Can't init_sw_vars\n");
+		pr_err("Can't init_sw_vars\n");
 		goto error_out;
 	}
 	rtlpriv->cfg->ops->init_sw_leds(hw);

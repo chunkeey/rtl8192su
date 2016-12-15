@@ -365,7 +365,7 @@ void rtl92se_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
 			SET_TX_DESC_NEXT_DESC_ADDRESS(pdesc, *(u32 *) val);
 			break;
 		default:
-			RT_ASSERT(false, "ERR txdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8192se: ERR txdesc :%d not process\n",
 				  desc_name);
 			break;
 		}
@@ -385,7 +385,7 @@ void rtl92se_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
 			SET_RX_STATUS_DESC_EOR(pdesc, 1);
 			break;
 		default:
-			RT_ASSERT(false, "ERR rxdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8192se: ERR rxdesc :%d not process\n",
 				  desc_name);
 			break;
 		}
@@ -405,7 +405,7 @@ u32 rtl92se_get_desc(u8 *desc, bool istx, u8 desc_name)
 			ret = GET_TX_DESC_TX_BUFFER_ADDRESS(desc);
 			break;
 		default:
-			RT_ASSERT(false, "ERR txdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8192se: ERR txdesc :%d not process\n",
 				  desc_name);
 			break;
 		}
@@ -421,7 +421,7 @@ u32 rtl92se_get_desc(u8 *desc, bool istx, u8 desc_name)
 			ret = GET_RX_STATUS_DESC_BUFF_ADDR(desc);
 			break;
 		default:
-			RT_ASSERT(false, "ERR rxdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8192se: ERR rxdesc :%d not process\n",
 				  desc_name);
 			break;
 		}

@@ -98,8 +98,7 @@ int rtl_mac80211_init(struct ieee80211_hw *hw)
 
 	err = ieee80211_register_hw(hw);
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't register mac80211 hw.\n");
+		pr_err("Can't register mac80211 hw.\n");
 		return err;
 	}
 	rtlpriv->mac80211.mac80211_registered = 1;
@@ -150,8 +149,7 @@ static void rtl_fw_do_work(const struct firmware *firmware, void *context,
 	}
 found_alt:
 	if (firmware->size > rtlpriv->max_fw_size) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Firmware is too big!\n");
+		pr_err("Firmware is too big!\n");
 		release_firmware(firmware);
 		return;
 	}
@@ -336,8 +334,8 @@ static int rtl_op_add_interface(struct ieee80211_hw *hw,
 				(u8 *)(&mac->basic_rates));
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "operation mode %d is not support!\n", vif->type);
+		pr_err("operation mode %d is not supported!\n",
+		       vif->type);
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -797,9 +795,8 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 			default:
 					mac->bw_40 = false;
 					mac->bw_80 = false;
-					RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-						 "switch case %#x not processed\n",
-						 channel_type);
+					pr_err("switch case %#x not processed\n",
+					       channel_type);
 					break;
 			}
 		}
@@ -1430,8 +1427,7 @@ static int rtl_op_ampdu_action(struct ieee80211_hw *hw,
 			 "IEEE80211_AMPDU_RX_STOP:TID:%d\n", tid);
 		return rtl_rx_agg_stop(hw, sta, tid);
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "IEEE80211_AMPDU_ERR!!!!:\n");
+		pr_err("IEEE80211_AMPDU_ERR!!!!:\n");
 		return -EOPNOTSUPP;
 	}
 	return 0;
@@ -1567,8 +1563,7 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		err = -EOPNOTSUPP;
 		goto out_unlock;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "alg_err:%x!!!!:\n", key->cipher);
+		pr_err("alg_err:%x!!!!:\n", key->cipher);
 		goto out_unlock;
 	}
 	if (key_type == WEP40_ENCRYPTION ||
@@ -1693,8 +1688,7 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		rtl_cam_delete_one_entry(hw, mac_addr, key_idx);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "cmd_err:%x!!!!:\n", cmd);
+		pr_err("cmd_err:%x!!!!:\n", cmd);
 	}
 out_unlock:
 	mutex_unlock(&rtlpriv->locks.conf_mutex);
