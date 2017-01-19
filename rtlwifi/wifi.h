@@ -2232,11 +2232,13 @@ struct rtl_intf_ops {
 };
 
 struct rtl_mod_params {
+	/* default: 0,0 */
+	u64 debug_mask;
 	/* default: 0 = using hardware encryption */
 	bool sw_crypto;
 
 	/* default: 0 = DBG_EMERG (0)*/
-	int debug;
+	int debug_level;
 
 	/* default: 1 = using no linked power save */
 	bool inactiveps;
@@ -2372,14 +2374,6 @@ struct rtl_debug_mem_rbe {
 #define RTL_DEBUG_RING_SIZE			64
 
 struct rtl_debug {
-	u32 dbgp_type[DBGP_TYPE_MAX];
-	int global_debuglevel;
-	u64 global_debugcomponents;
-
-	/* add for proc debug */
-	struct proc_dir_entry *proc_dir;
-	char proc_name[20];
-
 #ifdef CONFIG_RTLWIFI_DEBUGFS
 	struct dentry *dfs;
 

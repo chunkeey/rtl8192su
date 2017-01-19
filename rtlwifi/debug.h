@@ -234,6 +234,4 @@ static inline void rtl_unregister_debugfs(struct ieee80211_hw *hw)
 {
 }
 #endif /* CONFIG_RTLWIFI_DEBUGFS */
-
-void rtl_dbgp_flag_init(struct ieee80211_hw *hw);
 #endif

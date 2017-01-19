@@ -63,8 +63,6 @@ static int rtl92su_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->rtlhal.bandset = BAND_ON_2_4G;
 	rtlpriv->rtlhal.macphymode = SINGLEMAC_SINGLEPHY;
 
-	/* for debug level */
-	rtlpriv->dbg.global_debuglevel = rtlpriv->cfg->mod_params->debug;
 	/* for LPS & IPS */
 	rtlpriv->psc.inactiveps = rtlpriv->cfg->mod_params->inactiveps;
 	rtlpriv->psc.swctrl_lps = rtlpriv->cfg->mod_params->swctrl_lps;
@@ -168,7 +166,8 @@ static struct rtl_mod_params rtl92su_mod_params = {
 	.inactiveps = false,
 	.fwctrl_lps = false,
 	.swctrl_lps = false,
-	.debug = DBG_EMERG,
+	.debug_level = 0,
+	.debug_mask = 0,
 };
 
 static struct rtl_hal_usbint_cfg rtl92su_interface_cfg = {
@@ -428,7 +427,9 @@ MODULE_DESCRIPTION("Realtek 8188S/8191S/8192S 802.11n USB wireless");
 MODULE_FIRMWARE(RTL8192SU_FW_NAME);
 
 module_param_named(swenc, rtl92su_mod_params.sw_crypto, bool, 0444);
-module_param_named(debug, rtl92su_mod_params.debug, int, 0444);
+module_param_named(debug_level, rtl92su_mod_params.debug_level, int, 0644);
+module_param_named(debug_mask, rtl92su_mod_params.debug_mask, ullong, 0644);
+
 MODULE_PARM_DESC(swenc, "Set to 0 for hardware crypto (default 1)\n");
 MODULE_PARM_DESC(debug, "Set debug level (0-5) (default 0)");
 MODULE_PARM_DESC(swlps, "Set to 1 to use SW control power save (default 0)\n");
