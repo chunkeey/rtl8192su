@@ -137,6 +137,9 @@ int rtl_rx_agg_stop(struct ieee80211_hw *hw,
 void rtl_send_buffered_bc(struct ieee80211_hw *hw);
 void rtl_watchdog_wq_callback(void *data);
 void rtl_fwevt_wq_callback(void *data);
+void rtl_c2hcmd_wq_callback(void *data);
+void rtl_c2hcmd_launcher(struct ieee80211_hw *hw, int exec);
+void rtl_c2hcmd_enqueue(struct ieee80211_hw *hw, u8 tag, u8 len, u8 *val);
 
 void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 		      struct ieee80211_tx_info *info,
