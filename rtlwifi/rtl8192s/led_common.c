@@ -58,7 +58,6 @@ EXPORT_SYMBOL_GPL(rtl92s_sw_led_on);
 void rtl92s_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 {
 	struct rtl_priv *rtlpriv;
-	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
 	u8 ledcfg;
 
 	rtlpriv = rtl_priv(hw);
@@ -74,7 +73,7 @@ void rtl92s_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 		break;
 	case LED_PIN_LED0:
 		ledcfg &= 0xf0;
-		if (pcipriv->ledctl.led_opendrain)
+		if (rtlpriv->ledctl.led_opendrain)
 			rtl_write_byte(rtlpriv, LEDCFG, (ledcfg | BIT(1)));
 		else
 			rtl_write_byte(rtlpriv, LEDCFG, (ledcfg | BIT(3)));

@@ -214,12 +214,11 @@ static int _rtl92su_macconfig_before_fwdownload(struct ieee80211_hw *hw)
 	if (ppsc->rfoff_reason == RF_CHANGE_BY_IPS ||
 	    ppsc->rfoff_reason == 0) {
 		enum rf_pwrstate rfpwr_state_toset;
-		struct rtl_usb_priv *usbpriv = rtl_usbpriv(hw);
-		struct rtl_led *pLed0 = &(usbpriv->ledctl.sw_led0);
+		struct rtl_led *pled0 = &rtlpriv->ledctl.sw_led0;
 
 		rfpwr_state_toset = rtl92s_rf_onoff_detect(hw);
 		if (rfpwr_state_toset == ERFON)
-			rtl92s_sw_led_on(hw, pLed0);
+			rtl92s_sw_led_on(hw, pled0);
 	}
 	return 0;
 }

@@ -39,26 +39,26 @@ static void _rtl92se_init_led(struct ieee80211_hw *hw,
 
 void rtl92se_init_sw_leds(struct ieee80211_hw *hw)
 {
-	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
-	_rtl92se_init_led(hw, &(pcipriv->ledctl.sw_led0), LED_PIN_LED0);
-	_rtl92se_init_led(hw, &(pcipriv->ledctl.sw_led1), LED_PIN_LED1);
+	_rtl92se_init_led(hw, &rtlpriv->ledctl.sw_led0, LED_PIN_LED0);
+	_rtl92se_init_led(hw, &rtlpriv->ledctl.sw_led1, LED_PIN_LED1);
 }
 
 static void _rtl92se_sw_led_control(struct ieee80211_hw *hw,
 				    enum led_ctl_mode ledaction)
 {
-	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
-	struct rtl_led *pLed0 = &(pcipriv->ledctl.sw_led0);
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_led *pled0 = &rtlpriv->ledctl.sw_led0;
 
 	switch (ledaction) {
 	case LED_CTL_POWER_ON:
 	case LED_CTL_LINK:
 	case LED_CTL_NO_LINK:
-		rtl92s_sw_led_on(hw, pLed0);
+		rtl92s_sw_led_on(hw, pled0);
 		break;
 	case LED_CTL_POWER_OFF:
-		rtl92s_sw_led_off(hw, pLed0);
+		rtl92s_sw_led_off(hw, pled0);
 		break;
 	default:
 		break;
