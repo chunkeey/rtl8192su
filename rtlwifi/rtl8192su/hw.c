@@ -532,7 +532,7 @@ int rtl92su_hw_init(struct ieee80211_hw *hw)
 	/* Get original hw reg values */
 	rtl92s_phy_get_hw_reg_originalvalue(hw);
 	/* Write correct tx power index */
-	rtl92s_phy_set_txpower(hw, rtlphy->current_channel);
+	rtl92s_phy_set_txpower(hw, 1);
 
 	/* We must set MAC address after firmware download. */
 	for (i = 0; i < 6; i++)
@@ -886,15 +886,14 @@ void rtl92su_read_eeprom_info(struct ieee80211_hw *hw)
 		/* Read OFDM<->HT tx power diff */
 		/* Channel 1-3 */
 		if (i < 3)
-			index = 0;
+			tempval = eeprom.tx_pwr_ofdm_diff[0];
 		/* Channel 4-8 */
 		else if (i < 8)
-			index = 0x11;
+			tempval = eeprom.tx_pwr_ofdm_diff_cont;
 		/* Channel 9-14 */
 		else
-			index = 1;
+			tempval = eeprom.tx_pwr_ofdm_diff[1];
 
-		tempval = eeprom.tx_pwr_ofdm_diff[index] & 0xff;
 		rtlefuse->txpwr_legacyhtdiff[RF90_PATH_A][i] =
 				 (tempval & 0xF);
 		rtlefuse->txpwr_legacyhtdiff[RF90_PATH_B][i] =

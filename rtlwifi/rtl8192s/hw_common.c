@@ -79,6 +79,8 @@ void rtl92s_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			*((bool *)(val)) = rtlpriv->dm.current_mrc_switch;
 			break;
 		}
+	case HAL_DEF_WOWLAN:
+		break;
 	default: {
 		pr_err("switch case %#x not processed\n", variable);
 			break;
