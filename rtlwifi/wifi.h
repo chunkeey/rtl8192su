@@ -29,6 +29,7 @@
 #undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/version.h>
 #include <linux/sched.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
@@ -217,6 +218,12 @@ enum rf_tx_num {
 #define	WOL_REASON_RTD3_SSID_MATCH	BIT(8)
 #define	WOL_REASON_REALWOW_V2_WAKEUPPKT	BIT(9)
 #define	WOL_REASON_REALWOW_V2_ACKLOST	BIT(10)
+
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0))
+#define RX_FLAG_40MHZ RATE_INFO_BW_40
+#define RX_FLAG_HT RX_ENC_HT
+#endif
 
 struct rtlwifi_firmware_header {
 	__le16 signature;
