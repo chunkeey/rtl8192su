@@ -105,9 +105,16 @@ void r92su_sta_alloc_tid(struct r92su *r92su,
 		spin_lock_init(&new_tid->lock);
 		new_tid->tid = tid;
 
+		/*
 		setup_timer(&new_tid->reorder_timer,
 			    r92su_reorder_tid_timer,
 		    (unsigned long) new_tid);
+			
+			*/
+		timer_setup(&new_tid->reorder_timer,
+					r92su_reorder_tid_timer,
+					0);
+			
 		new_tid->r92su = r92su;
 		new_tid->sta = sta;
 		new_tid->head_seq = new_tid->ssn = ssn >> 4;
