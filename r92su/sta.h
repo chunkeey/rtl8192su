@@ -49,6 +49,7 @@ struct r92su_sta;
 #define MAX_STA	32
 
 struct r92su_rx_tid {
+	struct timer_list reorder_timer;
 	struct rcu_head rcu_head;
 	spinlock_t lock;
 
@@ -64,7 +65,6 @@ struct r92su_rx_tid {
 
 	struct r92su *r92su;
 	struct r92su_sta *sta;
-	struct timer_list reorder_timer;
 };
 
 struct r92su_key {

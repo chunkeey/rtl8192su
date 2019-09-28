@@ -558,6 +558,8 @@ r92su_rx_crypto_handle(struct r92su *r92su, struct sk_buff *skb,
 	return RX_CONTINUE;
 }
 
+//TODO: fix
+
 static enum r92su_rx_control_t
 r92su_rx_data_to_8023(struct r92su *r92su, struct sk_buff *skb,
 		      struct r92su_bss_priv *bss_priv, struct sk_buff **_skb,
@@ -574,10 +576,13 @@ r92su_rx_data_to_8023(struct r92su *r92su, struct sk_buff *skb,
 	if (is_amsdu) {
 		struct r92su_rx_info tmp_rx_info = *r92su_get_rx_info(skb);
 		struct ethhdr ethhdr;
-
+		
+		
+		int data_offset = 0; //TODO: actually calculate
 		if (ieee80211_data_to_8023_exthdr(skb, &ethhdr,
-		    wdev_address(&r92su->wdev), r92su->wdev.iftype))
+		    wdev_address(&r92su->wdev), r92su->wdev.iftype, data_offset))
 			return RX_DROP;
+			
 
 		ieee80211_amsdu_to_8023s(skb, queue,
 				       wdev_address(&r92su->wdev),
@@ -585,7 +590,7 @@ r92su_rx_data_to_8023(struct r92su *r92su, struct sk_buff *skb,
 		*_skb = NULL;
 
 		if (skb_queue_empty(queue)) {
-			/* amsdu_to_8023s encountered an error. */
+			// amsdu_to_8023s encountered an error. 
 			return RX_DROP;
 		}
 
@@ -606,6 +611,8 @@ r92su_rx_data_to_8023(struct r92su *r92su, struct sk_buff *skb,
 
 	return RX_CONTINUE;
 }
+
+
 
 static u8 r92su_get_priority(struct r92su *r92su, struct sk_buff *skb)
 {
@@ -1084,7 +1091,9 @@ rx_drop:
 #undef RX_HANDLER
 }
 
-void r92su_reorder_tid_timer(unsigned long arg)
+
+void r92su_reorder_tid_timer(struct timer_list *ptr)
+//void r92su_reorder_tid_timer(unsigned long arg)
 {
 	struct sk_buff_head frames;
 	struct r92su_rx_tid *tid;
@@ -1096,7 +1105,8 @@ void r92su_reorder_tid_timer(unsigned long arg)
 	__skb_queue_head_init(&frames);
 
 	rcu_read_lock();
-	tid = (struct r92su_rx_tid *) arg;
+	//tid = (struct r92su_rx_tid *) arg; //old
+	tid = container_of(ptr, struct r92su_rx_tid, reorder_timer);//from_timer(tid, ptr, reorder_timer); //new
 	r92su = tid->r92su;
 	sta = tid->sta;
 
