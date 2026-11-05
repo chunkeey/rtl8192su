@@ -43,6 +43,7 @@ u8 *r92su_find_ie(u8 *ies, const u32 len, const u8 ie);
 
 
 void r92su_reorder_tid_timer(struct timer_list *t);
+void r92su_rxdbg_print(struct r92su *r92su);
 void r92su_rx(struct r92su *r92su, void *skb, const unsigned int len);
 
 #endif /* __R92SU_RX_H__ */

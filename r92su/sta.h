@@ -80,14 +80,15 @@ struct r92su_key {
 	union {
 		struct {
 			u64 tx_seq:48;
-			u64 rx_seq:48;
+			/* replay counters: one per TID, [16] for non-QoS */
+			u64 rx_seq[IEEE80211_NUM_TIDS + 1];
 			u8 key[WLAN_KEY_LEN_CCMP];
 			struct crypto_aead *tfm;
 		} ccmp;
 
 		struct {
 			u64 tx_seq:48;
-			u64 rx_seq:48;
+			u64 rx_seq[IEEE80211_NUM_TIDS + 1];	/* as ccmp */
 			union {
 				struct {
 					u8 key[16];

@@ -116,7 +116,11 @@ void r92su_sta_alloc_tid(struct r92su *r92su,
 		 * "out of date". Sync to the first received frame instead. */
 		new_tid->head_seq = new_tid->ssn = ssn >> 4;
 		new_tid->synced = false;
-		new_tid->size = 32;	 /* taken from a monitor */
+		/* r8712u uses a 64-frame window (wsize_b); 32 ("taken from a
+		 * monitor") gave up on gaps while the AP still had frames in
+		 * flight, and dropped the retransmissions as late. The fw's
+		 * ADDBA report doesn't say; reorder_buf[] holds 64. */
+		new_tid->size = r92su_test_old_rx ? 32 : 64;
 
 		rcu_assign_pointer(sta->rx_tid[tid], new_tid);
 	} else {
@@ -202,6 +206,7 @@ struct r92su_key *r92su_key_alloc(const u32 cipher, const u8 idx,
 				  const u8 *key)
 {
 	struct r92su_key *new_key;
+	int i;
 
 	new_key = kzalloc(sizeof(*new_key), GFP_KERNEL);
 	if (!new_key)
@@ -239,7 +244,8 @@ struct r92su_key *r92su_key_alloc(const u32 cipher, const u8 idx,
 		new_key->type = TKIP_ENCRYPTION;
 		new_key->key_len = WLAN_KEY_LEN_TKIP;
 		new_key->tkip.tx_seq = 1;
-		new_key->tkip.rx_seq = 1;
+		for (i = 0; i < ARRAY_SIZE(new_key->tkip.rx_seq); i++)
+			new_key->tkip.rx_seq[i] = 1;
 		memcpy(new_key->tkip.key.key, key,
 		       sizeof(new_key->tkip.key.key));
 		new_key->tkip.tfm = ieee80211_wep_init();
@@ -255,7 +261,7 @@ struct r92su_key *r92su_key_alloc(const u32 cipher, const u8 idx,
 		new_key->type = AESCCMP_ENCRYPTION;
 		new_key->key_len = WLAN_KEY_LEN_CCMP;
 		new_key->ccmp.tx_seq = 0;
-		new_key->ccmp.rx_seq = 0;
+		/* ccmp.rx_seq[]: 0 (kzalloc) */
 		memcpy(new_key->ccmp.key, key, sizeof(new_key->ccmp.key));
 		new_key->ccmp.tfm = ieee80211_aes_key_setup_encrypt(key,
 			WLAN_KEY_LEN_CCMP, IEEE80211_CCMP_MIC_LEN);

@@ -191,6 +191,50 @@ static unsigned int r92su_rx_calc_radiotap_len(struct r92su *r92su,
 	return rtap_len;
 }
 
+static void r92su_rxdbg_drop(struct r92su *r92su, const char *name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(r92su->rxdbg.drop); i++) {
+		if (r92su->rxdbg.drop[i].name == name ||
+		    !r92su->rxdbg.drop[i].name) {
+			r92su->rxdbg.drop[i].name = name;
+			r92su->rxdbg.drop[i].n++;
+			return;
+		}
+	}
+}
+
+void r92su_rxdbg_print(struct r92su *r92su)
+{
+	char buf[384];
+	int i, n = 0;
+
+	if (++r92su->rxdbg.ticks % 5 ||		/* service work: every 2 s */
+	    r92su->rxdbg.pkts == r92su->rxdbg.last_pkts)
+		return;
+	r92su->rxdbg.last_pkts = r92su->rxdbg.pkts;
+
+	n += scnprintf(buf + n, sizeof(buf) - n, "rates:");
+	for (i = 0; i < ARRAY_SIZE(r92su->rxdbg.rate); i++)
+		if (r92su->rxdbg.rate[i])
+			n += scnprintf(buf + n, sizeof(buf) - n, " %d=%u", i,
+				       r92su->rxdbg.rate[i]);
+	n += scnprintf(buf + n, sizeof(buf) - n, " drops:");
+	for (i = 0; i < ARRAY_SIZE(r92su->rxdbg.drop) &&
+		    r92su->rxdbg.drop[i].name; i++)
+		n += scnprintf(buf + n, sizeof(buf) - n, " %s=%u",
+			       r92su->rxdbg.drop[i].name + 9 /* "r92su_rx_" */,
+			       r92su->rxdbg.drop[i].n);
+
+	R92SU_INFO(r92su, "rxdbg: xfer %u pkt %u c2h %u data %u (ucast %u "
+		   "mcast %u crc %u ht %u notconn %u) leftover %u/%u; %s\n",
+		   r92su->rxdbg.xfers, r92su->rxdbg.pkts, r92su->rxdbg.c2h,
+		   r92su->rxdbg.data, r92su->rxdbg.ucast, r92su->rxdbg.mcast,
+		   r92su->rxdbg.crc, r92su->rxdbg.ht, r92su->rxdbg.notconn,
+		   r92su->rxdbg.left_xfers, r92su->rxdbg.left_pkts, buf);
+}
+
 static void r92su_rx_dropped(struct r92su *r92su, unsigned int count)
 {
 	r92su->wdev.netdev->stats.rx_dropped += count;
@@ -244,6 +288,7 @@ struct r92su_rx_info {
 	struct r92su_sta *sta;
 	struct r92su_key *key;
 	u64 iv;
+	u8 pn_idx;		/* replay counter: TID, or 16 for non-QoS */
 	bool has_protect;
 	bool needs_decrypt;
 };
@@ -389,6 +434,13 @@ r92su_rx_iv_handle(struct r92su *r92su, struct sk_buff *skb,
 	iv_len = r92su_get_iv_len(key);
 	iv = ((u8 *) hdr) + hdr_len;
 
+	/* 802.11 keeps a replay counter per TID (mac80211: rx_pn[TIDS + 1]):
+	 * the AP numbers frames from one counter but sends its AC queues
+	 * independently, so a single counter dropped valid frames. */
+	rx_info->pn_idx = (ieee80211_is_data_qos(hdr->frame_control) &&
+			   !r92su_test_old_rx) ? get_tid_h(hdr) :
+			  IEEE80211_NUM_TIDS;
+
 	switch (key->type) {
 	case WEP40_ENCRYPTION:
 	case WEP104_ENCRYPTION: {
@@ -415,7 +467,7 @@ r92su_rx_iv_handle(struct r92su *r92su, struct sk_buff *skb,
 		seq = (seq << 8) + iv[0];
 		seq = (seq << 8) + iv[2];
 
-		if (key->tkip.rx_seq >= seq)
+		if (key->tkip.rx_seq[rx_info->pn_idx] >= seq)
 			return RX_DROP;
 
 		rx_info->iv = seq;
@@ -434,7 +486,7 @@ r92su_rx_iv_handle(struct r92su *r92su, struct sk_buff *skb,
 		seq = (seq << 8) + iv[4];
 		seq = (seq << 8) + iv[1];
 		seq = (seq << 8) + iv[0];
-		if (seq <= key->ccmp.rx_seq)
+		if (seq <= key->ccmp.rx_seq[rx_info->pn_idx])
 			return RX_DROP;
 
 		rx_info->iv = seq;
@@ -527,7 +579,7 @@ r92su_rx_crypto_handle(struct r92su *r92su, struct sk_buff *skb,
 		if (res != RX_CONTINUE)
 			return res;
 
-		key->tkip.rx_seq = rx_info->iv;
+		key->tkip.rx_seq[rx_info->pn_idx] = rx_info->iv;
 		remove_len = IEEE80211_TKIP_ICV_LEN + MICHAEL_MIC_LEN;
 		break;
 
@@ -539,7 +591,7 @@ r92su_rx_crypto_handle(struct r92su *r92su, struct sk_buff *skb,
 				return RX_DROP;
 		}
 
-		key->ccmp.rx_seq = rx_info->iv;
+		key->ccmp.rx_seq[rx_info->pn_idx] = rx_info->iv;
 		remove_len = IEEE80211_CCMP_MIC_LEN;
 		break;
 
@@ -990,6 +1042,7 @@ drop_unlock:
 	case RX_QUEUE:						\
 		goto queuegoto;					\
 	case RX_DROP:						\
+		r92su_rxdbg_drop(r92su, #func);			\
 		goto dropgoto;					\
 	}							\
 } while (0)
@@ -1203,6 +1256,7 @@ void r92su_rx(struct r92su *r92su, void *buf, const unsigned int len)
 	/* pkt_cnt seems to be valid only for the first aggregated packet?! */
 	pkt_cnt = GET_RX_DESC_PKTCNT(rx->hdr);
 	pkt_cnt = max_t(unsigned int, pkt_cnt, 1);
+	r92su->rxdbg.xfers++;
 
 	while (buf < end && pkt_cnt--) {
 		unsigned int drvinfo, shift;
@@ -1216,6 +1270,29 @@ void r92su_rx(struct r92su *r92su, void *buf, const unsigned int len)
 
 		if (buf + pkt_len + hdr_len + shift > end)
 			goto err_garbage;
+
+		r92su->rxdbg.pkts++;
+		if (GET_RX_DESC_IS_CMD(&rx->hdr)) {
+			r92su->rxdbg.c2h++;
+		} else {
+			const struct ieee80211_hdr *h = buf + hdr_len + shift;
+
+			r92su->rxdbg.data++;
+			if (!r92su_is_connected(r92su))
+				r92su->rxdbg.notconn++;
+			if (GET_RX_DESC_CRC32(&rx->hdr))
+				r92su->rxdbg.crc++;
+			if (GET_RX_DESC_RX_HT(&rx->hdr))
+				r92su->rxdbg.ht++;
+			r92su->rxdbg.rate[GET_RX_DESC_RX_MCS(&rx->hdr) & 63]++;
+			if (pkt_len >= 10) {
+				if (is_multicast_ether_addr(h->addr1))
+					r92su->rxdbg.mcast++;
+				else if (ether_addr_equal(h->addr1,
+					 wdev_address(&r92su->wdev)))
+					r92su->rxdbg.ucast++;
+			}
+		}
 
 		if (GET_RX_DESC_IS_CMD(&rx->hdr)) {
 			/* Bound by what's left of this transfer, not its
@@ -1246,6 +1323,29 @@ void r92su_rx(struct r92su *r92su, void *buf, const unsigned int len)
 		buf += ALIGN(hdr_len + pkt_len, r92su->rx_alignment);
 	}
 
+	/* Diagnostics: well-formed descriptors left when pkt_cnt ran out
+	 * (those packets are ignored). */
+	if (buf + RX_DESC_SIZE <= end) {
+		void *p = buf;
+		unsigned int n = 0;
+
+		while (p + RX_DESC_SIZE <= end) {
+			struct rx_packet *r = p;
+			unsigned int l = GET_RX_DESC_PKT_LEN(&r->hdr);
+			unsigned int h = RX_DESC_SIZE +
+				GET_RX_DESC_DRVINFO_SIZE(&r->hdr) *
+				RX_DRV_INFO_SIZE_UNIT;
+
+			if (!l || p + h + l > end)
+				break;
+			n++;
+			p += ALIGN(h + l, max(r92su->rx_alignment, 8u));
+		}
+		if (n) {
+			r92su->rxdbg.left_xfers++;
+			r92su->rxdbg.left_pkts += n;
+		}
+	}
 	if (r92su_is_connected(r92su))
 		tasklet_schedule(&r92su->rx_tasklet);
 	return;
