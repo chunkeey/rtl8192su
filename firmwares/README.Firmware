@@ -1,8 +1,0 @@
-RTL8192SU / RTL8712U firmwares
-
-Licence: Redistributable. See LICENCE.rtlwifi_firmware.txt for details.
-
-These firmwares have to be placed into
-
-	/lib/firmware/rtlwifi/
-
