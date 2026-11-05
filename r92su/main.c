@@ -712,7 +712,8 @@ static void r92su_bss_add_work(struct work_struct *work)
 			le16_to_cpu(c2h_bss->ies.caps),
 			le32_to_cpu(c2h_bss->config.beacon_period),
 			c2h_bss->ies.ie, ie_len,
-			le32_to_cpu(c2h_bss->rssi), GFP_KERNEL);
+			DBM_TO_MBM(r92su_pct_to_dbm(r92su_signal_scale_mapping(
+				le32_to_cpu(c2h_bss->rssi)))), GFP_KERNEL);
 
 		if (bss) {
 			r92su_bss_init(r92su, bss, c2h_bss);
@@ -793,6 +794,8 @@ static void r92su_bss_connect_work(struct work_struct *work)
 							    resp_ie_len);
 		status = WLAN_STATUS_SUCCESS;
 
+		/* until the first phy status poll (service work, 2 s) */
+		sta->signal = MBM_TO_DBM(cfg_bss->signal);
 		bss_priv->sta = sta;
 		rcu_assign_pointer(r92su->connect_bss, cfg_bss);
 		r92su->want_connect_bss = NULL;
@@ -1716,7 +1719,7 @@ struct r92su *r92su_alloc(struct device *main_dev)
 				 BIT(NL80211_IFTYPE_MONITOR);
 	wiphy->max_scan_ssids = 1;
 	wiphy->max_scan_ie_len = 256;
-	wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
+	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;	/* r92su_pct_to_dbm */
 	wiphy->cipher_suites = r92su_chiper_suites;
 	wiphy->n_cipher_suites = ARRAY_SIZE(r92su_chiper_suites);
 	wiphy->bss_priv_size = sizeof(struct r92su_bss_priv);

@@ -45,4 +45,14 @@ int r92su_hw_mac_set_rx_filter(struct r92su *r92su,
 	bool data, bool mgt, bool ctrl, bool monitor);
 void r92su_hw_queue_service_work(struct r92su *r92su);
 int r92su_signal_scale_mapping(u32 raw_signal);
+
+/* The firmware reports signal quality 0..100 (r8712u showed it as a
+ * percentage). cfg80211 wants dBm: nl80211 only sends a station's signal for
+ * CFG80211_SIGNAL_TYPE_MBM (wpa_supplicant's SIGNAL_POLL said RSSI=-9999 with
+ * UNSPEC). Realtek's conversion, as in rtl8723bs translate_percentage_to_dbm():
+ * dBm = 0.5 * pct - 95. */
+static inline int r92su_pct_to_dbm(int pct)
+{
+	return ((clamp(pct, 0, 100) + 1) >> 1) - 95;
+}
 #endif /* __R92SU_HW_H__ */

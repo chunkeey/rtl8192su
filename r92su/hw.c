@@ -495,12 +495,12 @@ static void r92su_query_fw_rx_phy_status(struct r92su *r92su)
 			struct r92su_bss_priv *bss_priv;
 			struct r92su_sta *sta;
 
-			bss->signal = qual;
+			bss->signal = DBM_TO_MBM(r92su_pct_to_dbm(qual));
 
 			bss_priv = r92su_get_bss_priv(bss);
 			sta = bss_priv->sta;
 			if (sta)
-				sta->signal = qual;
+				sta->signal = r92su_pct_to_dbm(qual);
 		}
 		rcu_read_unlock();
 	}

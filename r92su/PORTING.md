@@ -66,6 +66,14 @@ the whole port.
   past the frame and checked the ICV in the wrong place, so every WEP frame
   failed. It now passes the length without the ICV (as TKIP already did),
   with a bounds check.
+- **Signal in dBm**: the wiphy said `CFG80211_SIGNAL_TYPE_UNSPEC` (0–100),
+  and current nl80211 only sends a station's signal for `..._MBM`, so
+  wpa_supplicant's `SIGNAL_POLL` gave `RSSI=-9999` (seen on the board with
+  r5). The firmware only reports quality 0–100, so it's now converted with
+  Realtek's `dBm = pct/2 − 95` (rtl8723bs `translate_percentage_to_dbm`) for
+  the station, the scan results (which were raw 0–100 sent as unspec) and
+  the connected BSS. So -95 to -45 dBm: a mapped quality, not a measured
+  power.
 - **Key setup error paths**: `kfree(new_key)` followed by
   `PTR_ERR(new_key->…tfm)` (use after free) for WEP, TKIP and CCMP.
 
