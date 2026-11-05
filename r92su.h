@@ -60,6 +60,14 @@ typedef struct wireless_dev r92su_cfg_dev_t;
 typedef struct net_device r92su_cfg_dev_t;
 #endif
 
+/* system_unbound_wq is deprecated in 7.x in favour of system_dfl_wq (detected
+ * in Kbuild as R92SU_HAVE_SYSTEM_DFL_WQ; 6.18 has it, older kernels may not). */
+#ifdef R92SU_HAVE_SYSTEM_DFL_WQ
+#define R92SU_UNBOUND_WQ system_dfl_wq
+#else
+#define R92SU_UNBOUND_WQ system_unbound_wq
+#endif
+
 #include "h2cc2h.h"
 #include "eeprom.h"
 #include "fw.h"
@@ -241,7 +249,10 @@ struct r92su {
 struct r92su_add_bss {
 	struct llist_node head;
 	struct h2cc2h_bss fw_bss;
+	u8 ie[];	/* = fw_bss.ies.ie: the survey's IEs (see static_assert) */
 };
+static_assert(offsetof(struct r92su_add_bss, ie) ==
+	      offsetof(struct r92su_add_bss, fw_bss.ies.ie));
 
 struct r92su_tx_tid {
 	bool addba_issued;

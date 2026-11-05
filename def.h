@@ -272,7 +272,7 @@ struct h2cc2h {
 	u8 unkn;
 	__le16 agg_total_len;
 
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct tx_packet {

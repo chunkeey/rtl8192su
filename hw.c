@@ -449,7 +449,7 @@ int r92su_hw_mac_set_rx_filter(struct r92su *r92su,
 
 void r92su_hw_queue_service_work(struct r92su *r92su)
 {
-	queue_delayed_work(system_unbound_wq, &r92su->service_work, 2 * HZ);
+	queue_delayed_work(R92SU_UNBOUND_WQ, &r92su->service_work, 2 * HZ);
 }
 
 int r92su_signal_scale_mapping(u32 raw_signal)

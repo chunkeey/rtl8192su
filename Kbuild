@@ -10,6 +10,9 @@ r92su_wdev_pattern := (*get_station)(struct wiphy *wiphy, struct wireless_dev
 ifneq ($(shell grep -sF '$(r92su_wdev_pattern)' $(srctree)/include/net/cfg80211.h),)
 ccflags-y += -DR92SU_CFG80211_WDEV
 endif
+ifneq ($(shell grep -sw 'system_dfl_wq' $(srctree)/include/linux/workqueue.h),)
+ccflags-y += -DR92SU_HAVE_SYSTEM_DFL_WQ
+endif
 
 # Warnings as errors only when asked (R92SU_WERROR=1): every new compiler
 # brings new warnings, and those mustn't break a DKMS build on a user's

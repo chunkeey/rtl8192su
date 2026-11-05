@@ -43,9 +43,10 @@ typedef void (*c2h_handler)(struct r92su *, const struct h2cc2h *);
 static void c2h_fwdbg_event(struct r92su *r92su, const struct h2cc2h *c2h)
 {
 	u16 c2h_len = le16_to_cpu(c2h->len);
+	bool newline = c2h_len >= 2 && c2h->data[c2h_len - 2] == '\n';
 
 	R92SU_DBG(r92su, "fwdbg: %.*s%s", c2h_len, c2h->data,
-		  c2h->data[c2h_len - 2] == '\n' ? "" : "\n");
+		  newline ? "" : "\n");
 }
 
 static void c2h_survey_event(struct r92su *r92su, const struct h2cc2h *c2h)
@@ -73,7 +74,11 @@ static void c2h_survey_event(struct r92su *r92su, const struct h2cc2h *c2h)
 	if (!bss_priv)
 		return;
 
-	memcpy(&bss_priv->fw_bss, c2h_bss, len);
+	/* The fixed part, then the IEs into the flexible array behind it (one
+	 * memcpy across both is a field-spanning write to FORTIFY_SOURCE). */
+	memcpy(&bss_priv->fw_bss, c2h_bss, sizeof(*c2h_bss));
+	memcpy(bss_priv->ie, (const u8 *)c2h_bss + sizeof(*c2h_bss),
+	       len - sizeof(*c2h_bss));
 	bss_priv->fw_bss.length = cpu_to_le32(len);
 	bss_priv->fw_bss.ie_length = cpu_to_le32(
 		le32_to_cpu(bss_priv->fw_bss.ie_length) - FCS_LEN);
