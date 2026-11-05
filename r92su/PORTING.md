@@ -74,6 +74,15 @@ the whole port.
   the station, the scan results (which were raw 0–100 sent as unspec) and
   the connected BSS. So -95 to -45 dBm: a mapped quality, not a measured
   power.
+- **RX replay counters per TID** (r12): CCMP/TKIP kept one replay counter
+  per key and dropped any frame whose PN wasn't higher than the last. The AP
+  numbers frames from one counter but sends its AC queues independently, so
+  interleaved traffic classes (e.g. SSH bulk as CS1/background next to best
+  effort) lost valid frames. Now one counter per TID plus one for non-QoS,
+  as 802.11 and mac80211 (`rx_pn[IEEE80211_NUM_TIDS + 1]`).
+- **RX reorder window 64** (r12), as r8712u (`wsize_b`), not 32 ("taken
+  from a monitor"): with 32, gaps were given up while the AP still had
+  frames in flight, and the retransmissions dropped as late.
 - **Key setup error paths**: `kfree(new_key)` followed by
   `PTR_ERR(new_key->…tfm)` (use after free) for WEP, TKIP and CCMP.
 
@@ -96,10 +105,9 @@ the whole port.
 - Tested on one dongle (0bda:8171) and one AP for about an hour. Not
   tested: AP restarts and roaming, hours of streaming, WEP/TKIP, IBSS, a
   real (not simulated) fatal USB error.
-- RX on a busy link: about 1 % of frames dropped by the IV (replay) check
-  and 1.5 % as late by the reorder buffer (seen during a 116 MB transfer);
-  TCP covers it, but the IV drops may mean the reorder buffer releases out
-  of order. Worth a look.
+- RX on a busy link still drops about 0.9 % in the reorder buffer: mostly
+  real duplicates (the AP resent frames after missing our block-ack) and
+  frames later than the 100 ms reorder timeout. Not chased further.
 - After a software replug (USB `authorized` 0/1, no power cycle) the first
   firmware upload fails (`cpu_status=0x9`: IMEM checksum not reported); the
   next open works.
@@ -157,7 +165,7 @@ revision field (PMC_FSM bits 15–19).
 Module parameters go on the kernel command line (`r92su.norxagg=1`) or in
 `/etc/modprobe.d/` before the dongle is plugged in.
 
-## On the board (r5–r11)
+## On the board (r5–r13)
 
 - r5/r7: probes (C-cut, 1T1R), firmware 0x11ec boots, associates (WPA2-PSK,
   CCMP), DHCP lease. r7 reports the signal in dBm.
@@ -188,13 +196,21 @@ Module parameters go on the kernel command line (`r92su.norxagg=1`) or in
   it reconnected within 6 s; a software unplug/replug re-probed and was
   back after about 9 s (the first open failed, see Known gaps). A 116 MB
   OTA bundle went over wlan0 in 63 s with no USB errors.
+- r12 A/B on one boot (test_old_rx, since removed): 116 MB SSH bulk
+  (background AC) plus 5 × 5 MB HTTP (best effort) received over wlan0.
+  Old: 100,744 unicast frames, 1,010 replay-check drops, 1,856 reorder
+  drops (2.84 %), 38 s. New: 99,104 frames, 0 replay-check drops, 921
+  reorder drops (0.93 %), 34 s.
 - RX reorder: the window now syncs to the first frame of a BA session, as
   r8712u does (it ignores the firmware's ADDBA-report start sequence).
 
 ## Diagnostics (removed; restore on request)
 
-Removed in r11 so normal runs are quiet. `git revert` of the r11 commit
-("r92su: remove the RX diagnostics and the test hook") brings them back:
+Removed so normal runs are quiet (first in r11; back for r12's A/B test;
+removed again in r13). `git revert 9cbeaef` ("r92su: remove the A/B
+scaffolding") brings them back, together with `test_old_rx` (1 = the old
+single replay counter and 32-frame reorder window; the window applies to
+BA sessions set up afterwards). Then bump the kernel pkgrel. What they do:
 
 - an `rxdbg:` line every 10 s while connected and the counters change:
   USB transfers, packets, C2H events, data frames (unicast to us,
