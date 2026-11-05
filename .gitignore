@@ -42,3 +42,4 @@ Module.symvers
 *.orig
 *~
 \#*#
+*.mod
