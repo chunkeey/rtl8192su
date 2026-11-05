@@ -54,12 +54,6 @@ static bool modparam_noht;
 module_param_named(noht, modparam_noht, bool, S_IRUGO);
 MODULE_PARM_DESC(noht, "Disable MPDU aggregation.");
 
-/* Scaffolding: 1 = the old single replay counter and 32-frame reorder
- * window (the window applies to BA sessions set up afterwards). */
-bool r92su_test_old_rx;
-module_param_named(test_old_rx, r92su_test_old_rx, bool, 0644);
-MODULE_PARM_DESC(test_old_rx, "Scaffolding: old RX replay/reorder behaviour.");
-
 static bool modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware crypto-engine.");

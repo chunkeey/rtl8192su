@@ -120,7 +120,7 @@ void r92su_sta_alloc_tid(struct r92su *r92su,
 		 * monitor") gave up on gaps while the AP still had frames in
 		 * flight, and dropped the retransmissions as late. The fw's
 		 * ADDBA report doesn't say; reorder_buf[] holds 64. */
-		new_tid->size = r92su_test_old_rx ? 32 : 64;
+		new_tid->size = 64;
 
 		rcu_assign_pointer(sta->rx_tid[tid], new_tid);
 	} else {
