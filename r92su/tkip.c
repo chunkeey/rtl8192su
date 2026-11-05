@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/export.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <net/cfg80211.h>
 
 #include "tkip.h"
@@ -136,7 +136,7 @@ static void tkip_mixing_phase2(const u8 *tk, struct tkip_ctx *ctx,
 }
 
 /* Encrypt packet payload with TKIP using @key. */
-void ieee80211_tkip_encrypt_data(struct crypto_cipher *tfm, const u8 *tk,
+void ieee80211_tkip_encrypt_data(struct r92su_rc4 *tfm, const u8 *tk,
 				 struct sk_buff *skb, const u64 pn)
 {
 	u8 rc4key[16];
@@ -155,7 +155,7 @@ void ieee80211_tkip_encrypt_data(struct crypto_cipher *tfm, const u8 *tk,
 }
 
 /* Decrypt packet payload with TKIP using @key. */
-int ieee80211_tkip_decrypt_data(struct crypto_cipher *tfm,
+int ieee80211_tkip_decrypt_data(struct r92su_rc4 *tfm,
 				const u8 *tk, struct sk_buff *skb, u64 pn)
 {
 	u8 rc4key[16];

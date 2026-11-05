@@ -44,7 +44,7 @@ static void r92su_free_tid_rcu(struct rcu_head *head)
 						rcu_head);
 	int i;
 
-	del_timer_sync(&tid->reorder_timer);
+	timer_delete_sync(&tid->reorder_timer);
 
 	spin_lock_bh(&tid->lock);
 	tid->len = 0;
@@ -105,9 +105,8 @@ void r92su_sta_alloc_tid(struct r92su *r92su,
 		spin_lock_init(&new_tid->lock);
 		new_tid->tid = tid;
 
-		setup_timer(&new_tid->reorder_timer,
-			    r92su_reorder_tid_timer,
-		    (unsigned long) new_tid);
+		timer_setup(&new_tid->reorder_timer,
+			    r92su_reorder_tid_timer, 0);
 		new_tid->r92su = r92su;
 		new_tid->sta = sta;
 		new_tid->head_seq = new_tid->ssn = ssn >> 4;
@@ -130,7 +129,6 @@ struct r92su_sta *r92su_sta_alloc(struct r92su *r92su, const u8 *mac_addr,
 	sta = kzalloc(sizeof(*sta), flag);
 	if (sta) {
 		unsigned long flags;
-		struct timespec uptime;
 		int i;
 
 		for (i = 0; i < ARRAY_SIZE(sta->defrag); i++)
@@ -141,8 +139,7 @@ struct r92su_sta *r92su_sta_alloc(struct r92su *r92su, const u8 *mac_addr,
 		sta->mac_id = mac_id;
 		sta->aid = aid;
 
-		ktime_get_ts(&uptime);
-		sta->last_connected = uptime.tv_sec;
+		sta->last_connected = ktime_get_seconds();
 
 		/* Remove the old station */
 		r92su_sta_del(r92su, mac_id);
@@ -225,8 +222,10 @@ struct r92su_key *r92su_key_alloc(const u32 cipher, const u8 idx,
 		memcpy(new_key->wep.wep40_key, key, new_key->key_len);
 		new_key->wep.tfm = ieee80211_wep_init();
 		if (IS_ERR(new_key->wep.tfm)) {
+			int err = PTR_ERR(new_key->wep.tfm);
+
 			kfree(new_key);
-			return ERR_PTR(PTR_ERR(new_key->wep.tfm));
+			return ERR_PTR(err);
 		}
 		break;
 
@@ -239,8 +238,10 @@ struct r92su_key *r92su_key_alloc(const u32 cipher, const u8 idx,
 		       sizeof(new_key->tkip.key.key));
 		new_key->tkip.tfm = ieee80211_wep_init();
 		if (IS_ERR(new_key->tkip.tfm)) {
+			int err = PTR_ERR(new_key->tkip.tfm);
+
 			kfree(new_key);
-			return ERR_PTR(PTR_ERR(new_key->tkip.tfm));
+			return ERR_PTR(err);
 		}
 		break;
 
@@ -253,8 +254,10 @@ struct r92su_key *r92su_key_alloc(const u32 cipher, const u8 idx,
 		new_key->ccmp.tfm = ieee80211_aes_key_setup_encrypt(key,
 			WLAN_KEY_LEN_CCMP, IEEE80211_CCMP_MIC_LEN);
 		if (IS_ERR(new_key->ccmp.tfm)) {
+			int err = PTR_ERR(new_key->ccmp.tfm);
+
 			kfree(new_key);
-			return ERR_PTR(PTR_ERR(new_key->ccmp.tfm));
+			return ERR_PTR(err);
 		}
 		break;
 
@@ -293,7 +296,6 @@ void r92su_key_free(struct r92su_key *key)
 void r92su_sta_set_sinfo(struct r92su *r92su, struct r92su_sta *sta,
 			 struct station_info *sinfo)
 {
-	struct timespec uptime;
 	struct cfg80211_bss *bss;
 	struct r92su_bss_priv *bss_priv;
 	sinfo->generation = r92su->sta_generation;
@@ -303,8 +305,7 @@ void r92su_sta_set_sinfo(struct r92su *r92su, struct r92su_sta *sta,
 			BIT(NL80211_STA_INFO_STA_FLAGS) |
 			BIT(NL80211_STA_INFO_SIGNAL);
 
-	ktime_get_ts(&uptime);
-	sinfo->connected_time = uptime.tv_sec - sta->last_connected;
+	sinfo->connected_time = ktime_get_seconds() - sta->last_connected;
 	sinfo->signal = sta->signal;
 	sinfo->rxrate.flags = sta->last_rx_rate_flag;
 	sinfo->rxrate.bw = sta->last_rx_rate_bw;

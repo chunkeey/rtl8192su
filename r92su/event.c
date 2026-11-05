@@ -30,7 +30,7 @@
  *****************************************************************************/
 #include <linux/kernel.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "r92su.h"
 #include "event.h"

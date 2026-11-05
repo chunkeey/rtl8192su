@@ -71,6 +71,106 @@ struct r92su_tx_info {
 	bool needs_encrypt;
 };
 
+/*
+ * Ethernet -> 802.11 data frame, for station and IBSS. cfg80211 used to
+ * export this as ieee80211_data_from_8023() (dropped in 5.x, unused by
+ * mac80211); this is that function minus the AP and mesh cases.
+ */
+static int r92su_data_from_8023(struct sk_buff *skb, const u8 *addr,
+				enum nl80211_iftype iftype,
+				const u8 *bssid, bool qos)
+{
+	struct ieee80211_hdr hdr;
+	u16 hdrlen, ethertype;
+	__le16 fc;
+	const u8 *encaps_data;
+	int encaps_len, skip_header_bytes;
+	int nh_pos, h_pos;
+	int head_need;
+
+	if (unlikely(skb->len < ETH_HLEN))
+		return -EINVAL;
+
+	nh_pos = skb_network_header(skb) - skb->data;
+	h_pos = skb_transport_header(skb) - skb->data;
+
+	ethertype = (skb->data[12] << 8) | skb->data[13];
+	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA);
+
+	switch (iftype) {
+	case NL80211_IFTYPE_STATION:
+		fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
+		/* BSSID SA DA */
+		memcpy(hdr.addr1, bssid, ETH_ALEN);
+		memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
+		memcpy(hdr.addr3, skb->data, ETH_ALEN);
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		/* DA SA BSSID */
+		memcpy(hdr.addr1, skb->data, ETH_ALEN);
+		memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
+		memcpy(hdr.addr3, bssid, ETH_ALEN);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	hdrlen = 24;
+
+	if (qos) {
+		fc |= cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
+		hdrlen += 2;
+	}
+
+	hdr.frame_control = fc;
+	hdr.duration_id = 0;
+	hdr.seq_ctrl = 0;
+
+	skip_header_bytes = ETH_HLEN;
+	if (ethertype == ETH_P_AARP || ethertype == ETH_P_IPX) {
+		encaps_data = bridge_tunnel_header;
+		encaps_len = sizeof(bridge_tunnel_header);
+		skip_header_bytes -= 2;
+	} else if (ethertype >= ETH_P_802_3_MIN) {
+		encaps_data = rfc1042_header;
+		encaps_len = sizeof(rfc1042_header);
+		skip_header_bytes -= 2;
+	} else {
+		encaps_data = NULL;
+		encaps_len = 0;
+	}
+
+	skb_pull(skb, skip_header_bytes);
+	nh_pos -= skip_header_bytes;
+	h_pos -= skip_header_bytes;
+
+	head_need = hdrlen + encaps_len - skb_headroom(skb);
+	if (head_need > 0 || skb_cloned(skb)) {
+		head_need = max(head_need, 0);
+		if (head_need)
+			skb_orphan(skb);
+		if (pskb_expand_head(skb, head_need, 0, GFP_ATOMIC))
+			return -ENOMEM;
+	}
+
+	if (encaps_data) {
+		memcpy(skb_push(skb, encaps_len), encaps_data, encaps_len);
+		nh_pos += encaps_len;
+		h_pos += encaps_len;
+	}
+
+	memcpy(skb_push(skb, hdrlen), &hdr, hdrlen);
+	nh_pos += hdrlen;
+	h_pos += hdrlen;
+
+	skb_reset_mac_header(skb);
+	if (nh_pos != skb_network_header(skb) - skb->data)
+		skb_set_network_header(skb, nh_pos);
+	if (h_pos != skb_transport_header(skb) - skb->data)
+		skb_set_transport_header(skb, h_pos);
+
+	return 0;
+}
+
 static inline struct r92su_tx_info *r92su_get_tx_info(struct sk_buff *skb)
 {
 	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(struct r92su_tx_info));
@@ -274,11 +374,11 @@ r92su_tx_add_crypto(struct r92su *r92su, struct sk_buff *skb,
 		}
 
 	case AESCCMP_ENCRYPTION:
-		if (tx_info->needs_encrypt) {
-			ieee80211_aes_ccm_encrypt(key->ccmp.tfm, skb,
-						  tx_info->pn,
-						  IEEE80211_CCMP_MIC_LEN);
-		}
+		if (tx_info->needs_encrypt &&
+		    ieee80211_aes_ccm_encrypt(key->ccmp.tfm, skb,
+					      tx_info->pn,
+					      IEEE80211_CCMP_MIC_LEN))
+			return TX_DROP;
 		break;
 
 	default:
@@ -428,8 +528,8 @@ r92su_tx_add_80211(struct r92su *r92su, struct sk_buff *skb,
 	if (bss_priv->control_port_ethertype == skb->protocol)
 		qos = false;
 
-	err = ieee80211_data_from_8023(skb, wdev_address(wdev), wdev->iftype,
-				       bss_priv->fw_bss.bssid, qos);
+	err = r92su_data_from_8023(skb, wdev_address(wdev), wdev->iftype,
+				   bss_priv->fw_bss.bssid, qos);
 	if (err)
 		return TX_DROP;
 

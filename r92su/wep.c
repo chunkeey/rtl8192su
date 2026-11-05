@@ -18,37 +18,51 @@
 #include <linux/slab.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "wep.h"
 
-struct crypto_cipher *ieee80211_wep_init(void)
+struct r92su_rc4 *ieee80211_wep_init(void)
 {
-	return crypto_alloc_cipher("arc4", 0, CRYPTO_ALG_ASYNC);
+	struct r92su_rc4 *rc4 = kzalloc(sizeof(*rc4), GFP_ATOMIC);
+
+	if (!rc4)
+		return ERR_PTR(-ENOMEM);
+	spin_lock_init(&rc4->lock);
+	return rc4;
 }
 
-void ieee80211_wep_free(struct crypto_cipher *tfm)
+void ieee80211_wep_free(struct r92su_rc4 *tfm)
 {
-	if (!IS_ERR(tfm))
-		crypto_free_cipher(tfm);
+	if (!IS_ERR_OR_NULL(tfm))
+		kfree_sensitive(tfm);
+}
+
+static void r92su_rc4_crypt(struct r92su_rc4 *rc4, const u8 *key,
+			    size_t klen, u8 *data, size_t len)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&rc4->lock, flags);
+	arc4_setkey(&rc4->ctx, key, klen);
+	arc4_crypt(&rc4->ctx, data, data, len);
+	spin_unlock_irqrestore(&rc4->lock, flags);
 }
 
 /* Perform WEP encryption using given key. data buffer must have tailroom
  * for 4-byte ICV. data_len must not include this ICV. Note: this function
  * does _not_ add IV. data = RC4(data | CRC32(data))
  */
-void ieee80211_wep_encrypt_data(struct crypto_cipher *tfm, u8 *rc4key,
+void ieee80211_wep_encrypt_data(struct r92su_rc4 *tfm, u8 *rc4key,
 				size_t klen, u8 *data, size_t data_len)
 {
 	__le32 icv;
-	int i;
 
 	icv = cpu_to_le32(~crc32_le(~0, data, data_len));
 	put_unaligned(icv, (__le32 *)(data + data_len));
 
-	crypto_cipher_setkey(tfm, rc4key, klen);
-	for (i = 0; i < data_len + IEEE80211_WEP_ICV_LEN; i++)
-		crypto_cipher_encrypt_one(tfm, data + i, data + i);
+	r92su_rc4_crypt(tfm, rc4key, klen, data,
+			data_len + IEEE80211_WEP_ICV_LEN);
 }
 
 
@@ -59,7 +73,7 @@ void ieee80211_wep_encrypt_data(struct crypto_cipher *tfm, u8 *rc4key,
  *
  * WEP frame payload: IV + TX key idx, RC4(data), ICV = RC4(CRC32(data))
  */
-void ieee80211_wep_encrypt(struct crypto_cipher *tfm, struct sk_buff *skb,
+void ieee80211_wep_encrypt(struct r92su_rc4 *tfm, struct sk_buff *skb,
 			   const u8 *key, const u32 iv, int keylen,
 			   int keyidx)
 {
@@ -90,18 +104,16 @@ void ieee80211_wep_encrypt(struct crypto_cipher *tfm, struct sk_buff *skb,
  * payload, including 4-byte ICV, but _not_ IV. data_len must not include ICV.
  * Return 0 on success and -1 on ICV mismatch.
  */
-int ieee80211_wep_decrypt_data(struct crypto_cipher *tfm, u8 *rc4key,
+int ieee80211_wep_decrypt_data(struct r92su_rc4 *tfm, u8 *rc4key,
 			       size_t klen, u8 *data, size_t data_len)
 {
 	__le32 crc;
-	int i;
 
-	if (IS_ERR(tfm))
+	if (IS_ERR_OR_NULL(tfm))
 		return -1;
 
-	crypto_cipher_setkey(tfm, rc4key, klen);
-	for (i = 0; i < data_len + IEEE80211_WEP_ICV_LEN; i++)
-		crypto_cipher_decrypt_one(tfm, data + i, data + i);
+	r92su_rc4_crypt(tfm, rc4key, klen, data,
+			data_len + IEEE80211_WEP_ICV_LEN);
 
 	crc = cpu_to_le32(~crc32_le(~0, data, data_len));
 	if (memcmp(&crc, data + data_len, IEEE80211_WEP_ICV_LEN) != 0)
@@ -120,7 +132,7 @@ int ieee80211_wep_decrypt_data(struct crypto_cipher *tfm, u8 *rc4key,
  * failure. If frame is OK, IV and ICV will be removed, i.e., decrypted payload
  * is moved to the beginning of the skb and skb length will be reduced.
  */
-int ieee80211_wep_decrypt(struct crypto_cipher *tfm, struct sk_buff *skb,
+int ieee80211_wep_decrypt(struct r92su_rc4 *tfm, struct sk_buff *skb,
 			  const u8 *key, const u32 iv, int keylen,
 			  int keyidx)
 {
@@ -131,8 +143,11 @@ int ieee80211_wep_decrypt(struct crypto_cipher *tfm, struct sk_buff *skb,
 	size_t len, offset;
 
 	offset = ieee80211_hdrlen(hdr->frame_control);
+	if (skb->len < offset + IEEE80211_WEP_ICV_LEN)
+		return -1;
 	data = skb->data + offset;
-	len = skb->len - offset;
+	/* _decrypt_data wants the length without the ICV (as TKIP passes it) */
+	len = skb->len - offset - IEEE80211_WEP_ICV_LEN;
 
 	klen = 3 + keylen;
 
@@ -144,6 +159,5 @@ int ieee80211_wep_decrypt(struct crypto_cipher *tfm, struct sk_buff *skb,
 	/* Copy rest of the WEP key (the secret part) */
 	memcpy(rc4key + 3, key, keylen);
 
-	return ieee80211_wep_decrypt_data(tfm, rc4key, klen,
-					  skb->data + offset, len);
+	return ieee80211_wep_decrypt_data(tfm, rc4key, klen, data, len);
 }

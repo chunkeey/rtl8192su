@@ -12,23 +12,31 @@
 #define WEP_H
 
 #include <linux/types.h>
-#include <linux/crypto.h>
 #include <linux/skbuff.h>
+#include <linux/spinlock.h>
+#include <crypto/arc4.h>
 
-struct crypto_cipher *ieee80211_wep_init(void);
-void ieee80211_wep_free(struct crypto_cipher *tfm);
+/* RC4 state for one key. TX and RX may run at the same time, and each
+ * operation rekeys, so the state is used under its lock. */
+struct r92su_rc4 {
+	spinlock_t lock;
+	struct arc4_ctx ctx;
+};
 
-void ieee80211_wep_encrypt_data(struct crypto_cipher *tfm, u8 *rc4key,
+struct r92su_rc4 *ieee80211_wep_init(void);
+void ieee80211_wep_free(struct r92su_rc4 *tfm);
+
+void ieee80211_wep_encrypt_data(struct r92su_rc4 *tfm, u8 *rc4key,
 				size_t klen, u8 *data, size_t data_len);
 
-void ieee80211_wep_encrypt(struct crypto_cipher *tfm, struct sk_buff *skb,
+void ieee80211_wep_encrypt(struct r92su_rc4 *tfm, struct sk_buff *skb,
 			   const u8 *key, const u32 iv, int keylen,
 			   int keyidx);
 
-int ieee80211_wep_decrypt_data(struct crypto_cipher *tfm, u8 *rc4key,
+int ieee80211_wep_decrypt_data(struct r92su_rc4 *tfm, u8 *rc4key,
 			       size_t klen, u8 *data, size_t data_len);
 
-int ieee80211_wep_decrypt(struct crypto_cipher *tfm, struct sk_buff *skb,
+int ieee80211_wep_decrypt(struct r92su_rc4 *tfm, struct sk_buff *skb,
 			  const u8 *key, const u32 iv, int keylen,
 			  int keyidx);
 #endif /* WEP_H */

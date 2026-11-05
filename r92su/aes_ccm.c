@@ -12,6 +12,8 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/err.h>
+#include <linux/slab.h>
+#include <linux/scatterlist.h>
 #include <linux/crypto.h>
 #include <linux/ieee80211.h>
 #include <linux/etherdevice.h>
@@ -91,38 +93,65 @@ static void ccmp_special_blocks(struct ieee80211_hdr *hdr, size_t hdrlen,
 	}
 }
 
-void ieee80211_aes_ccm_encrypt(struct crypto_aead *tfm, struct sk_buff *skb,
-			       const u64 pn, size_t mic_len)
+/*
+ * The scatterlist must not point at the stack (VMAP_STACK), so the request
+ * and a copy of the AAD live in one heap allocation, as in mac80211's
+ * aead_api.c. b_0 is only read through req->iv, which may stay on the stack.
+ */
+static int r92su_ccm_crypt(struct crypto_aead *tfm, bool enc, u8 *b_0,
+			   const u8 *aad, u8 *data, size_t data_len, u8 *mic,
+			   size_t mic_len)
 {
-	u8 aad[2 * AES_BLOCK_SIZE];
-	u8 b_0[AES_BLOCK_SIZE];
-	u8 *data, *mic;
-	size_t data_len, hdr_len;
-	struct ieee80211_hdr *hdr = (void *)skb->data;
+	size_t aad_len = be16_to_cpup((__be16 *)aad);
+	size_t reqsize = sizeof(struct aead_request) + crypto_aead_reqsize(tfm);
+	struct aead_request *aead_req;
 	struct scatterlist sg[3];
-	char aead_req_data[sizeof(struct aead_request) +
-			   crypto_aead_reqsize(tfm)]
-		__aligned(__alignof__(struct aead_request));
-	struct aead_request *aead_req = (void *) aead_req_data;
+	u8 *__aad;
+	int err;
 
-	hdr_len = ieee80211_hdrlen(hdr->frame_control);
-	data_len = skb->len - hdr_len - IEEE80211_CCMP_HDR_LEN;
-	ccmp_special_blocks(hdr, hdr_len, pn, b_0, aad);
+	aead_req = kzalloc(reqsize + aad_len, GFP_ATOMIC);
+	if (!aead_req)
+		return -ENOMEM;
 
-	memset(aead_req, 0, sizeof(aead_req_data));
+	__aad = (u8 *)aead_req + reqsize;
+	memcpy(__aad, &aad[2], aad_len);
 
-	data = skb->data + hdr_len + IEEE80211_CCMP_HDR_LEN;
-	mic = skb_put(skb, mic_len);
 	sg_init_table(sg, 3);
-	sg_set_buf(&sg[0], &aad[2], be16_to_cpup((__be16 *)aad));
+	sg_set_buf(&sg[0], __aad, aad_len);
 	sg_set_buf(&sg[1], data, data_len);
 	sg_set_buf(&sg[2], mic, mic_len);
 
 	aead_request_set_tfm(aead_req, tfm);
-	aead_request_set_crypt(aead_req, sg, sg, data_len, b_0);
-	aead_request_set_ad(aead_req, sg[0].length);
+	aead_request_set_crypt(aead_req, sg, sg,
+			       enc ? data_len : data_len + mic_len, b_0);
+	aead_request_set_ad(aead_req, aad_len);
 
-	crypto_aead_encrypt(aead_req);
+	err = enc ? crypto_aead_encrypt(aead_req) :
+		    crypto_aead_decrypt(aead_req);
+	kfree_sensitive(aead_req);
+	return err;
+}
+
+int ieee80211_aes_ccm_encrypt(struct crypto_aead *tfm, struct sk_buff *skb,
+			      const u64 pn, size_t mic_len)
+{
+	u8 aad[2 * AES_BLOCK_SIZE];
+	u8 b_0[AES_BLOCK_SIZE];
+	struct ieee80211_hdr *hdr = (void *)skb->data;
+	size_t data_len, hdr_len;
+	u8 *data, *mic;
+
+	hdr_len = ieee80211_hdrlen(hdr->frame_control);
+	if (skb->len < hdr_len + IEEE80211_CCMP_HDR_LEN ||
+	    skb_tailroom(skb) < mic_len)
+		return -EINVAL;
+	data_len = skb->len - hdr_len - IEEE80211_CCMP_HDR_LEN;
+	ccmp_special_blocks(hdr, hdr_len, pn, b_0, aad);
+
+	data = skb->data + hdr_len + IEEE80211_CCMP_HDR_LEN;
+	mic = skb_put(skb, mic_len);
+	return r92su_ccm_crypt(tfm, true, b_0, aad, data, data_len,
+			       mic, mic_len);
 }
 
 int ieee80211_aes_ccm_decrypt(struct crypto_aead *tfm, struct sk_buff *skb,
@@ -130,36 +159,22 @@ int ieee80211_aes_ccm_decrypt(struct crypto_aead *tfm, struct sk_buff *skb,
 {
 	u8 aad[2 * AES_BLOCK_SIZE];
 	u8 b_0[AES_BLOCK_SIZE];
-	u8 *data, *mic;
-	size_t data_len, hdr_len;
 	struct ieee80211_hdr *hdr = (void *)skb->data;
-	struct scatterlist sg[3];
-	char aead_req_data[sizeof(struct aead_request) +
-			   crypto_aead_reqsize(tfm)]
-		__aligned(__alignof__(struct aead_request));
-	struct aead_request *aead_req = (void *) aead_req_data;
+	size_t data_len, hdr_len;
+	u8 *data, *mic;
 
 	hdr_len = ieee80211_hdrlen(hdr->frame_control);
-	data_len = skb->len - hdr_len - mic_len;
-
-	if (data_len <= 0)
+	/* (the old size_t "data_len <= 0" test could never catch this) */
+	if (skb->len <= hdr_len + mic_len)
 		return -EINVAL;
+	data_len = skb->len - hdr_len - mic_len;
 
 	ccmp_special_blocks(hdr, hdr_len, pn, b_0, aad);
 
-	memset(aead_req, 0, sizeof(aead_req_data));
 	mic = skb->data + skb->len - mic_len;
 	data = skb->data + hdr_len;
-	sg_init_table(sg, 3);
-	sg_set_buf(&sg[0], &aad[2], be16_to_cpup((__be16 *)aad));
-	sg_set_buf(&sg[1], data, data_len);
-	sg_set_buf(&sg[2], mic, mic_len);
-
-	aead_request_set_tfm(aead_req, tfm);
-	aead_request_set_crypt(aead_req, sg, sg, data_len + mic_len, b_0);
-	aead_request_set_ad(aead_req, sg[0].length);
-
-	return crypto_aead_decrypt(aead_req);
+	return r92su_ccm_crypt(tfm, false, b_0, aad, data, data_len,
+			       mic, mic_len);
 }
 
 struct crypto_aead *ieee80211_aes_key_setup_encrypt(const u8 key[],

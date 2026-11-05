@@ -680,4 +680,5 @@ module_usb_driver(r92su_driver);
 MODULE_DEVICE_TABLE(usb, r92su_usb_product_ids);
 MODULE_FIRMWARE(RTL8192SU_FIRMWARE);
 MODULE_AUTHOR("Christian Lamparter <chunkeey@googlemail.com>");
+MODULE_DESCRIPTION("Realtek RTL8188SU/RTL8191SU/RTL8192SU USB wireless driver");
 MODULE_LICENSE("GPL");
