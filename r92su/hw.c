@@ -38,6 +38,12 @@
 #include "usb.h"
 #include "debug.h"
 
+/* Diagnostics, with rxdbg: "echo 1 > .../test_mark_dead" marks the device
+ * dead on the next service work, as a fatal USB error does (tests revive). */
+static bool modparam_test_mark_dead;
+module_param_named(test_mark_dead, modparam_test_mark_dead, bool, 0644);
+MODULE_PARM_DESC(test_mark_dead, "Diagnostics: mark the device dead once (tests recovery).");
+
 static bool modparam_norxagg;
 module_param_named(norxagg, modparam_norxagg, bool, 0444);
 MODULE_PARM_DESC(norxagg, "Disable USB RX aggregation (threshold 1, as r8712u).");
@@ -531,6 +537,12 @@ static void r92su_hw_service_work(struct work_struct *work)
 	r92su_query_fw_rx_phy_status(r92su);
 	if (r92su_is_connected(r92su))
 		r92su_rxdbg_print(r92su);
+
+	if (READ_ONCE(modparam_test_mark_dead)) {
+		WRITE_ONCE(modparam_test_mark_dead, false);
+		r92su_mark_dead(r92su);
+		goto out;	/* dead: no further service work */
+	}
 
 	r92su_hw_queue_service_work(r92su);
 out:

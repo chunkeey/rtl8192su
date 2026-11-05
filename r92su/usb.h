@@ -37,6 +37,8 @@
 #define RTL_USB_MAX_EP_NUM		6		/* max ep number */
 #define RTL_USB_MAX_TX_URBS_NUM		8
 #define RTL_USB_MAX_RX_URBS_NUM		8
+/* RX -EPROTO in a row before giving up (r8712u retries forever) */
+#define R92SU_MAX_RX_EPROTO		32
 
 #define	REALTEK_USB_VENQT_READ			0xC0
 #define	REALTEK_USB_VENQT_WRITE			0x40
@@ -64,6 +66,7 @@ void r92su_write8(struct r92su *r92su, const u32 address, const u8 data);
 void r92su_write16(struct r92su *r92su, const u32 address, const u16 data);
 void r92su_write32(struct r92su *r92su, const u32 address, const u32 data);
 void r92su_usb_prepare_firmware(struct r92su *r92su);
+int r92su_usb_revive(struct r92su *r92su);
 int r92su_usb_tx(struct r92su *r92su, struct sk_buff *skb,
 		 const enum rtl8712_queues_t queue);
 

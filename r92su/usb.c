@@ -242,8 +242,23 @@ static void r92su_tx_usb_cb(struct urb *urb)
 
 	dev_kfree_skb_any(skb);
 
-	WARN_ONCE(r92su_deal_with_usb_errors(r92su, urb->status),
-		  "failed to send data to the device");
+	switch (urb->status) {
+	case 0:
+		break;
+	case -ENOENT:
+	case -ECONNRESET:
+	case -ENODEV:
+	case -ESHUTDOWN:
+		r92su_deal_with_usb_errors(r92su, urb->status);
+		break;
+	default:
+		/* As r8712u ("pipe error"): drop this frame, keep going. One
+		 * failed transfer used to mark the whole device dead. */
+		dev_warn_ratelimited(&r92su->udev->dev,
+				     "tx urb failed (%d), frame dropped\n",
+				     urb->status);
+		break;
+	}
 
 	r92su_tx_schedule(r92su);
 }
@@ -254,6 +269,16 @@ static void r92su_rx_usb_cb(struct urb *urb)
 	void *buf = urb->context;
 	int err;
 
+	/* A transient protocol error (CRC/bit-stuffing on the bus): resubmit
+	 * and carry on, as r8712u does. It used to mark the device dead for
+	 * good. Many in a row: the device is really gone or broken. */
+	if (urb->status == -EPROTO && r92su_is_probing(r92su) &&
+	    ++r92su->rx_eproto < R92SU_MAX_RX_EPROTO) {
+		dev_warn_ratelimited(&r92su->udev->dev,
+				     "rx urb: protocol error, retrying\n");
+		goto resubmit;
+	}
+
 	if (WARN_ONCE(r92su_deal_with_usb_errors(r92su, urb->status),
 		      "unhandled urb status %d", urb->status))
 		goto err_out;
@@ -261,7 +286,9 @@ static void r92su_rx_usb_cb(struct urb *urb)
 	if (!r92su_is_probing(r92su))
 		goto err_out;
 
+	r92su->rx_eproto = 0;
 	r92su_rx(r92su, buf, urb->actual_length);
+resubmit:
 	usb_anchor_urb(urb, &r92su->rx_submitted);
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err) {
@@ -416,6 +443,37 @@ static int r92su_usb_init(struct r92su *r92su)
 		usb_free_urb(urb);
 	}
 	return err;
+}
+
+/*
+ * Bring a device that was marked dead back to STOP, if it's still attached,
+ * so the next open does the full power-on and firmware upload again. This is
+ * r8712u's behaviour (netdev_open clears driver_stopped and re-inits); before,
+ * only an unbind/bind got it back. Process context; not under r92su->lock.
+ */
+int r92su_usb_revive(struct r92su *r92su)
+{
+	struct urb *urb;
+
+	if (!r92su_is_dead(r92su))
+		return 0;
+	if (r92su->intf->condition == USB_INTERFACE_UNBINDING ||
+	    r92su->udev->state == USB_STATE_NOTATTACHED)
+		return -ENODEV;
+
+	/* Still DEAD here, so the completions don't touch the state. */
+	usb_kill_anchored_urbs(&r92su->tx_submitted);
+	usb_kill_anchored_urbs(&r92su->rx_submitted);
+	while ((urb = usb_get_from_anchor(&r92su->tx_wait))) {
+		kfree_skb(urb->context);
+		usb_free_urb(urb);
+	}
+	atomic_set(&r92su->tx_pending_urbs, 0);
+	r92su->rx_eproto = 0;
+
+	R92SU_INFO(r92su, "reviving after a USB error\n");
+	r92su_set_state(r92su, R92SU_STOP);
+	return r92su_usb_init(r92su);	/* re-arms RX; marks dead on failure */
 }
 
 #define DISABLE_HT	BIT(0)

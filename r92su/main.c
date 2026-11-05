@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/ieee80211.h>
 #include <linux/etherdevice.h>
+#include <linux/rtnetlink.h>
 #include <linux/if_arp.h>
 #include <net/cfg80211.h>
 
@@ -1432,6 +1433,24 @@ static int r92su_init_mac(struct r92su *r92su)
 	return err;
 }
 
+static void r92su_revive_work(struct work_struct *work)
+{
+	struct r92su *r92su = container_of(work, struct r92su, revive_work);
+	struct net_device *ndev = r92su->wdev.netdev;
+	int err;
+
+	rtnl_lock();
+	if (ndev && netif_running(ndev) && r92su_is_dead(r92su)) {
+		r92su->last_revive = jiffies;
+		R92SU_INFO(r92su, "dead while up: restarting the interface\n");
+		dev_close(ndev);	/* ndo_stop revives it */
+		err = dev_open(ndev, NULL);
+		R92SU_INFO(r92su, "interface restart: %s (%d)\n",
+			   err ? "failed" : "ok", err);
+	}
+	rtnl_unlock();
+}
+
 static int r92su_open(struct net_device *ndev)
 {
 	struct r92su *r92su = ndev->ml_priv;
@@ -1449,6 +1468,11 @@ static int r92su_open(struct net_device *ndev)
 		&r92su->wdev.wiphy->bands[NL80211_BAND_2GHZ]->channels[0];
 
 	err = r92su_load_firmware(r92su);
+	if (err)
+		return err;
+
+	/* A device that died while down (or during a failed open) */
+	err = r92su_usb_revive(r92su);
 	if (err)
 		return err;
 
@@ -1595,6 +1619,9 @@ static int r92su_stop(struct net_device *ndev)
 	synchronize_rcu();
 	rcu_barrier();
 
+	/* Died while up: get it back to STOP, so the next open re-inits. */
+	r92su_usb_revive(r92su);
+
 	return err;
 }
 
@@ -1711,6 +1738,8 @@ struct r92su *r92su_alloc(struct device *main_dev)
 	 * events arriving right after the firmware boot didn't advance the
 	 * parser (and hung r8's leftover scan: soft lockup). */
 	r92su->rx_alignment = 128;
+	INIT_WORK(&r92su->revive_work, r92su_revive_work);
+	r92su->last_revive = jiffies - 31 * HZ;
 	mutex_init(&r92su->lock);
 	spin_lock_init(&r92su->rx_path);
 
@@ -1932,6 +1961,8 @@ void r92su_unregister(struct r92su *r92su)
 
 	r92su_unregister_debugfs(r92su);
 
+	/* takes rtnl itself: before unregister_netdev */
+	cancel_work_sync(&r92su->revive_work);
 	if (r92su->wdev.netdev)
 		unregister_netdev(r92su->wdev.netdev);
 

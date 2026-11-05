@@ -132,6 +132,9 @@ struct r92su {
 	struct usb_anchor tx_wait;
 	struct usb_anchor tx_submitted;
 	atomic_t tx_pending_urbs;
+	unsigned int rx_eproto;		/* consecutive RX -EPROTO */
+	struct work_struct revive_work;	/* dead while up: down + up */
+	unsigned long last_revive;
 	unsigned int ep_num;
 	const ep_map *ep_map;
 
@@ -306,6 +309,13 @@ static inline void __r92su_mark_dead(struct r92su *r92su, const char *who)
 		wiphy_err(r92su->wdev.wiphy, "device marked dead by %s (state %d)\n",
 			  who, r92su->state);
 	r92su_set_state(r92su, R92SU_DEAD);
+
+	/* Dead while up: nothing would ever call ndo_stop (the firmware does
+	 * the SME, so cfg80211 isn't told). Do what "ip link set down/up"
+	 * does, at most every 30 s (r92su_revive_work). */
+	if (ndev && (ndev->flags & IFF_UP) &&
+	    time_after(jiffies, r92su->last_revive + 30 * HZ))
+		schedule_work(&r92su->revive_work);
 
 	if (ndev)
 		netif_carrier_off(ndev);
