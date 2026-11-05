@@ -56,22 +56,22 @@ static bool r92su_deal_with_usb_errors(struct r92su *r92su, int err)
 	case -ECONNRESET:
 	case -ENODEV:
 	case -ESHUTDOWN:
-		R92SU_DBG(r92su, "device was removed");
+		R92SU_ERR(r92su, "usb: device was removed (%d)\n", err);
 		r92su_mark_dead(r92su);
 		return false;
 
 	case -EPROTO:
-		R92SU_DBG(r92su, "usb protocol error");
+		R92SU_ERR(r92su, "usb: protocol error (%d)\n", err);
 		r92su_mark_dead(r92su);
 		return false;
 
 	case -EMSGSIZE:
-		R92SU_DBG(r92su, "message size mismatch");
+		R92SU_ERR(r92su, "usb: message size mismatch (%d)\n", err);
 		r92su_mark_dead(r92su);
 		return true;
 
 	default:
-		R92SU_DBG(r92su, "unhandled status %d", err);
+		R92SU_ERR(r92su, "usb: unhandled status %d\n", err);
 		WARN_ONCE(err, "unhandled status %d", err);
 		r92su_mark_dead(r92su);
 		return true;

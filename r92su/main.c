@@ -1435,6 +1435,7 @@ static int r92su_init_mac(struct r92su *r92su)
 static int r92su_open(struct net_device *ndev)
 {
 	struct r92su *r92su = ndev->ml_priv;
+	const char *step = NULL;
 	int err = -EAGAIN;
 
 	if (!is_valid_ether_addr(ndev->dev_addr))
@@ -1453,14 +1454,17 @@ static int r92su_open(struct net_device *ndev)
 
 	mutex_lock(&r92su->lock);
 	if (!r92su_is_stopped(r92su)) {
+		R92SU_ERR(r92su, "open: not stopped (state %d)\n", r92su->state);
 		err = -EAGAIN;
 		goto out;
 	}
 
+	step = "power-on";
 	err = r92su_hw_early_mac_setup(r92su);
 	if (err)
 		goto out;
 
+	step = "firmware upload";
 	err = r92su_upload_firmware(r92su);
 	if (err)
 		goto out;
@@ -1468,15 +1472,18 @@ static int r92su_open(struct net_device *ndev)
 	/* uploading the firmware resets the c2h and h2c command counters */
 	r92su_cmd_init(r92su);
 
+	step = "late mac setup";
 	err = r92su_hw_late_mac_setup(r92su);
 	if (err)
 		goto out;
 
+	step = "mac init";
 	err = r92su_init_mac(r92su);
 	if (err)
 		goto out;
 
 	if (!r92su_is_stopped(r92su)) {
+		step = "state changed during init";
 		err = -EAGAIN;
 		goto out;
 	}
@@ -1493,6 +1500,9 @@ static int r92su_open(struct net_device *ndev)
 
 	r92su_hw_queue_service_work(r92su);
 out:
+	if (err && step)
+		R92SU_ERR(r92su, "open: %s failed (%d, state %d)\n", step, err,
+			  r92su->state);
 	mutex_unlock(&r92su->lock);
 	return err;
 }

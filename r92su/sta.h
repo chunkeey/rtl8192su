@@ -59,6 +59,7 @@ struct r92su_rx_tid {
 	u16 head_seq;
 	u16 len;
 	u16 size;
+	bool synced;	/* window set from the first frame, as r8712u */
 	struct sk_buff *reorder_buf[64];
 	unsigned long reorder_time[64];
 

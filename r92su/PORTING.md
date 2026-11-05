@@ -146,3 +146,19 @@ revision field (PMC_FSM bits 15–19).
 
 Module parameters go on the kernel command line (`r92su.norxagg=1`) or in
 `/etc/modprobe.d/` before the dongle is plugged in.
+
+## On the board (r5–r8)
+
+- r5/r7: probes (C-cut, 1T1R), firmware 0x11ec boots, associates (WPA2-PSK,
+  CCMP), DHCP lease. r7 reports the signal in dBm.
+- r7: broadcast and ARP work both ways, and TX at normal rates works (UDP
+  from the board arrives). Unicast IP *to* the board mostly never arrives,
+  not even at the driver's counters, with or without `noht`/`norxagg`.
+  Under investigation; r8 adds RX diagnostics (an `rxdbg:` line every 10 s
+  while connected: transfers, packets, unicast/multicast, CRC, HT, rates,
+  descriptors left after pkt_cnt ran out, drops by handler).
+- r7: once open failed after boot, every later open said -EAGAIN (state not
+  STOP) until a rebind. r8 logs the failing open step and who marks the
+  device dead.
+- RX reorder: the window now syncs to the first frame of a BA session, as
+  r8712u does (it ignores the firmware's ADDBA-report start sequence).

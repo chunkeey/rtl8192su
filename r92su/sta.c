@@ -109,7 +109,13 @@ void r92su_sta_alloc_tid(struct r92su *r92su,
 			    r92su_reorder_tid_timer, 0);
 		new_tid->r92su = r92su;
 		new_tid->sta = sta;
+		/* The firmware's ADDBA-report start sequence isn't usable
+		 * (r8712u ignores it: indicate_seq = 0xffff, "so that the rx
+		 * reorder can store any following data packet"). Taking it as
+		 * ssn >> 4 put the window off, and QoS data was then dropped as
+		 * "out of date". Sync to the first received frame instead. */
 		new_tid->head_seq = new_tid->ssn = ssn >> 4;
+		new_tid->synced = false;
 		new_tid->size = 32;	 /* taken from a monitor */
 
 		rcu_assign_pointer(sta->rx_tid[tid], new_tid);

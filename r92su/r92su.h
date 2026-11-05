@@ -152,6 +152,16 @@ struct r92su {
 	spinlock_t rx_path;
 	unsigned int ampdu_reference;
 	struct sk_buff_head rx_queue;
+
+	/* RX diagnostics (approximate counters), printed by the service work
+	 * every 10 s while they change: see r92su_rxdbg_print(). */
+	struct {
+		u32 xfers, pkts, c2h, data, ucast, mcast, crc, ht, notconn;
+		u32 left_xfers, left_pkts;	/* after pkt_cnt ran out */
+		u32 rate[64];			/* data frames by RX_MCS */
+		struct { const char *name; u32 n; } drop[12];
+		u32 last_pkts, ticks;
+	} rxdbg;
 	struct tasklet_struct rx_tasklet;
 	unsigned int rx_alignment;
 
@@ -285,9 +295,16 @@ static inline void r92su_set_state(struct r92su *r92su,
 	r92su->state = new_state;
 }
 
-static inline void r92su_mark_dead(struct r92su *r92su)
+/* Logs who marked it dead: a dead device refuses ndo_open (-EAGAIN) until
+ * it's re-probed, and most callers used to say nothing at all. */
+#define r92su_mark_dead(r92su) __r92su_mark_dead(r92su, __func__)
+static inline void __r92su_mark_dead(struct r92su *r92su, const char *who)
 {
 	struct net_device *ndev = r92su->wdev.netdev;
+
+	if (r92su->state != R92SU_DEAD && r92su->wdev.wiphy)
+		wiphy_err(r92su->wdev.wiphy, "device marked dead by %s (state %d)\n",
+			  who, r92su->state);
 	r92su_set_state(r92su, R92SU_DEAD);
 
 	if (ndev)

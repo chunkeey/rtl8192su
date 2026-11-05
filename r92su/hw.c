@@ -32,6 +32,7 @@
 
 #include "r92su.h"
 #include "hw.h"
+#include "rx.h"
 #include "reg.h"
 
 #include "usb.h"
@@ -528,6 +529,8 @@ static void r92su_hw_service_work(struct work_struct *work)
 	r92su->scanned = false;
 
 	r92su_query_fw_rx_phy_status(r92su);
+	if (r92su_is_connected(r92su))
+		r92su_rxdbg_print(r92su);
 
 	r92su_hw_queue_service_work(r92su);
 out:

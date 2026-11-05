@@ -191,6 +191,50 @@ static unsigned int r92su_rx_calc_radiotap_len(struct r92su *r92su,
 	return rtap_len;
 }
 
+static void r92su_rxdbg_drop(struct r92su *r92su, const char *name)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(r92su->rxdbg.drop); i++) {
+		if (r92su->rxdbg.drop[i].name == name ||
+		    !r92su->rxdbg.drop[i].name) {
+			r92su->rxdbg.drop[i].name = name;
+			r92su->rxdbg.drop[i].n++;
+			return;
+		}
+	}
+}
+
+void r92su_rxdbg_print(struct r92su *r92su)
+{
+	char buf[384];
+	int i, n = 0;
+
+	if (++r92su->rxdbg.ticks % 5 ||		/* service work: every 2 s */
+	    r92su->rxdbg.pkts == r92su->rxdbg.last_pkts)
+		return;
+	r92su->rxdbg.last_pkts = r92su->rxdbg.pkts;
+
+	n += scnprintf(buf + n, sizeof(buf) - n, "rates:");
+	for (i = 0; i < ARRAY_SIZE(r92su->rxdbg.rate); i++)
+		if (r92su->rxdbg.rate[i])
+			n += scnprintf(buf + n, sizeof(buf) - n, " %d=%u", i,
+				       r92su->rxdbg.rate[i]);
+	n += scnprintf(buf + n, sizeof(buf) - n, " drops:");
+	for (i = 0; i < ARRAY_SIZE(r92su->rxdbg.drop) &&
+		    r92su->rxdbg.drop[i].name; i++)
+		n += scnprintf(buf + n, sizeof(buf) - n, " %s=%u",
+			       r92su->rxdbg.drop[i].name + 9 /* "r92su_rx_" */,
+			       r92su->rxdbg.drop[i].n);
+
+	R92SU_INFO(r92su, "rxdbg: xfer %u pkt %u c2h %u data %u (ucast %u "
+		   "mcast %u crc %u ht %u notconn %u) leftover %u/%u; %s\n",
+		   r92su->rxdbg.xfers, r92su->rxdbg.pkts, r92su->rxdbg.c2h,
+		   r92su->rxdbg.data, r92su->rxdbg.ucast, r92su->rxdbg.mcast,
+		   r92su->rxdbg.crc, r92su->rxdbg.ht, r92su->rxdbg.notconn,
+		   r92su->rxdbg.left_xfers, r92su->rxdbg.left_pkts, buf);
+}
+
 static void r92su_rx_dropped(struct r92su *r92su, unsigned int count)
 {
 	r92su->wdev.netdev->stats.rx_dropped += count;
@@ -934,6 +978,11 @@ r92su_rx_reorder_ampdu(struct r92su *r92su, struct sk_buff *skb,
 
 	spin_lock(&tid->lock);
 
+	if (!tid->synced) {
+		tid->head_seq = tid->ssn = mpdu_seq;
+		tid->synced = true;
+	}
+
 	head_seq = tid->head_seq;
 
 	/* frame with out of date sequence number */
@@ -971,8 +1020,9 @@ out:
 	return RX_CONTINUE;
 
 drop_unlock:
+	tid->dropped++;
 	spin_unlock(&tid->lock);
-	return RX_DROP;
+	return RX_DROP;		/* the caller counts it in rx_dropped */
 }
 
 #define __RX_HANDLER(func, dropgoto, queuegoto, args...) do {	\
@@ -984,6 +1034,7 @@ drop_unlock:
 	case RX_QUEUE:						\
 		goto queuegoto;					\
 	case RX_DROP:						\
+		r92su_rxdbg_drop(r92su, #func);			\
 		goto dropgoto;					\
 	}							\
 } while (0)
@@ -1197,6 +1248,7 @@ void r92su_rx(struct r92su *r92su, void *buf, const unsigned int len)
 	/* pkt_cnt seems to be valid only for the first aggregated packet?! */
 	pkt_cnt = GET_RX_DESC_PKTCNT(rx->hdr);
 	pkt_cnt = max_t(unsigned int, pkt_cnt, 1);
+	r92su->rxdbg.xfers++;
 
 	while (buf < end && pkt_cnt--) {
 		unsigned int drvinfo, shift;
@@ -1210,6 +1262,29 @@ void r92su_rx(struct r92su *r92su, void *buf, const unsigned int len)
 
 		if (buf + pkt_len + hdr_len + shift > end)
 			goto err_garbage;
+
+		r92su->rxdbg.pkts++;
+		if (GET_RX_DESC_IS_CMD(&rx->hdr)) {
+			r92su->rxdbg.c2h++;
+		} else {
+			const struct ieee80211_hdr *h = buf + hdr_len + shift;
+
+			r92su->rxdbg.data++;
+			if (!r92su_is_connected(r92su))
+				r92su->rxdbg.notconn++;
+			if (GET_RX_DESC_CRC32(&rx->hdr))
+				r92su->rxdbg.crc++;
+			if (GET_RX_DESC_RX_HT(&rx->hdr))
+				r92su->rxdbg.ht++;
+			r92su->rxdbg.rate[GET_RX_DESC_RX_MCS(&rx->hdr) & 63]++;
+			if (pkt_len >= 10) {
+				if (is_multicast_ether_addr(h->addr1))
+					r92su->rxdbg.mcast++;
+				else if (ether_addr_equal(h->addr1,
+					 wdev_address(&r92su->wdev)))
+					r92su->rxdbg.ucast++;
+			}
+		}
 
 		if (GET_RX_DESC_IS_CMD(&rx->hdr)) {
 			/* Bound by what's left of this transfer, not its
@@ -1238,6 +1313,30 @@ void r92su_rx(struct r92su *r92su, void *buf, const unsigned int len)
 		}
 		/* 128-byte steps (REG_PBP page size), as r8712u does */
 		buf += ALIGN(hdr_len + pkt_len, r92su->rx_alignment);
+	}
+
+	/* Diagnostics: well-formed descriptors left when pkt_cnt ran out
+	 * (those packets are ignored). */
+	if (buf + RX_DESC_SIZE <= end) {
+		void *p = buf;
+		unsigned int n = 0;
+
+		while (p + RX_DESC_SIZE <= end) {
+			struct rx_packet *r = p;
+			unsigned int l = GET_RX_DESC_PKT_LEN(&r->hdr);
+			unsigned int h = RX_DESC_SIZE +
+				GET_RX_DESC_DRVINFO_SIZE(&r->hdr) *
+				RX_DRV_INFO_SIZE_UNIT;
+
+			if (!l || p + h + l > end)
+				break;
+			n++;
+			p += ALIGN(h + l, r92su->rx_alignment);
+		}
+		if (n) {
+			r92su->rxdbg.left_xfers++;
+			r92su->rxdbg.left_pkts += n;
+		}
 	}
 	if (r92su_is_connected(r92su))
 		tasklet_schedule(&r92su->rx_tasklet);
