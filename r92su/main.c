@@ -1706,6 +1706,11 @@ struct r92su *r92su_alloc(struct device *main_dev)
 
 	r92su = wiphy_priv(wiphy);
 	r92su->wdev.wiphy = wiphy;
+	/* RX packets are 128-byte aligned from the first transfer (r8712u
+	 * always steps by 128). It was 0 until open's late MAC setup, so
+	 * events arriving right after the firmware boot didn't advance the
+	 * parser (and hung r8's leftover scan: soft lockup). */
+	r92su->rx_alignment = 128;
 	mutex_init(&r92su->lock);
 	spin_lock_init(&r92su->rx_path);
 

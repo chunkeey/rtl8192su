@@ -1331,7 +1331,7 @@ void r92su_rx(struct r92su *r92su, void *buf, const unsigned int len)
 			if (!l || p + h + l > end)
 				break;
 			n++;
-			p += ALIGN(h + l, r92su->rx_alignment);
+			p += ALIGN(h + l, max(r92su->rx_alignment, 8u));
 		}
 		if (n) {
 			r92su->rxdbg.left_xfers++;
