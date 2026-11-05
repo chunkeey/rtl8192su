@@ -11,7 +11,7 @@ these chips.
   never fully validated, no hardware crypto, locking unverified, no AP mode).
 - Firmware: `rtlwifi/rtl8712u.bin` (`MODULE_FIRMWARE`). It comes from Alpine's
   linux-firmware, and the modloop picks it up through modinfo.
-- Build: in `DEFAULT_EXTMODS` (`scripts/cross-build-kernel.sh`), so every
+- Build (in the pandaboard_alpine appliance, where the port was made): in `DEFAULT_EXTMODS` (`scripts/cross-build-kernel.sh`), so every
   board kernel gets it unless its APKBUILD sets
   `_extmods_skip="drivers/r92su"`. The script checks `kconfig.require`
   against the kernel config, builds the driver against that kernel (in a copy,
@@ -20,8 +20,8 @@ these chips.
   against r8712u. Built for the BeagleBoard-xM and pcDuino kernels too, not
   run on them yet.
 
-The pristine import is its own commit, so `git log -p drivers/r92su` shows
-the whole port.
+In this repository the port starts after upstream's `1f09c7a`, so
+`git log -p 1f09c7a..` shows the whole port.
 
 ## API changes (mechanical)
 
@@ -106,7 +106,7 @@ the whole port.
 ## Known gaps
 
 - Tested on one dongle (0bda:8171) and one AP for about an hour. Not
-  tested: AP restarts and roaming, hours of streaming, WEP/TKIP, IBSS, a
+  tested: AP restarts and roaming, WEP/TKIP, IBSS, a
   real (not simulated) fatal USB error.
 - RX on a busy link still drops about 0.9 % in the reorder buffer: mostly
   real duplicates (the AP resent frames after missing our block-ack) and
