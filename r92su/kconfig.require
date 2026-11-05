@@ -1,0 +1,7 @@
+# Kernel options r92su needs (grep -xE patterns; scripts/cross-build-kernel.sh).
+CONFIG_USB=[ym]
+CONFIG_CFG80211=[ym]
+# WEP/TKIP (arc4_crypt) and CCMP (crypto_alloc_aead("ccm(aes)")).
+CONFIG_CRYPTO_LIB_ARC4=[ym]
+CONFIG_CRYPTO_CCM=[ym]
+CONFIG_CRYPTO_AES=[ym]

@@ -11,11 +11,14 @@ these chips.
   never fully validated, no hardware crypto, locking unverified, no AP mode).
 - Firmware: `rtlwifi/rtl8712u.bin` (`MODULE_FIRMWARE`). It comes from Alpine's
   linux-firmware, and the modloop picks it up through modinfo.
-- Build: `_extmods="drivers/r92su"` in a kernel APKBUILD.
-  `scripts/cross-build-kernel.sh` builds it against that kernel (in a copy,
+- Build: in `DEFAULT_EXTMODS` (`scripts/cross-build-kernel.sh`), so every
+  board kernel gets it unless its APKBUILD sets
+  `_extmods_skip="drivers/r92su"`. The script checks `kconfig.require`
+  against the kernel config, builds the driver against that kernel (in a copy,
   with `-Werror`) and installs it in `lib/modules/<release>/updates/`.
-- Status: compiles and is packaged, and is cross-checked against r8712u (below).
-  **Not tested on hardware yet.**
+- Status: works on the PandaBoard (on-board results below); cross-checked
+  against r8712u. Built for the BeagleBoard-xM and pcDuino kernels too, not
+  run on them yet.
 
 The pristine import is its own commit, so `git log -p drivers/r92su` shows
 the whole port.
