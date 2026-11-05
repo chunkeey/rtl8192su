@@ -135,7 +135,7 @@ static const struct ieee80211_sta_ht_cap r92su_ht_info = {
 
 #define R92SU_SCAN_TIMEOUT	5000
 
-static int r92su_get_station(struct wiphy *wiphy, struct net_device *ndev,
+static int r92su_get_station(struct wiphy *wiphy, r92su_cfg_dev_t *dev,
 			     const u8 *mac, struct station_info *sinfo)
 {
 	struct r92su *r92su = wiphy_priv(wiphy);
@@ -162,7 +162,7 @@ out:
 
 }
 
-static int r92su_dump_station(struct wiphy *wiphy, struct net_device *ndev,
+static int r92su_dump_station(struct wiphy *wiphy, r92su_cfg_dev_t *dev,
 			      int idx, u8 *mac, struct station_info *sinfo)
 {
 	struct r92su *r92su = wiphy_priv(wiphy);
@@ -952,7 +952,7 @@ out:
 	return err;
 }
 
-static int r92su_add_key(struct wiphy *wiphy, struct net_device *ndev,
+static int r92su_add_key(struct wiphy *wiphy, r92su_cfg_dev_t *dev,
 			 int link_id, u8 idx, bool pairwise, const u8 *mac_addr,
 			 struct key_params *params)
 {
@@ -975,7 +975,7 @@ out_unlock:
 	return err;
 }
 
-static int r92su_del_key(struct wiphy *wiphy, struct net_device *ndev,
+static int r92su_del_key(struct wiphy *wiphy, r92su_cfg_dev_t *dev,
 			 int link_id, u8 idx, bool pairwise, const u8 *mac_addr)
 {
 	static const enum r92su_enc_alg no_key = NO_ENCRYPTION;

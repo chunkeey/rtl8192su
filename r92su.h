@@ -42,6 +42,23 @@
 #include <linux/mutex.h>
 #include <net/cfg80211.h>
 #include <linux/llist.h>
+#include <linux/version.h>
+
+/* Before 6.13 the staging r8712u driver handles these devices, and r92su's
+ * cfg80211 code isn't kept compatible with those kernels. */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 13, 0)
+#error "r92su needs Linux 6.13 or newer (older kernels: use the staging r8712u driver)"
+#endif
+
+/* After 6.18, cfg80211 passes the get/dump_station and add/del_key callbacks a
+ * wireless_dev instead of a net_device. r92su doesn't use either, so only the
+ * type differs. Kbuild detects the change in the kernel's cfg80211.h and
+ * defines R92SU_CFG80211_WDEV. */
+#ifdef R92SU_CFG80211_WDEV
+typedef struct wireless_dev r92su_cfg_dev_t;
+#else
+typedef struct net_device r92su_cfg_dev_t;
+#endif
 
 #include "h2cc2h.h"
 #include "eeprom.h"
