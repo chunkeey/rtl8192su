@@ -14,12 +14,12 @@ driver implements station mode (`.connect`, `.scan` and the rest).
 
 A hobby project, published as is.
 
-- **Where it runs:** about an hour of on-board testing with one dongle
-  (`0bda:8171`) on an ARM board (PandaBoard, Linux 6.18), then hours of
-  streaming in a network speaker appliance.
-- **Kernels:** 6.13 and newer (older kernels: use `r8712u`). It compiles on 6.18
-  (ARM) and 7.2 (x86_64, Fedora), and hasn't been run on x86_64 or on kernels
-  other than 6.18 yet.
+- **Where it runs:** one dongle (`0bda:8171`) so far, on
+  - an ARM board (PandaBoard, Linux 6.18): about an hour of on-board testing,
+    then hours of streaming in a network speaker appliance;
+  - x86_64 (Fedora 44, Linux 7.2.13): works, tested briefly.
+- **Kernels:** 6.13 and newer (older kernels: use `r8712u`). Tested on 6.18 and
+  7.2; 6.13 to 6.17 are untested.
 - **Known gaps** are listed in [PORTING.md](PORTING.md). Among them: no AP mode,
   no hardware crypto, and WEP/TKIP, IBSS and roaming are untested.
 - **No support promised.** Issues and patches are read eventually. New kernel
