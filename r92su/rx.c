@@ -1212,19 +1212,22 @@ void r92su_rx(struct r92su *r92su, void *buf, const unsigned int len)
 			goto err_garbage;
 
 		if (GET_RX_DESC_IS_CMD(&rx->hdr)) {
-			if (len - sizeof(rx->hdr) <
+			/* Bound by what's left of this transfer, not its
+			 * total length (several packets per transfer). */
+			if (end - buf < sizeof(rx->hdr) + sizeof(rx->c2h) ||
+			    end - buf - sizeof(rx->hdr) <
 			    le16_to_cpu(rx->c2h.len) + sizeof(rx->c2h)) {
 				R92SU_ERR(r92su,
 					"received clipped c2h command.");
 				r92su_mark_dead(r92su);
 			} else
 				r92su_c2h_event(r92su, &rx->c2h);
-		} else {
+		} else if (r92su_is_connected(r92su)) {
+			/* (Not connected: skip the frame, but still advance:
+			 * the old "continue" re-read this packet and dropped
+			 * the rest, firmware events included.) */
 			struct ieee80211_hdr *i3e;
 			struct sk_buff *skb;
-
-			if (!r92su_is_connected(r92su))
-				continue;
 
 			i3e = ((void *) buf) + hdr_len + shift;
 			skb = rx92su_rx_copy_data(rx, hdr_len, i3e, pkt_len);
@@ -1233,6 +1236,7 @@ void r92su_rx(struct r92su *r92su, void *buf, const unsigned int len)
 			else
 				r92su_rx_dropped(r92su, 1);
 		}
+		/* 128-byte steps (REG_PBP page size), as r8712u does */
 		buf += ALIGN(hdr_len + pkt_len, r92su->rx_alignment);
 	}
 	if (r92su_is_connected(r92su))

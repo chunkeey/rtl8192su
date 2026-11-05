@@ -120,7 +120,9 @@ int r92su_h2c_copy(struct r92su *r92su, const enum fw_h2c_cmd cmd,
 	if (!skb)
 		return -ENOMEM;
 
-	rest = H2CC2H_HDR_LEN - (len % H2CC2H_HDR_LEN);
+	/* Pad to 8, as r8712u (round_up(cmdsz, 8)); was 8 - len % 8, which
+	 * added 8 bytes to an aligned command, past the allocation. */
+	rest = ALIGN(len, H2CC2H_HDR_LEN) - len;
 	memcpy(skb_put(skb, len), data, len);
 	memset(skb_put(skb, rest), 0, rest);
 
@@ -216,7 +218,7 @@ int r92su_h2c_connect(struct r92su *r92su, const struct h2cc2h_bss *orig_bss,
 		memcpy(skb_put(skb, ie_len), ie, ie_len);
 
 	bss->length = cpu_to_le32(skb->len);
-	rest = H2CC2H_HDR_LEN - (skb->len % H2CC2H_HDR_LEN);
+	rest = ALIGN(skb->len, H2CC2H_HDR_LEN) - skb->len;
 	memset(skb_put(skb, rest), 0, rest);
 	return r92su_h2c_submit(r92su, skb, join ? H2C_JOINBSS_CMD :
 		H2C_CREATEBSS_CMD);

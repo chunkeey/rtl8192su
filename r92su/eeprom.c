@@ -40,10 +40,11 @@
 
 static int r92su_parse_eeprom(struct r92su *r92su)
 {
-	if (r92su->eeprom.id != cpu_to_le16(RTL8190_EEPROM_ID)) {
-		R92SU_ERR(r92su, "eeprom signature check has failed.\n");
-		return -EINVAL;
-	}
+	/* r8712u never checked the ID (its RTL8712_EEPROM_ID is unused):
+	 * warn rather than refuse the device. */
+	if (r92su->eeprom.id != cpu_to_le16(RTL8190_EEPROM_ID))
+		R92SU_ERR(r92su, "unexpected eeprom id 0x%04x, continuing.\n",
+			  le16_to_cpu(r92su->eeprom.id));
 
 	switch (r92su->eeprom.board_type) {
 	case 0:
@@ -56,9 +57,11 @@ static int r92su_parse_eeprom(struct r92su *r92su)
 		r92su->rf_type = R92SU_2T2R;
 		break;
 	default:
-		R92SU_ERR(r92su, "unknown board type:%d.\n",
+		/* r8712u's default (its rf_config module parameter) */
+		R92SU_ERR(r92su, "unknown board type:%d, assuming 1T2R.\n",
 			  r92su->eeprom.board_type);
-		return -EINVAL;
+		r92su->rf_type = R92SU_1T2R;
+		break;
 	}
 	return 0;
 }

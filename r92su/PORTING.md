@@ -14,7 +14,8 @@ these chips.
 - Build: `_extmods="drivers/r92su"` in a kernel APKBUILD.
   `scripts/cross-build-kernel.sh` builds it against that kernel (in a copy,
   with `-Werror`) and installs it in `lib/modules/<release>/updates/`.
-- Status: compiles and is packaged. **Not tested on hardware yet.**
+- Status: compiles and is packaged, and is cross-checked against r8712u (below).
+  **Not tested on hardware yet.**
 
 The pristine import is its own commit, so `git log -p drivers/r92su` shows
 the whole port.
@@ -88,3 +89,52 @@ the whole port.
 - `debugfs.c`, `trace.c` and the WPS button (`R92SU_WPC`) aren't built.
 - No AP mode or hardware crypto, and TX status is approximate (upstream
   limitations).
+
+## Cross-check against r8712u (Linux 6.12)
+
+`drivers/staging/rtl8712` in v6.12, the last kernel that had it, was the
+reference: it drove this hardware for about 14 years and loads the same
+`rtl8712u.bin`.
+
+**Same in both drivers**: the firmware header and DMEM (`fw_priv`) layout;
+the TCR upload status bits and the upload order (IMEM, EMEM, CPU enable,
+DMEM, FWRDY); the B/C-cut power-on sequence (register for register: EFUSE
+leakage, SPS0, AFE, LDOs, PLL 0x11/0x51/0x11, clock switch, CR = 0x37FC,
+0xFE5C bit 7, 0xFE1C, TXDMA poll); the USB register addressing (wValue = the
+address's low 16 bits); the H2C command IDs 0–74 and C2H event IDs 0–25; the
+`wlan_bssid_ex` (join/survey), set-key, set-sta-key, set-auth and site-survey
+layouts, and the cipher IDs; the TX descriptor bits (pkt size/offset/OWN/
+FSG/LSG, MACID, QSEL, NON_QOS, KEY_ID, SEC_TYPE, BMC, priority in the dword-3
+seq field, the 1M forced rate for EAPOL/ARP/DHCP); the priority-to-QSEL map;
+the RX 128-byte packet stepping; the MAC address at efuse 0x12; the chip
+revision field (PMC_FSM bits 15–19).
+
+**Fixed, found by the comparison**:
+- RX loop: a data frame received while not connected hit `continue`, which
+  skipped the advance. The loop re-read that packet and dropped the rest of
+  the aggregated transfer, firmware events (survey, join) included. The C2H
+  clipping check also used the transfer's total length rather than what
+  remains.
+- H2C padding (`r92su_h2c_copy`, `r92su_h2c_connect`) was `8 - len % 8`:
+  an aligned command got 8 extra bytes, declared in the H2C length and put
+  past the allocation. Now `round_up(len, 8)`, as r8712u does.
+- Probe refused a device whose EEPROM id isn't 0x8129 (r8712u never checks
+  it), an unknown board type (r8712u assumes 1T2R), or an unknown chip
+  revision (r8712u and the vendor code assume B-cut). All three now warn and
+  use r8712u's defaults.
+- The wait after the core reset in power-on: 1 ms, now 20 ms as in r8712u.
+
+**Different on purpose, the first suspects if something fails**:
+
+| | r92su | r8712u | to try |
+|---|---|---|---|
+| USB RX aggregation (0x102500D9) | 48 pages (6 KB) | 1 ("invalidates usb rx aggregation") | `r92su.norxagg=1` |
+| DMEM: A-MPDU, aggregation offload, 40 MHz | on (unless `noht`) | off / off / on | `r92su.noht=1` |
+| DMEM: QoS, rate control and MLME offload | on | off | needs a rebuild |
+| DMEM: turbo_mode | 0 | 1 | needs a rebuild |
+| DMEM: rf_config | from the EEPROM board type | always 1T2R (module parameter) | r92su is more accurate |
+| TX length a multiple of 512/64 | `URB_ZERO_PACKET` | 8 bytes of padding + descriptor offset +8 | needs a rebuild |
+| H2C seq bit 7 | "last" flag, 7-bit counter | plain 8-bit counter | firmware evidently ignores it |
+
+Module parameters go on the kernel command line (`r92su.norxagg=1`) or in
+`/etc/modprobe.d/` before the dongle is plugged in.

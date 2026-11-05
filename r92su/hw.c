@@ -37,6 +37,10 @@
 #include "usb.h"
 #include "debug.h"
 
+static bool modparam_norxagg;
+module_param_named(norxagg, modparam_norxagg, bool, 0444);
+MODULE_PARM_DESC(norxagg, "Disable USB RX aggregation (threshold 1, as r8712u).");
+
 static u8 r92su_halset_sysclk(struct r92su *r92su, u16 clk_set)
 {
 	u16 clk;
@@ -93,8 +97,9 @@ static int r92su_usb_init_b_and_c_cut(struct r92su *r92su)
 	tmpu1b = r92su_read8(r92su, REG_SYS_FUNC_EN + 1);
 	tmpu1b &= 0x73;
 	r92su_write8(r92su, REG_SYS_FUNC_EN + 1, tmpu1b);
-	/* wait for BIT 10/11/15 to pull high automatically!! */
-	mdelay(1);
+	/* wait for BIT 10/11/15 to pull high automatically!!
+	 * (20 ms as in r8712u; this was 1 ms) */
+	msleep(20);
 
 	r92su_write8(r92su, REG_SPS0_CTRL + 1, 0x53);
 	r92su_write8(r92su, REG_SPS0_CTRL, 0x57);
@@ -286,8 +291,9 @@ static int r92su_usb_final_macconfig(struct r92su *r92su)
 	tmp |= RXDMA_AGG_EN;
 	r92su_write8(r92su, REG_RXDMA_RXCTRL, tmp);
 
-	/* 48 pages * 128 Byte / Page = 6kb */
-	r92su_write8(r92su, REG_RXDMA_AGG_PG_TH, 48);
+	/* 48 pages * 128 Byte / Page = 6kb. r8712u wrote 1 here, which
+	 * "invalidates usb rx aggregation" (norxagg=1 does the same). */
+	r92su_write8(r92su, REG_RXDMA_AGG_PG_TH, modparam_norxagg ? 1 : 48);
 
 	/* 1.7 ms / "0x04" */
 	r92su_write8(r92su, REG_USB_DMA_AGG_TO, 0x04);
@@ -540,11 +546,12 @@ int r92su_hw_read_chip_version(struct r92su *r92su)
 	rev = GET_VAL(PCM_FSM_VER, r92su_read32(r92su, REG_PMC_FSM));
 	if (rev != R92SU_C_CUT) {
 		rev = (rev >> 1) + 1;
-		if (rev > R92SU_C_CUT) {
-			/* the vendor code will default to B_CUT
-			 * in this case. But I'm not sure what the
-			 * math above is all about. */
-			return -EINVAL;
+		if (rev > R92SU_C_CUT || rev < R92SU_A_CUT) {
+			/* Unknown revision: default to B (2nd) cut, as the
+			 * vendor code and r8712u do, rather than fail. */
+			R92SU_INFO(r92su, "unknown chip revision %d, "
+				   "assuming B-cut\n", rev);
+			rev = R92SU_B_CUT;
 		}
 	}
 	r92su->chip_rev = rev;
