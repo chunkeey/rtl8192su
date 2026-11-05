@@ -93,7 +93,17 @@ the whole port.
 
 ## Known gaps
 
-- Not run on hardware. Expect firmware/protocol issues only a device shows.
+- Tested on one dongle (0bda:8171) and one AP for about an hour. Not
+  tested: AP restarts and roaming, hours of streaming, WEP/TKIP, IBSS, a
+  real (not simulated) fatal USB error.
+- RX on a busy link: about 1 % of frames dropped by the IV (replay) check
+  and 1.5 % as late by the reorder buffer (seen during a 116 MB transfer);
+  TCP covers it, but the IV drops may mean the reorder buffer releases out
+  of order. Worth a look.
+- After a software replug (USB `authorized` 0/1, no power cycle) the first
+  firmware upload fails (`cpu_status=0x9`: IMEM checksum not reported); the
+  next open works.
+- No TX rate is reported (`SIGNAL_POLL` says `LINKSPEED=0`).
 - `debugfs.c`, `trace.c` and the WPS button (`R92SU_WPC`) aren't built.
 - No AP mode or hardware crypto, and TX status is approximate (upstream
   limitations).
@@ -147,15 +157,14 @@ revision field (PMC_FSM bits 15–19).
 Module parameters go on the kernel command line (`r92su.norxagg=1`) or in
 `/etc/modprobe.d/` before the dongle is plugged in.
 
-## On the board (r5–r8)
+## On the board (r5–r11)
 
 - r5/r7: probes (C-cut, 1T1R), firmware 0x11ec boots, associates (WPA2-PSK,
   CCMP), DHCP lease. r7 reports the signal in dBm.
 - r9 works both ways: a 5 MB TCP download over wlan0 at 34.8 Mbit/s
   (wlan0 rx +5.18 MB, eth0 +674 bytes), checksum intact; RX mostly MCS 7,
   ~3.3 packets per USB transfer (RX aggregation), 30 late frames dropped by
-  the reorder buffer. `rxdbg:` lines (every 10 s while connected) show the
-  counters.
+  the reorder buffer (r8's RX diagnostics, see below).
 - "Unicast IP never arrives" (r7) was the test setup, not the driver: eth0
   and wlan0 on the same subnet. ARP flux made eth0 answer for wlan0's
   address (the router and the PC sent replies to eth0's MAC), and strict
@@ -168,5 +177,34 @@ Module parameters go on the kernel command line (`r92su.norxagg=1`) or in
 - r7: once open failed after boot, every later open said -EAGAIN (state not
   STOP) until a rebind. r8 logs the failing open step and who marks the
   device dead.
+- r10: recovery from USB errors, as r8712u (it retries RX `-EPROTO`, drops
+  failed TX frames, and its open clears `driver_stopped` and re-inits).
+  RX `-EPROTO` is resubmitted (up to 32 in a row), TX errors other than
+  "device gone" drop the frame. A dead device that's still attached is
+  revived (URBs killed, RX re-armed, state STOP) by `ndo_stop` or the next
+  open, which redoes power-on and firmware upload; dead while up, a work
+  item does down + up (under rtnl, at most every 30 s). On the board: a
+  simulated fatal error while connected restarted the interface in 1 s and
+  it reconnected within 6 s; a software unplug/replug re-probed and was
+  back after about 9 s (the first open failed, see Known gaps). A 116 MB
+  OTA bundle went over wlan0 in 63 s with no USB errors.
 - RX reorder: the window now syncs to the first frame of a BA session, as
   r8712u does (it ignores the firmware's ADDBA-report start sequence).
+
+## Diagnostics (removed; restore on request)
+
+Removed in r11 so normal runs are quiet. `git revert` of the r11 commit
+("r92su: remove the RX diagnostics and the test hook") brings them back:
+
+- an `rxdbg:` line every 10 s while connected and the counters change:
+  USB transfers, packets, C2H events, data frames (unicast to us,
+  multicast, CRC-flagged, HT), descriptors left over after `pkt_cnt` ran
+  out, data frames by RX rate index (0–3 CCK, 4–11 OFDM, 12+ MCS), and
+  drops by the handler that dropped them (`r92su_rx_*`);
+- `test_mark_dead` (module parameter, writable): `echo 1 >
+  /sys/module/r92su/parameters/test_mark_dead` marks the device dead on
+  the next service work, as a fatal USB error does (tests recovery).
+
+Kept, because they only print when something fails: "open: <step> failed",
+"device marked dead by <function>", the USB error reasons, "rx/tx urb …",
+and "reviving" / "restarting the interface".
