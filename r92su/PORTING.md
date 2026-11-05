@@ -151,12 +151,20 @@ Module parameters go on the kernel command line (`r92su.norxagg=1`) or in
 
 - r5/r7: probes (C-cut, 1T1R), firmware 0x11ec boots, associates (WPA2-PSK,
   CCMP), DHCP lease. r7 reports the signal in dBm.
-- r7: broadcast and ARP work both ways, and TX at normal rates works (UDP
-  from the board arrives). Unicast IP *to* the board mostly never arrives,
-  not even at the driver's counters, with or without `noht`/`norxagg`.
-  Under investigation; r8 adds RX diagnostics (an `rxdbg:` line every 10 s
-  while connected: transfers, packets, unicast/multicast, CRC, HT, rates,
-  descriptors left after pkt_cnt ran out, drops by handler).
+- r9 works both ways: a 5 MB TCP download over wlan0 at 34.8 Mbit/s
+  (wlan0 rx +5.18 MB, eth0 +674 bytes), checksum intact; RX mostly MCS 7,
+  ~3.3 packets per USB transfer (RX aggregation), 30 late frames dropped by
+  the reorder buffer. `rxdbg:` lines (every 10 s while connected) show the
+  counters.
+- "Unicast IP never arrives" (r7) was the test setup, not the driver: eth0
+  and wlan0 on the same subnet. ARP flux made eth0 answer for wlan0's
+  address (the router and the PC sent replies to eth0's MAC), and strict
+  rp_filter dropped what did arrive on wlan0. With arp_ignore=1,
+  arp_announce=2 and rp_filter=2 it works. That's an appliance setting,
+  not a driver one, and it affects the onboard WL1271 too.
+- r8 (diagnostics) hung at boot: rx_alignment was 0 until open's late MAC
+  setup, and the leftover scan didn't advance (soft lockup, the trial boot
+  fell back to r7). Fixed in r9: 128 from the start.
 - r7: once open failed after boot, every later open said -EAGAIN (state not
   STOP) until a rebind. r8 logs the failing open step and who marks the
   device dead.
